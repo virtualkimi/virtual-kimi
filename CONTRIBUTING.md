@@ -50,7 +50,7 @@ We are committed to providing a welcoming and inclusive environment for all cont
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/virtual-kimi.git
+git clone https://github.com/virtualkimi/virtual-kimi.git
 cd virtual-kimi
 
 # Open in browser
@@ -368,3 +368,4 @@ Include the following information:
 - Help others when possible
 
 Thank you for contributing to Virtual Kimi! Your efforts help create a better AI companion experience for everyone.
+
