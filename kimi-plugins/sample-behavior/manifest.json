@@ -1,0 +1,9 @@
+{
+    "name": "Sample Behavior",
+    "type": "behavior",
+    "description": "A sample AI behavior plugin for Kimi, adds a playful mode.",
+    "version": "1.0.0",
+    "author": "Kimi Team",
+    "main": "behavior.js",
+    "enabled": false
+}

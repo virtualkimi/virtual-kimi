@@ -1,0 +1,1699 @@
+/* ===== CONSOLIDATED CSS VARIABLES - ENHANCED DYNAMIC THEMING ===== */
+:root {
+    /* Core Theme Colors - Default Pink Passion */
+    --primary-color: #ff6b9d;
+    --secondary-color: #ffeaa7;
+    --accent-color: #fd79a8;
+    --background-overlay: rgba(255, 107, 157, 0.15);
+    --interface-opacity: 0.7;
+    --gradient-start: #ff6b9d;
+    --gradient-end: #fd79a8;
+    --text-glow: 0 0 10px rgba(255, 107, 157, 0.5);
+    --button-hover: rgba(255, 107, 157, 0.3);
+    --animations-enabled: 1;
+    --switch-color: var(--primary-color);
+
+    /* Contrast and Accessibility */
+    --contrast-ratio: 4.5; /* WCAG AA standard */
+    --text-on-primary: #ffffff;
+    --text-on-secondary: #222222;
+    --text-on-accent: #ffffff;
+    --text-on-background: #ffffff;
+    --border-opacity: 0.3;
+    --hover-opacity: 0.15;
+    --active-opacity: 0.25;
+
+    /* UI Component Colors - Chat Interface */
+    --chat-bg: rgba(255, 107, 157, 0.9);
+    --chat-text: var(--text-on-primary);
+    --chat-header-bg: rgba(255, 255, 255, 0.05);
+    --chat-border: var(--primary-color);
+    --chat-input-bg: rgba(255, 255, 255, 0.1);
+    --chat-input-text: var(--text-on-background);
+    --chat-input-placeholder: rgba(255, 255, 255, 0.6);
+    --chat-message-user-bg: var(--primary-color);
+    --chat-message-user-text: var(--text-on-primary);
+    --chat-message-kimi-bg: rgba(255, 255, 255, 0.15);
+    --chat-message-kimi-text: var(--text-on-background);
+
+    /* Modal & Overlay Colors */
+    --modal-bg: rgba(255, 107, 157, 0.95);
+    --modal-border: var(--primary-color);
+    --modal-header-bg: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    --modal-text: var(--text-on-primary);
+    --modal-title-color: var(--text-on-secondary);
+    --modal-overlay-bg: rgba(0, 0, 0, 0.8);
+    --modal-close-hover-bg: rgba(255, 255, 255, 0.2);
+
+    /* Settings Panel & Tabs */
+    --settings-bg: #181018;
+    --settings-text: var(--text-on-background);
+    --settings-tab-bg: #1a1a1a;
+    --settings-tab-color: #bfa6b6;
+    --settings-tab-hover-bg: rgba(255, 255, 255, var(--hover-opacity));
+    --settings-tab-hover-color: rgba(255, 255, 255, 0.9);
+    --settings-tab-active-bg: var(--primary-color);
+    --settings-tab-active-color: var(--text-on-primary);
+    --settings-tab-border: var(--primary-color);
+    --settings-section-bg: #22121a;
+    --settings-section-border: rgba(255, 107, 157, var(--border-opacity));
+    --settings-section-header-color: var(--text-on-background);
+
+    /* Form Element Colors */
+    --input-bg: rgba(255, 255, 255, 0.1);
+    --input-text: var(--text-on-background);
+    --input-border: var(--primary-color);
+    --input-focus-bg: rgba(255, 255, 255, var(--hover-opacity));
+    --input-focus-border: var(--accent-color);
+    --input-placeholder: rgba(255, 255, 255, 0.6);
+
+    /* Button Colors */
+    --button-primary-bg: var(--primary-color);
+    --button-primary-text: var(--text-on-primary);
+    --button-primary-hover-bg: var(--accent-color);
+    --button-secondary-bg: rgba(255, 255, 255, 0.1);
+    --button-secondary-text: var(--text-on-background);
+    --button-secondary-hover-bg: rgba(255, 255, 255, var(--hover-opacity));
+    --button-danger-bg: #e74c3c;
+    --button-danger-text: #ffffff;
+    --button-danger-hover-bg: #c0392b;
+
+    /* Select & Dropdown Options */
+    --select-bg: var(--input-bg);
+    --select-text: var(--input-text);
+    --select-border: var(--input-border);
+    --select-option-bg: rgba(40, 44, 52, 0.95);
+    --select-option-text: white;
+    --select-option-hover-bg: var(--primary-color);
+    --select-option-hover-text: var(--text-on-primary);
+    --select-option-checked-bg: var(--accent-color);
+    --select-option-checked-text: var(--text-on-accent);
+    --select-option-disabled-bg: rgba(40, 44, 52, 0.5);
+    --select-option-disabled-text: #666;
+
+    /* Slider Components */
+    --slider-track-bg: rgba(255, 255, 255, 0.1);
+    --slider-track-active-bg: var(--primary-color);
+    --slider-thumb-bg: var(--primary-color);
+    --slider-thumb-hover-bg: var(--accent-color);
+    --slider-value-bg: #181018;
+    --slider-value-border: var(--primary-color);
+    --slider-value-color: var(--text-on-background);
+
+    /* Toggle Switch */
+    --switch-bg-inactive: rgba(255, 255, 255, 0.15);
+    --switch-bg-active: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+    --switch-thumb-color: #ffffff;
+    --switch-thumb-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+
+    /* Mic Button & Pulse Effect */
+    --mic-button-bg: var(--button-hover);
+    --mic-button-border: var(--primary-color);
+    --mic-button-shadow: 0 0 15px var(--primary-color);
+    --mic-button-hover-bg: var(--primary-color);
+    --mic-button-hover-shadow: var(--text-glow);
+    --mic-button-icon-color: var(--text-on-primary);
+    --mic-listening-border: #27ae60;
+    --mic-listening-shadow: 0 0 15px #27ae60;
+    --mic-pulse-color: rgba(39, 174, 96, 0.5);
+    --mic-pulse-listening-color: rgba(39, 174, 96, 0.4);
+
+    /* Cards & Stats */
+    --card-bg: rgba(255, 255, 255, 0.05);
+    --card-border: rgba(255, 255, 255, 0.1);
+    --card-hover-bg: rgba(255, 255, 255, 0.08);
+    --card-text: var(--text-on-background);
+    --stat-value-color: var(--primary-color);
+    --stat-label-color: rgba(255, 255, 255, 0.7);
+
+    /* Plugin Cards */
+    --plugin-card-bg: linear-gradient(135deg, #22121a 80%, var(--modal-bg) 100%);
+    --plugin-card-border: var(--primary-color);
+    --plugin-card-title-color: var(--text-on-background);
+    --plugin-card-desc-color: #e0cfe6;
+    --plugin-card-author-color: #bfa6b6;
+    --plugin-type-badge-bg: var(--accent-color);
+    --plugin-type-badge-text: var(--text-on-accent);
+    --plugin-active-badge-bg: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+    --plugin-active-badge-text: var(--text-on-primary);
+
+    /* Help Modal */
+    --help-modal-bg: var(--modal-bg);
+    --help-modal-border: var(--modal-border);
+    --help-content-color: var(--text-on-background);
+    --help-section-border: rgba(255, 255, 255, 0.1);
+    --creator-card-bg: rgba(255, 255, 255, 0.05);
+    --creator-card-border: rgba(255, 255, 255, 0.1);
+    --creator-avatar-bg: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    --creator-name-color: var(--primary-color);
+    --creator-role-bg: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    --creator-role-color: var(--text-on-secondary);
+    --philosophy-bg: rgba(255, 154, 158, 0.1);
+    --philosophy-border: rgba(255, 154, 158, var(--border-opacity));
+    --philosophy-border-left: var(--primary-color);
+    --feature-item-bg: rgba(255, 255, 255, 0.05);
+    --feature-item-border: rgba(255, 255, 255, 0.1);
+    --feature-icon-color: #ffeaa7;
+    --feature-title-color: #ffeaa7;
+    --feature-text-color: rgba(255, 255, 255, 0.7);
+    --guide-step-bg: rgba(255, 255, 255, 0.05);
+    --guide-step-number-bg: rgba(255, 107, 157, var(--hover-opacity));
+    --guide-step-number-color: var(--primary-color);
+    --tip-item-bg: var(--feature-item-bg);
+    --tip-item-border: var(--feature-item-border);
+
+    /* Unified Scrollbar System */
+    --scrollbar-width: 8px;
+    --scrollbar-track-bg: rgba(255, 255, 255, 0.05);
+    --scrollbar-thumb-bg: rgba(255, 107, 157, 0.4);
+    --scrollbar-thumb-hover-bg: rgba(255, 107, 157, 0.6);
+    --scrollbar-thumb-active-bg: rgba(255, 107, 157, 0.8);
+    --scrollbar-corner-bg: rgba(255, 255, 255, 0.05);
+
+    /* Model Colors */
+    --model-card-bg: var(--card-bg);
+    --model-card-border: var(--card-border);
+    --model-card-hover-bg: var(--card-hover-bg);
+    --model-card-selected-border: var(--primary-color);
+    --model-card-selected-shadow: 0 0 0 2px rgba(255, 154, 158, var(--border-opacity));
+    --model-name-color: var(--text-on-background);
+    --model-description-color: rgba(255, 255, 255, 0.7);
+    --model-strength-color: var(--primary-color);
+    --model-strength-text: var(--text-on-primary);
+    --model-provider-color: var(--accent-color);
+    --model-provider-text: var(--text-on-accent);
+
+    /* Text Colors */
+    --text-primary: var(--text-on-background);
+    --text-secondary: #aaa;
+    --text-muted: rgba(255, 255, 255, 0.6);
+
+    /* Character Selection Colors */
+    --character-card-bg: var(--card-bg);
+    --character-card-border: var(--card-border);
+    --character-card-hover-bg: var(--card-hover-bg);
+    --character-selected-border: var(--primary-color);
+    --character-selected-bg: rgba(255, 107, 157, 0.13);
+    --character-name-color: var(--text-on-background);
+
+    /* Waiting Indicator */
+    --waiting-indicator-color: var(--primary-color);
+    --loading-spinner-color: var(--primary-color);
+
+    /* Progress Bar */
+    --progress-bg: rgba(255, 255, 255, 0.1);
+    --progress-fill-bg: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+    --progress-text-color: var(--text-on-background);
+
+    /* Transcript */
+    --transcript-bg: rgba(0, 0, 0, 0.7);
+    --transcript-text: var(--text-on-background);
+    --transcript-border: var(--primary-color);
+}
+
+/* ===== OPTIMIZED THEME VARIATIONS ===== */
+[data-theme="blue"] {
+    --primary-color: #74b9ff;
+    --secondary-color: #81ecec;
+    --accent-color: #0984e3;
+    --background-overlay: rgba(116, 185, 255, 0.15);
+    --gradient-start: #74b9ff;
+    --gradient-end: #0984e3;
+    --text-glow: 0 0 10px rgba(116, 185, 255, 0.5);
+    --button-hover: rgba(116, 185, 255, 0.3);
+    --modal-title-color: #0a2340;
+    --switch-color: #3498db;
+
+    /* UI Component Colors */
+    --chat-bg: rgba(116, 185, 255, 0.9);
+    --chat-border: #74b9ff;
+    --chat-message-user-bg: #74b9ff;
+    --input-border: #74b9ff;
+    --input-focus-border: #0984e3;
+
+    /* Modal & Overlay Colors */
+    --modal-bg: rgba(116, 185, 255, 0.95);
+    --modal-border: #74b9ff;
+    --modal-header-bg: linear-gradient(135deg, #74b9ff, #81ecec);
+
+    /* Settings Panel & Tabs */
+    --settings-tab-active-bg: #74b9ff;
+    --settings-section-border: #3a4a7a;
+    --settings-tab-border: #74b9ff;
+
+    /* Slider Components */
+    --slider-value-border: #0984e3;
+
+    /* Toggle Switch */
+    --switch-bg-active: linear-gradient(90deg, #74b9ff, #0984e3);
+
+    /* Mic Button & Pulse Effect */
+    --mic-button-border: #74b9ff;
+    --mic-button-shadow: 0 0 15px #74b9ff;
+    --mic-button-hover-bg: #74b9ff;
+    --mic-button-hover-shadow: 0 0 10px rgba(116, 185, 255, 0.5);
+    --mic-listening-border: #0984e3;
+    --mic-listening-shadow: 0 0 15px #0984e3;
+    --mic-pulse-color: rgba(9, 132, 227, 0.5);
+
+    /* Cards & Stats */
+    --stat-value-color: #0984e3;
+
+    /* Plugin Cards */
+    --plugin-card-border: #74b9ff;
+    --plugin-type-badge-bg: #0984e3;
+    --plugin-active-badge-bg: linear-gradient(90deg, #74b9ff, #0984e3);
+
+    /* Help Modal */
+    --creator-name-color: #0984e3;
+    --creator-avatar-bg: linear-gradient(135deg, #74b9ff, #81ecec);
+    --creator-role-bg: linear-gradient(135deg, #74b9ff, #81ecec);
+    --creator-role-color: #0a2340;
+    --philosophy-bg: rgba(116, 185, 255, 0.1);
+    --philosophy-border: rgba(116, 185, 255, 0.3);
+    --philosophy-border-left: #74b9ff;
+    --feature-icon-color: #0984e3;
+    --feature-title-color: #0984e3;
+
+    /* Select Options */
+    --select-option-hover-bg: #74b9ff;
+    --select-option-checked-bg: #0984e3;
+
+    /* Scrollbar */
+    --scrollbar-thumb-bg: rgba(116, 185, 255, 0.4);
+    --scrollbar-thumb-hover-bg: rgba(116, 185, 255, 0.6);
+    --scrollbar-thumb-active-bg: rgba(116, 185, 255, 0.8);
+
+    /* Model Colors */
+    --model-strength-color: #0984e3;
+    --model-strength-text: #fff;
+    --model-provider-color: #00b894;
+    --model-provider-text: #fff;
+
+    /* Text Colors */
+    --text-primary: #222;
+    --text-secondary: #555;
+
+    /* Character Selection Colors */
+    --character-selected-border: #0984e3;
+    --character-selected-bg: rgba(116, 185, 255, 0.13);
+}
+
+[data-theme="purple"] {
+    --primary-color: #a29bfe;
+    --secondary-color: #fd79a8;
+    --accent-color: #6c5ce7;
+    --background-overlay: rgba(162, 155, 254, 0.15);
+    --gradient-start: #a29bfe;
+    --gradient-end: #6c5ce7;
+    --text-glow: 0 0 10px rgba(162, 155, 254, 0.5);
+    --button-hover: rgba(162, 155, 254, 0.3);
+    --modal-title-color: #2d2250;
+    --switch-color: #a259ff;
+
+    /* UI Component Colors */
+    --chat-bg: rgba(162, 155, 254, 0.9);
+    --chat-border: #a29bfe;
+    --chat-message-user-bg: #a29bfe;
+    --input-border: #a29bfe;
+    --input-focus-border: #6c5ce7;
+
+    /* Modal & Overlay Colors */
+    --modal-bg: rgba(162, 155, 254, 0.95);
+    --modal-border: #a29bfe;
+    --modal-header-bg: linear-gradient(135deg, #a29bfe, #fd79a8);
+
+    /* Settings Panel & Tabs */
+    --settings-tab-active-bg: #a29bfe;
+    --settings-section-border: #4a3a7a;
+    --settings-tab-border: #a29bfe;
+    --settings-bg: #2d2250;
+
+    /* Slider Components */
+    --slider-value-border: #6c5ce7;
+
+    /* Toggle Switch */
+    --switch-bg-active: linear-gradient(90deg, #a29bfe, #6c5ce7);
+
+    /* Mic Button & Pulse Effect */
+    --mic-button-border: #a29bfe;
+    --mic-button-shadow: 0 0 15px #a29bfe;
+    --mic-button-hover-bg: #a29bfe;
+    --mic-button-hover-shadow: 0 0 10px rgba(162, 155, 254, 0.5);
+    --mic-listening-border: #6c5ce7;
+    --mic-listening-shadow: 0 0 15px #6c5ce7;
+    --mic-pulse-color: rgba(108, 92, 231, 0.5);
+
+    /* Cards & Stats */
+    --stat-value-color: #6c5ce7;
+
+    /* Plugin Cards */
+    --plugin-card-border: #a29bfe;
+    --plugin-type-badge-bg: #6c5ce7;
+    --plugin-active-badge-bg: linear-gradient(90deg, #a29bfe, #6c5ce7);
+
+    /* Help Modal */
+    --creator-name-color: #6c5ce7;
+    --creator-avatar-bg: linear-gradient(135deg, #a29bfe, #fd79a8);
+    --creator-role-bg: linear-gradient(135deg, #a29bfe, #fd79a8);
+    --creator-role-color: #2d2250;
+    --philosophy-bg: rgba(162, 155, 254, 0.1);
+    --philosophy-border: rgba(162, 155, 254, 0.3);
+    --philosophy-border-left: #a29bfe;
+    --feature-icon-color: #6c5ce7;
+    --feature-title-color: #6c5ce7;
+
+    /* Select Options */
+    --select-option-hover-bg: #a29bfe;
+    --select-option-checked-bg: #6c5ce7;
+
+    /* Scrollbar */
+    --scrollbar-thumb-bg: rgba(162, 155, 254, 0.4);
+    --scrollbar-thumb-hover-bg: rgba(162, 155, 254, 0.6);
+    --scrollbar-thumb-active-bg: rgba(162, 155, 254, 0.8);
+
+    /* Model Colors */
+    --model-strength-color: #6c5ce7;
+    --model-strength-text: #fff;
+    --model-provider-color: #fd79a8;
+    --model-provider-text: #fff;
+
+    /* Text Colors */
+    --text-primary: #2d2250;
+    --text-secondary: #555;
+
+    /* Character Selection Colors */
+    --character-selected-border: #6c5ce7;
+    --character-selected-bg: rgba(162, 155, 254, 0.13);
+
+    /* Additional Purple Theme Variables */
+    --button-primary-bg: var(--primary-color);
+    --button-primary-text: var(--text-on-primary);
+    --button-primary-hover-bg: var(--accent-color);
+    --button-secondary-bg: rgba(255, 255, 255, 0.1);
+    --button-secondary-text: var(--text-on-background);
+    --guide-step-number-color: var(--primary-color);
+    --guide-step-number-bg: rgba(162, 155, 254, var(--hover-opacity));
+    --waiting-indicator-color: var(--primary-color);
+    --progress-fill-bg: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+}
+
+[data-theme="green"] {
+    --primary-color: #27ae60;
+    --secondary-color: #2ecc71;
+    --accent-color: #16a085;
+    --background-overlay: rgba(39, 174, 96, 0.15);
+    --gradient-start: #27ae60;
+    --gradient-end: #16a085;
+    --text-glow: 0 0 10px rgba(39, 174, 96, 0.5);
+    --button-hover: rgba(39, 174, 96, 0.3);
+    --modal-title-color: #1a3d2e;
+    --switch-color: #27ae60;
+
+    /* Contrast and Accessibility for Green Theme */
+    --text-on-primary: #ffffff;
+    --text-on-secondary: #1a3d2e;
+    --text-on-accent: #ffffff;
+    --text-on-background: #ffffff;
+
+    /* UI Component Colors */
+    --chat-bg: rgba(39, 174, 96, 0.9);
+    --chat-border: #27ae60;
+    --chat-text: var(--text-on-primary);
+    --chat-message-user-bg: #27ae60;
+    --chat-message-user-text: var(--text-on-primary);
+    --chat-message-kimi-bg: rgba(255, 255, 255, 0.15);
+    --chat-message-kimi-text: var(--text-on-background);
+    --input-border: #27ae60;
+    --input-focus-border: #16a085;
+    --input-text: var(--text-on-background);
+
+    /* Modal & Overlay Colors */
+    --modal-bg: rgba(39, 174, 96, 0.95);
+    --modal-border: #27ae60;
+    --modal-header-bg: linear-gradient(135deg, #27ae60, #2ecc71);
+    --modal-text: var(--text-on-primary);
+
+    /* Settings Panel & Tabs */
+    --settings-text: var(--text-on-background);
+    --settings-tab-active-bg: #27ae60;
+    --settings-tab-active-color: var(--text-on-primary);
+    --settings-section-border: #27ae60;
+    --settings-tab-border: #27ae60;
+    --settings-section-header-color: var(--text-on-background);
+
+    /* Button Colors */
+    --button-primary-bg: var(--primary-color);
+    --button-primary-text: var(--text-on-primary);
+    --button-primary-hover-bg: var(--accent-color);
+    --button-secondary-bg: rgba(255, 255, 255, 0.1);
+    --button-secondary-text: var(--text-on-background);
+
+    /* Slider Components */
+    --slider-value-border: #16a085;
+    --slider-thumb-bg: var(--primary-color);
+    --slider-thumb-hover-bg: var(--accent-color);
+
+    /* Toggle Switch */
+    --switch-bg-active: linear-gradient(90deg, #27ae60, #16a085);
+
+    /* Mic Button & Pulse Effect */
+    --mic-button-border: #27ae60;
+    --mic-button-shadow: 0 0 15px #27ae60;
+    --mic-button-hover-bg: #27ae60;
+    --mic-button-hover-shadow: 0 0 10px rgba(39, 174, 96, 0.5);
+    --mic-button-icon-color: var(--text-on-primary);
+    --mic-listening-border: #16a085;
+    --mic-listening-shadow: 0 0 15px #16a085;
+    --mic-pulse-color: rgba(22, 160, 133, 0.5);
+    --mic-pulse-listening-color: rgba(22, 160, 133, 0.4);
+
+    /* Cards & Stats */
+    --card-text: var(--text-on-background);
+    --stat-value-color: #16a085;
+
+    /* Plugin Cards */
+    --plugin-card-border: #27ae60;
+    --plugin-card-title-color: var(--text-on-background);
+    --plugin-card-desc-color: #e0cfe6;
+    --plugin-card-author-color: #bfa6b6;
+    --plugin-type-badge-bg: #16a085;
+    --plugin-type-badge-text: var(--text-on-accent);
+    --plugin-active-badge-bg: linear-gradient(90deg, #27ae60, #16a085);
+    --plugin-active-badge-text: var(--text-on-primary);
+
+    /* Help Modal */
+    --creator-name-color: #16a085;
+    --creator-avatar-bg: linear-gradient(135deg, #27ae60, #2ecc71);
+    --creator-role-bg: linear-gradient(135deg, #27ae60, #2ecc71);
+    --creator-role-color: var(--text-on-secondary);
+    --philosophy-bg: rgba(39, 174, 96, 0.1);
+    --philosophy-border: rgba(39, 174, 96, var(--border-opacity));
+    --philosophy-border-left: #27ae60;
+    --feature-icon-color: #147190;
+    --feature-title-color: #147190;
+    --guide-step-number-color: var(--primary-color);
+    --guide-step-number-bg: rgba(39, 174, 96, var(--hover-opacity));
+
+    /* Select Options */
+    --select-option-hover-bg: #27ae60;
+    --select-option-checked-bg: #16a085;
+
+    /* Scrollbar */
+    --scrollbar-thumb-bg: rgba(39, 174, 96, 0.4);
+    --scrollbar-thumb-hover-bg: rgba(39, 174, 96, 0.6);
+    --scrollbar-thumb-active-bg: rgba(39, 174, 96, 0.8);
+
+    /* Model Colors */
+    --model-strength-color: #27ae60;
+    --model-strength-text: var(--text-on-primary);
+    --model-provider-color: #2ecc71;
+    --model-provider-text: var(--text-on-primary);
+
+    /* Text Colors */
+    --text-primary: var(--text-on-background);
+    --text-secondary: #4e6151;
+    --text-muted: rgba(255, 255, 255, 0.6);
+
+    /* Character Selection Colors */
+    --character-selected-border: #16a085;
+    --character-selected-bg: rgba(39, 174, 96, 0.13);
+    --character-name-color: var(--text-on-background);
+
+    /* Additional Green Theme Variables */
+    --waiting-indicator-color: var(--primary-color);
+    --loading-spinner-color: var(--primary-color);
+    --progress-fill-bg: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+}
+
+[data-theme="dark"] {
+    --primary-color: #5e60ce;
+    --secondary-color: #23262f;
+    --accent-color: #8b5cf6;
+    --background-overlay: rgba(24, 26, 32, 0.85);
+    --gradient-start: #5e60ce;
+    --gradient-end: #8b5cf6;
+    --text-glow: 0 0 10px rgba(94, 96, 206, 0.3);
+    --button-hover: rgba(94, 96, 206, 0.15);
+    --modal-title-color: #e0e0e0;
+    --switch-color: #5e60ce;
+
+    /* Contrast and Accessibility for Dark Theme */
+    --text-on-primary: #ffffff;
+    --text-on-secondary: #e0e0e0;
+    --text-on-accent: #ffffff;
+    --text-on-background: #e0e0e0;
+
+    /* UI Component Colors */
+    --chat-bg: rgba(24, 26, 32, 0.95);
+    --chat-border: #5e60ce;
+    --chat-text: var(--text-on-background);
+    --chat-message-user-bg: #23262f;
+    --chat-message-user-text: var(--text-on-background);
+    --chat-message-kimi-bg: #181a20;
+    --chat-message-kimi-text: var(--text-on-background);
+    --input-border: #5e60ce;
+    --input-focus-border: #8b5cf6;
+    --input-text: var(--text-on-background);
+
+    /* Modal & Overlay Colors */
+    --modal-bg: rgba(24, 26, 32, 0.98);
+    --modal-border: #5e60ce;
+    --modal-header-bg: linear-gradient(135deg, #5e60ce, #8b5cf6);
+    --modal-text: var(--text-on-background);
+
+    /* Settings Panel & Tabs */
+    --settings-bg: #0f1114;
+    --settings-text: var(--text-on-background);
+    --settings-tab-bg: #181a20;
+    --settings-tab-active-bg: #5e60ce;
+    --settings-tab-active-color: var(--text-on-primary);
+    --settings-section-bg: #1a1d23;
+    --settings-section-border: rgba(94, 96, 206, var(--border-opacity));
+    --settings-tab-border: #5e60ce;
+    --settings-section-header-color: var(--text-on-background);
+
+    /* Button Colors */
+    --button-primary-bg: var(--primary-color);
+    --button-primary-text: var(--text-on-primary);
+    --button-primary-hover-bg: var(--accent-color);
+    --button-secondary-bg: rgba(255, 255, 255, 0.05);
+    --button-secondary-text: var(--text-on-background);
+
+    /* Slider Components */
+    --slider-value-bg: #0f1114;
+    --slider-value-border: #5e60ce;
+    --slider-value-color: var(--text-on-background);
+    --slider-thumb-bg: var(--primary-color);
+    --slider-thumb-hover-bg: var(--accent-color);
+
+    /* Toggle Switch */
+    --switch-bg-inactive: rgba(255, 255, 255, 0.05);
+    --switch-bg-active: linear-gradient(90deg, #5e60ce, #8b5cf6);
+
+    /* Mic Button & Pulse Effect */
+    --mic-button-border: #5e60ce;
+    --mic-button-shadow: 0 0 15px #5e60ce;
+    --mic-button-hover-bg: #5e60ce;
+    --mic-button-hover-shadow: 0 0 10px rgba(94, 96, 206, 0.5);
+    --mic-button-icon-color: var(--text-on-primary);
+    --mic-listening-border: #8b5cf6;
+    --mic-listening-shadow: 0 0 15px #8b5cf6;
+    --mic-pulse-color: rgba(139, 92, 246, 0.5);
+    --mic-pulse-listening-color: rgba(139, 92, 246, 0.4);
+
+    /* Cards & Stats */
+    --card-bg: rgba(255, 255, 255, 0.02);
+    --card-border: rgba(255, 255, 255, 0.05);
+    --card-hover-bg: rgba(255, 255, 255, 0.05);
+    --card-text: var(--text-on-background);
+    --stat-value-color: #8b5cf6;
+
+    /* Plugin Cards */
+    --plugin-card-bg: linear-gradient(135deg, #1a1d23 80%, rgba(24, 26, 32, 0.98) 100%);
+    --plugin-card-border: #5e60ce;
+    --plugin-card-title-color: var(--text-on-background);
+    --plugin-card-desc-color: rgba(224, 224, 224, 0.7);
+    --plugin-card-author-color: rgba(224, 224, 224, 0.5);
+    --plugin-type-badge-bg: #8b5cf6;
+    --plugin-type-badge-text: var(--text-on-accent);
+    --plugin-active-badge-bg: linear-gradient(90deg, #5e60ce, #8b5cf6);
+    --plugin-active-badge-text: var(--text-on-primary);
+
+    /* Help Modal */
+    --help-modal-bg: rgba(24, 26, 32, 0.98);
+    --help-modal-border: #5e60ce;
+    --creator-card-bg: rgba(255, 255, 255, 0.02);
+    --creator-card-border: rgba(255, 255, 255, 0.05);
+    --creator-name-color: #8b5cf6;
+    --creator-avatar-bg: linear-gradient(135deg, #5e60ce, #8b5cf6);
+    --creator-role-bg: linear-gradient(135deg, #5e60ce, #8b5cf6);
+    --creator-role-color: var(--text-on-primary);
+    --philosophy-bg: rgba(94, 96, 206, 0.05);
+    --philosophy-border: rgba(94, 96, 206, var(--border-opacity));
+    --philosophy-border-left: #5e60ce;
+    --feature-item-bg: rgba(255, 255, 255, 0.02);
+    --feature-item-border: rgba(94, 96, 206, var(--border-opacity));
+    --feature-icon-color: #8b5cf6;
+    --feature-title-color: #8b5cf6;
+    --feature-text-color: rgba(224, 224, 224, 0.7);
+    --guide-step-bg: rgba(255, 255, 255, 0.02);
+    --guide-step-number-color: var(--primary-color);
+    --guide-step-number-bg: rgba(94, 96, 206, var(--hover-opacity));
+    --tip-item-bg: rgba(255, 255, 255, 0.02);
+
+    /* Select Options */
+    --select-option-bg: rgba(24, 26, 32, 0.95);
+    --select-option-text: var(--text-on-background);
+    --select-option-hover-bg: #5e60ce;
+    --select-option-checked-bg: #8b5cf6;
+
+    /* Scrollbar */
+    --scrollbar-track-bg: rgba(255, 255, 255, 0.02);
+    --scrollbar-thumb-bg: rgba(94, 96, 206, 0.4);
+    --scrollbar-thumb-hover-bg: rgba(94, 96, 206, 0.6);
+    --scrollbar-thumb-active-bg: rgba(94, 96, 206, 0.8);
+
+    /* Model Colors */
+    --model-card-bg: rgba(255, 255, 255, 0.02);
+    --model-card-border: rgba(255, 255, 255, 0.05);
+    --model-card-hover-bg: rgba(255, 255, 255, 0.05);
+    --model-card-selected-border: var(--primary-color);
+    --model-name-color: var(--text-on-background);
+    --model-description-color: rgba(224, 224, 224, 0.7);
+    --model-strength-color: #5e60ce;
+    --model-strength-text: var(--text-on-primary);
+    --model-provider-color: #8b5cf6;
+    --model-provider-text: var(--text-on-accent);
+
+    /* Text Colors */
+    --text-primary: var(--text-on-background);
+    --text-secondary: #9ca3af;
+    --text-muted: rgba(224, 224, 224, 0.6);
+
+    /* Character Selection Colors */
+    --character-card: rgba(255, 255, 255, 0.02);
+    --character-card-border: rgba(255, 255, 255, 0.05);
+    --character-card-hover-bg: rgba(255, 255, 255, 0.05);
+    --character-selected-border: #8b5cf6;
+    --character-selected-bg: rgba(94, 96, 206, 0.1);
+    --character-name-color: var(--text-on-background);
+
+    /* Additional Dark Theme Variables */
+    --waiting-indicator-color: var(--primary-color);
+    --loading-spinner-color: var(--primary-color);
+    --progress-bg: rgba(255, 255, 255, 0.05);
+    --progress-fill-bg: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+    --progress-text-color: var(--text-on-background);
+    --transcript-bg: rgba(0, 0, 0, 0.9);
+    --transcript-text: var(--text-on-background);
+    --transcript-border: var(--primary-color);
+}
+
+/* ===== ANIMATION MANAGEMENT ===== */
+/* Disable animations when requested */
+body.no-animations *,
+[data-animations="false"] * {
+    animation: none !important;
+    transition: none !important;
+}
+
+/* Important: Keep mic button animations even when animations are disabled */
+body.no-animations .mic-button,
+body.no-animations .mic-button *,
+body.no-animations .mic-button::after,
+[data-animations="false"] .mic-button,
+[data-animations="false"] .mic-button *,
+[data-animations="false"] .mic-button::after {
+    animation: revert !important;
+    transition: revert !important;
+}
+
+/* Keep loading screen animations */
+body.no-animations #loading-screen,
+body.no-animations #loading-screen *,
+[data-animations="false"] #loading-screen,
+[data-animations="false"] #loading-screen * {
+    animation: revert !important;
+    transition: revert !important;
+}
+
+/* Ensure critical hover effects remain functional */
+body.animations-enabled .kimi-button:hover,
+body.animations-enabled .control-button-unified:hover {
+    transform: translateY(-2px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body.animations-enabled .mic-button:hover {
+    transform: scale(1.1);
+    transition: all 0.2s ease;
+}
+
+/* ===== GLOBAL STYLES ===== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html,
+body {
+    height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: white;
+    overflow: hidden;
+}
+
+.video-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    background-color: #1a1a1a;
+}
+
+.bg-video.active {
+    opacity: 1;
+}
+
+.bg-video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    opacity: 0;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background-color: #1a1a1a;
+}
+
+.bg-video.transitioning {
+    opacity: 0;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+}
+
+@media (max-width: 600px) {
+    .bg-video {
+        object-fit: cover;
+        object-position: center center;
+    }
+}
+
+.content-overlay {
+    position: relative;
+    height: 100vh;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 20px;
+    background-color: var(--background-overlay);
+    opacity: var(--interface-opacity);
+    z-index: 1;
+}
+
+.top-bar {
+    width: 100%;
+    max-width: 500px;
+    text-align: center;
+    margin-top: 10px;
+}
+
+.top-bar label {
+    font-size: 1rem;
+    font-weight: 600;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+    margin-bottom: 8px;
+    display: block;
+}
+
+.progress-container {
+    width: 100%;
+    height: 12px;
+    background-color: var(--progress-bg);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    width: 50%; /* Changed from 65% to match new default favorability level */
+    background: var(--progress-fill-bg);
+    border-radius: 10px;
+    transition: width 0.5s ease-in-out;
+    box-shadow: var(--text-glow);
+}
+
+/* Center content styles can be added here if needed */
+
+.transcript-container {
+    position: absolute;
+    bottom: 180px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80%;
+    max-width: 600px;
+    padding: 15px;
+    background: var(--transcript-bg);
+    backdrop-filter: blur(10px);
+    border-radius: 10px;
+    border: 1px solid var(--transcript-border);
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+    pointer-events: none;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.transcript-container.visible {
+    opacity: 1;
+}
+
+#transcript {
+    font-size: 1.2rem;
+    color: var(--transcript-text);
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+}
+
+/* Interface de Chat avec Kimi - STYLE UNIFIÉ */
+.chat-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 350px;
+    max-width: calc(100vw - 40px);
+    height: 500px;
+    max-height: 80vh;
+    background: var(--chat-bg);
+    backdrop-filter: blur(20px);
+    border-radius: 15px;
+    border: 1px solid var(--chat-border);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    display: none;
+    flex-direction: column;
+    z-index: 1000;
+    overflow: hidden;
+    transform: translateX(400px);
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chat-container.visible {
+    display: flex;
+    flex-direction: column;
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.chat-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--chat-header-bg);
+}
+
+.chat-header h3 {
+    margin: 0;
+    color: var(--chat-text);
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.chat-header h3 i {
+    margin-right: 8px;
+    color: var(--accent-color);
+}
+
+.chat-toggle {
+    background: none;
+    border: none;
+    color: var(--chat-text);
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    font-size: 1.1rem;
+}
+
+.chat-toggle:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: scale(1.1);
+}
+
+.chat-messages {
+    flex: 1;
+    padding: 18px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.message {
+    max-width: 92%;
+    padding: 10px 14px;
+    border-radius: 16px;
+    word-wrap: break-word;
+    position: relative;
+}
+
+.message.user {
+    align-self: flex-end;
+    background: var(--chat-message-user-bg);
+    color: var(--chat-message-user-text);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.message.kimi {
+    align-self: flex-start;
+    background: var(--chat-message-kimi-bg);
+    color: var(--chat-message-kimi-text);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.message-time {
+    font-size: 0.75rem;
+    opacity: 0.7;
+    margin-top: 5px;
+}
+
+.chat-input-container {
+    padding: 15px 20px;
+    background: var(--chat-header-bg);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+#chat-input {
+    flex: 1;
+    padding: 12px 15px;
+    background: var(--chat-input-bg);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 25px;
+    color: var(--chat-input-text);
+    font-size: 0.95rem;
+    outline: none;
+    transition: all 0.3s ease;
+}
+
+#chat-input:focus {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: var(--accent-color);
+    box-shadow: 0 0 10px var(--primary-color);
+}
+
+#chat-input::placeholder {
+    color: var(--chat-input-placeholder);
+}
+
+#send-button {
+    width: 45px;
+    height: 45px;
+    background: var(--chat-message-user-bg);
+    border: none;
+    border-radius: 50%;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#send-button:hover {
+    transform: scale(1.1);
+    box-shadow:
+        var(--text-glow),
+        0 4px 15px rgba(0, 0, 0, 0.3);
+    background: var(--accent-color);
+}
+
+#send-button:active {
+    transform: scale(0.95);
+    transition: all 0.1s ease;
+}
+
+#chat-delete {
+    background: none;
+    border: none;
+    color: #d9534f;
+    font-size: 1.2em;
+    cursor: pointer;
+    margin-left: 8px;
+    transition: color 0.2s;
+}
+
+#chat-delete:hover {
+    color: #b52a1a;
+}
+
+#chat-delete i {
+    pointer-events: none;
+}
+
+.delete-message-btn {
+    background: none;
+    border: none;
+    color: #aaa;
+    cursor: pointer;
+    padding: 0 0 0 8px;
+    display: flex;
+    align-items: center;
+    transition: color 0.2s;
+}
+.delete-message-btn:hover {
+    color: #e74c3c;
+}
+.delete-message-btn i {
+    pointer-events: none;
+}
+
+/* ===== UNIFIED BUTTON COMPONENTS ===== */
+.kimi-button,
+.control-button-unified {
+    background: var(--button-primary-bg);
+    border: none;
+    border-radius: 8px;
+    color: var(--button-primary-text);
+    padding: 10px 20px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.kimi-button::before,
+.control-button-unified::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.kimi-button:hover,
+.control-button-unified:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    background: var(--button-primary-hover-bg);
+}
+
+.kimi-button:hover::before,
+.control-button-unified:hover::before {
+    left: 100%;
+}
+
+.kimi-button:active,
+.control-button-unified:active {
+    transform: translateY(0);
+    transition: all 0.1s ease;
+}
+
+.kimi-button:disabled,
+.control-button-unified:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Button Variants */
+.kimi-button.danger {
+    background: var(--button-danger-bg);
+    color: var(--button-danger-text);
+}
+.kimi-button.danger:hover {
+    background: var(--button-danger-hover-bg);
+}
+.kimi-button.success {
+    background: linear-gradient(135deg, #26de81, #20bf6b);
+}
+.kimi-button.success:hover {
+    background: linear-gradient(135deg, #20bf6b, #26de81);
+}
+.kimi-button.secondary {
+    background: var(--button-secondary-bg);
+    color: var(--button-secondary-text);
+}
+.kimi-button.secondary:hover {
+    background: var(--button-secondary-hover-bg);
+}
+
+/* Circular Control Buttons */
+.control-button-unified {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--button-hover);
+    box-shadow: var(--mic-button-shadow);
+    border: 1px solid var(--primary-color);
+}
+
+.control-button-unified:hover {
+    transform: translateY(-2px) scale(1.05);
+    background: var(--primary-color);
+    box-shadow: var(--text-glow);
+}
+
+.control-button-unified i {
+    font-size: 1.2rem;
+    transition: transform 0.3s ease;
+}
+
+.control-button-unified:hover i {
+    transform: scale(1.1);
+}
+
+/* ===== UNIFIED FORM COMPONENTS ===== */
+
+/* Select Elements */
+.kimi-select,
+.kimi-select-unified {
+    background: var(--select-bg);
+    border: 1px solid var(--select-border);
+    border-radius: 8px;
+    color: var(--select-text);
+    padding: 8px 12px;
+    font-size: 0.9rem;
+    outline: none;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    cursor: pointer;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.kimi-select:hover,
+.kimi-select-unified:hover {
+    background: var(--input-focus-bg);
+    border-color: var(--accent-color);
+    box-shadow: 0 0 10px var(--primary-color);
+}
+
+.kimi-select:focus,
+.kimi-select-unified:focus {
+    background: var(--input-focus-bg);
+    border-color: var(--input-focus-border);
+    box-shadow: 0 0 15px var(--primary-color);
+}
+
+.kimi-select option,
+.kimi-select-unified option {
+    background: var(--select-option-bg);
+    color: var(--select-option-text);
+    padding: 12px 15px;
+    border: none;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.kimi-select option:hover,
+.kimi-select-unified option:hover,
+.kimi-select option:focus,
+.kimi-select-unified option:focus {
+    background: var(--select-option-hover-bg);
+    color: var(--select-option-hover-text);
+}
+
+.kimi-select option:checked,
+.kimi-select-unified option:checked,
+.kimi-select option:selected,
+.kimi-select-unified option:selected {
+    background: var(--select-option-checked-bg);
+    color: var(--select-option-checked-text);
+    font-weight: 600;
+    box-shadow: 0 0 10px var(--primary-color);
+}
+
+/* Input Elements */
+.kimi-input,
+.kimi-input-unified {
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 8px;
+    color: var(--input-text);
+    padding: 8px 12px;
+    font-size: 0.9rem;
+    outline: none;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.kimi-input:focus,
+.kimi-input-unified:focus {
+    background: var(--input-focus-bg);
+    border-color: var(--input-focus-border);
+    box-shadow: 0 0 15px var(--primary-color);
+}
+
+.kimi-input::placeholder,
+.kimi-input-unified::placeholder {
+    color: var(--input-placeholder);
+}
+
+/* Slider Elements */
+.kimi-slider,
+.kimi-slider-unified {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--slider-track-bg);
+    outline: none;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.kimi-slider::-webkit-slider-thumb,
+.kimi-slider-unified::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--slider-thumb-bg);
+    cursor: pointer;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+}
+
+.kimi-slider::-webkit-slider-thumb:hover,
+.kimi-slider-unified::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+    background: var(--slider-thumb-hover-bg);
+    box-shadow:
+        0 4px 15px rgba(0, 0, 0, 0.4),
+        var(--text-glow);
+}
+
+.kimi-slider::-moz-range-thumb,
+.kimi-slider-unified::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--slider-thumb-bg);
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+}
+
+.kimi-slider::-moz-range-thumb:hover,
+.kimi-slider-unified::-moz-range-thumb:hover {
+    transform: scale(1.2);
+    background: var(--slider-thumb-hover-bg);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
+/* ===== CONSOLIDATED SCROLLBAR SYSTEM ===== */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb-bg) var(--scrollbar-track-bg);
+}
+
+*::-webkit-scrollbar {
+    width: var(--scrollbar-width);
+    height: var(--scrollbar-width);
+}
+
+*::-webkit-scrollbar-track {
+    background: var(--scrollbar-track-bg);
+    border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb-bg);
+    border-radius: 4px;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover-bg);
+    transform: scale(1.1);
+}
+
+*::-webkit-scrollbar-thumb:active {
+    background: var(--scrollbar-thumb-active-bg);
+}
+
+*::-webkit-scrollbar-corner {
+    background: var(--scrollbar-corner-bg);
+}
+
+/* ===== MAIN LAYOUT AND CONTROLS ===== */
+.control-buttons {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 10px;
+}
+
+.bottom-bar {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+}
+
+.favorability-text {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--progress-text-color);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.progress-container {
+    position: relative;
+}
+
+.mic-button {
+    position: relative;
+    width: 90px;
+    height: 90px;
+    background: var(--mic-button-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--mic-button-border);
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: var(--mic-button-shadow);
+}
+
+.mic-button:not(.is-listening)::after {
+    display: none;
+}
+.mic-button.is-listening.mic-pulse-active::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: var(--mic-pulse-color);
+    opacity: 0.6;
+    z-index: -1;
+    animation: micPulseRed 1.2s infinite cubic-bezier(0.66, 0, 0, 1);
+    pointer-events: none;
+}
+
+.mic-button:hover {
+    transform: scale(1.1);
+    background: var(--mic-button-hover-bg);
+    box-shadow: var(--mic-button-hover-shadow);
+}
+
+.mic-button:active {
+    transform: scale(0.95);
+}
+
+.mic-button i {
+    font-size: 28px;
+    color: var(--mic-button-icon-color);
+    transition: all 0.3s ease;
+}
+
+.mic-button.is-listening {
+    animation: pulse 1.5s infinite;
+    border: 1px solid #27ae60;
+    box-shadow: 0 0 15px #27ae60;
+}
+
+.mic-button.is-listening i {
+    animation: micPulse 0.8s infinite alternate;
+}
+
+.mic-pulse-active {
+    position: relative;
+    box-shadow: 0 0 0 0 var(--primary-color);
+    animation: micPulse 1.2s infinite cubic-bezier(0.66, 0, 0, 1);
+}
+
+.mic-button.mic-pulse-active {
+    position: relative;
+    z-index: 1;
+}
+.mic-button.mic-pulse-active::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: var(--mic-pulse-color);
+    opacity: 0.6;
+    z-index: -1;
+    animation: micPulseRed 1.2s infinite cubic-bezier(0.66, 0, 0, 1);
+    pointer-events: none;
+}
+@keyframes micPulseRed {
+    0% {
+        transform: translate(-50%, -50%) scale(0.8);
+        opacity: 0.6;
+    }
+    70% {
+        transform: translate(-50%, -50%) scale(1.2);
+        opacity: 0;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(0.8);
+        opacity: 0;
+    }
+}
+
+/* ===== CONSOLIDATED RESPONSIVE DESIGN ===== */
+@media (max-width: 768px) {
+    .content-overlay {
+        padding: 20px;
+    }
+
+    .chat-container {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        width: auto;
+        max-width: none;
+        height: calc(100vh - 20px);
+        max-height: none;
+        border-radius: 10px;
+    }
+
+    .chat-header {
+        padding: 12px 15px;
+    }
+
+    .chat-header h3 {
+        font-size: 1rem;
+    }
+
+    .control-buttons {
+        gap: 15px;
+    }
+
+    .control-button-unified {
+        width: 45px;
+        height: 45px;
+    }
+
+    .control-button-unified i {
+        font-size: 1.1rem;
+    }
+
+    .top-bar {
+        margin-top: 15px;
+    }
+
+    .top-bar label {
+        font-size: 0.9rem;
+    }
+
+    .progress-container {
+        height: 10px;
+    }
+
+    .mic-button {
+        width: 80px;
+        height: 80px;
+    }
+
+    .mic-button i {
+        font-size: 34px;
+    }
+
+    .transcript-container {
+        bottom: 200px;
+        width: 90%;
+    }
+
+    #transcript {
+        font-size: 1rem;
+    }
+
+    .message {
+        max-width: 85%;
+        padding: 10px 14px;
+        font-size: 0.9rem;
+    }
+
+    .favorability-text {
+        font-size: 0.75rem;
+    }
+
+    .control-buttons {
+        gap: 10px;
+        justify-content: space-around;
+    }
+
+    .kimi-select,
+    .kimi-select-unified,
+    .kimi-input,
+    .kimi-input-unified {
+        font-size: 16px; /* Prevents zoom on iOS */
+    }
+}
+
+@media (max-width: 600px) {
+    .content-overlay {
+        padding: 20px;
+    }
+
+    .chat-container {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        width: auto;
+        max-width: none;
+        height: calc(100vh - 20px);
+        max-height: none;
+        border-radius: 10px;
+    }
+
+    .chat-header {
+        padding: 12px 15px;
+    }
+
+    .chat-header h3 {
+        font-size: 1rem;
+    }
+
+    .control-buttons {
+        gap: 15px;
+    }
+
+    .chat-button,
+    .settings-button {
+        width: 50px;
+        height: 50px;
+    }
+
+    .chat-button i,
+    .settings-button i {
+        font-size: 20px;
+    }
+
+    .top-bar {
+        margin-top: 15px;
+    }
+
+    .top-bar label {
+        font-size: 0.9rem;
+    }
+
+    .progress-container {
+        height: 10px;
+    }
+
+    .mic-button {
+        width: 80px;
+        height: 80px;
+    }
+
+    .mic-button i {
+        font-size: 34px;
+    }
+
+    .transcript-container {
+        bottom: 200px;
+        width: 90%;
+    }
+
+    #transcript {
+        font-size: 1rem;
+    }
+
+    .message {
+        max-width: 92%;
+        padding: 10px 14px;
+        font-size: 0.9rem;
+    }
+
+    .favorability-text {
+        font-size: 0.75rem;
+    }
+}
+
+/* Animation pour l'indicateur d'attente */
+.waiting-indicator {
+    display: inline-block;
+    vertical-align: middle;
+    width: auto;
+    min-height: 0;
+    box-sizing: content-box;
+    margin-bottom: 0;
+    margin-top: 0;
+    position: static;
+    left: auto;
+    right: auto;
+}
+.waiting-indicator span {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin: 0 2px;
+    background: var(--waiting-indicator-color);
+    border-radius: 50%;
+    opacity: 0.5;
+    animation: waiting-bounce 1.4s infinite both;
+}
+.waiting-indicator span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+.waiting-indicator span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+@keyframes waiting-bounce {
+    0%,
+    80%,
+    100% {
+        transform: scale(0.7);
+        opacity: 0.5;
+    }
+    40% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}

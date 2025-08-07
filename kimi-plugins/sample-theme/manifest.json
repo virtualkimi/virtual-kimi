@@ -1,0 +1,10 @@
+{
+    "name": "Sample Blue Theme",
+    "type": "theme",
+    "description": "A sample Blue theme plugin for Kimi.",
+    "version": "1.0.0",
+    "author": "Kimi Team",
+    "main": "theme.js",
+    "style": "theme.css",
+    "enabled": false
+}

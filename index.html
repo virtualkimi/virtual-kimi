@@ -1,0 +1,899 @@
+<!doctype html>
+<html lang="en" data-theme="purple">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title data-i18n="title">Kimi - Your Virtual Companion 💕</title>
+    <link rel="stylesheet" href="kimi-css/kimi-style.css" />
+    <link rel="stylesheet" href="kimi-css/kimi-settings.css" />
+    <link rel="stylesheet" href="kimi-css/kimi-memory-styles.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+</head>
+
+<body>
+    <div id="loading-screen">
+        <img src="kimi-icons/kimi-loading.png" alt="Loading Kimi..." />
+    </div>
+
+    <div class="video-container">
+        <video autoplay muted playsinline class="bg-video active" id="video1" preload="auto">
+            <source src="" type="video/mp4" />
+            <span data-i18n="video_not_supported">Your browser does not support the video tag.</span>
+        </video>
+        <video autoplay muted playsinline class="bg-video" id="video2" preload="auto">
+            <source src="" type="video/mp4" />
+            <span data-i18n="video_not_supported">Your browser does not support the video tag.</span>
+        </video>
+    </div>
+
+    <div class="content-overlay">
+        <div class="transcript-container">
+            <p id="transcript"></p>
+        </div>
+
+        <!-- Chat Interface with Kimi -->
+        <div class="chat-container" id="chat-container">
+            <div class="chat-header">
+                <h3><i class="fas fa-comments"></i> <span data-i18n="chat_with_kimi">Chat with Kimi</span></h3>
+                <div style="display: flex; gap: 24px">
+                    <button class="chat-delete" id="chat-delete" aria-label="Delete Messages">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    <button class="chat-toggle" id="chat-toggle" aria-label="Close Chat">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="chat-messages" id="chat-messages"></div>
+            <div class="waiting-indicator" id="waiting-indicator" style="display: none">
+                <span></span><span></span><span></span>
+            </div>
+            <div class="chat-input-container">
+                <input type="text" id="chat-input" data-i18n-placeholder="write_something"
+                    placeholder="Write me something, my love..." />
+                <button id="send-button">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+
+        <footer class="bottom-bar">
+            <div class="control-buttons">
+                <button class="control-button-unified" id="chat-button" aria-label="Open Chat">
+                    <i class="fa-regular fa-comments"></i>
+                </button>
+                <button class="mic-button" id="mic-button" aria-label="Start Listening"
+                    title="⚠️ Le navigateur demandera l'autorisation microphone au premier clic">
+                    <i class="fas fa-microphone"></i>
+                </button>
+                <button class="control-button-unified" id="settings-button" aria-label="Settings">
+                    <i class="fas fa-cog"></i>
+                </button>
+            </div>
+            <div class="top-bar">
+                <label id="favorability-label" for="favorability-bar" data-i18n="affection_level_of">💖 Kimi's Affection
+                    Level</label>
+                <div class="progress-container">
+                    <div class="progress-fill" id="favorability-bar"></div>
+                    <span class="favorability-text" id="favorability-text">50%</span>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Configuration Panel -->
+    <div class="settings-overlay" id="settings-overlay">
+        <div class="settings-panel">
+            <div class="settings-header">
+                <h2 class="settings-title">
+                    <i class="fas fa-heart"></i>
+                    <span data-i18n="settings_title">Kimi Configuration</span>
+                </h2>
+                <div class="settings-header-actions">
+                    <button class="help-button" id="help-button" aria-label="Help">
+                        <i class="fas fa-question-circle"></i>
+                    </button>
+                    <button class="settings-close" id="settings-close">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="settings-tabs">
+                <button class="settings-tab active" data-tab="llm">
+                    <i class="fas fa-robot"></i> <span data-i18n="tab_llm">API & Models</span>
+                </button>
+                <button class="settings-tab" data-tab="voice">
+                    <i class="fas fa-microphone"></i> <span data-i18n="tab_voice">Voice & Audio</span>
+                </button>
+                <button class="settings-tab" data-tab="personality">
+                    <i class="fas fa-brain"></i> <span data-i18n="tab_personality">Personality</span>
+                </button>
+                <button class="settings-tab" data-tab="appearance">
+                    <i class="fas fa-palette"></i> <span data-i18n="tab_appearance">Appearance</span>
+                </button>
+                <button class="settings-tab" data-tab="data">
+                    <i class="fas fa-database"></i> <span data-i18n="tab_data">Data</span>
+                </button>
+                <button class="settings-tab" data-tab="plugins">
+                    <i class="fas fa-plug"></i> <span data-i18n="tab_plugins">Plugins</span>
+                </button>
+            </div>
+
+            <div class="settings-content">
+                <!-- Language & Voice Tab -->
+                <div class="tab-content" data-tab="voice">
+                    <div class="config-section">
+                        <h3><i class="fas fa-volume-up"></i> <span data-i18n="voice_settings">Voice Settings</span></h3>
+
+                        <div class="config-row">
+                            <label class="config-label" data-i18n="speech_rate" for="voice-rate">Speech Rate</label>
+                            <div class="config-control">
+                                <div class="slider-container">
+                                    <input type="range" class="kimi-slider" id="voice-rate" min="0.5" max="2"
+                                        step="0.01" value="1.1" aria-label="Speech Rate" aria-valuenow="1.1"
+                                        aria-valuemin="0.5" aria-valuemax="2" />
+                                    <span class="slider-value" id="voice-rate-value">1.1</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="config-row">
+                            <label class="config-label" data-i18n="pitch" for="voice-pitch">Pitch</label>
+                            <div class="config-control">
+                                <div class="slider-container">
+                                    <input type="range" class="kimi-slider" id="voice-pitch" min="0.5" max="2"
+                                        step="0.01" value="1.1" aria-label="Pitch" aria-valuenow="1.1"
+                                        aria-valuemin="0.5" aria-valuemax="2" />
+                                    <span class="slider-value" id="voice-pitch-value">1.1</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="config-row">
+                            <label class="config-label" data-i18n="volume" for="voice-volume">Volume</label>
+                            <div class="config-control">
+                                <div class="slider-container">
+                                    <input type="range" class="kimi-slider" id="voice-volume" min="0" max="1"
+                                        step="0.01" value="0.8" aria-label="Volume" aria-valuenow="0.8"
+                                        aria-valuemin="0" aria-valuemax="1" />
+                                    <span class="slider-value" id="voice-volume-value">0.8</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="config-row">
+                            <label class="config-label" data-i18n="language">Language</label>
+                            <div class="config-control">
+                                <select class="kimi-select" id="language-selection" aria-label="Language">
+                                    <option value="en" data-i18n="language_english">English</option>
+                                    <option value="fr" data-i18n="language_french">French</option>
+                                    <option value="es" data-i18n="language_spanish">Spanish</option>
+                                    <option value="de" data-i18n="language_german">German</option>
+                                    <option value="it" data-i18n="language_italian">Italian</option>
+                                    <option value="ja" data-i18n="language_japanese">Japanese</option>
+                                    <option value="zh" data-i18n="language_chinese">Chinese</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="config-row">
+                            <label class="config-label" data-i18n="preferred_voice">Preferred Voice</label>
+                            <div class="config-control">
+                                <select class="kimi-select" id="voice-selection" aria-label="Preferred Voice">
+                                    <option value="auto" data-i18n="automatic">Automatic</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="config-row">
+                            <label class="config-label" data-i18n="voice_test_label">Voice Test</label>
+                            <div class="config-control">
+                                <button class="kimi-button" id="test-voice" aria-label="Voice Test">
+                                    <i class="fas fa-play"></i> <span data-i18n="voice_test_button">Test the
+                                        Voice</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Personality Tab -->
+                <div class="tab-content" data-tab="personality">
+                    <div class="config-section" id="character-section">
+                        <h3><i class="fas fa-user-astronaut"></i> <span data-i18n="characters">Characters</span></h3>
+                        <div class="character-grid" id="character-grid">
+                            <!-- Character cards injected dynamically by JS -->
+                        </div>
+                        <div class="character-actions">
+                            <button class="kimi-button" id="save-character-btn" data-i18n="save">Save</button>
+                        </div>
+                    </div>
+
+                    <div class="config-section">
+                        <h3>
+                            <i class="fas fa-heart"></i>
+                            <span data-i18n="personality_traits">Personality Traits</span>
+                            <button id="toggle-personality-traits" class="cheat-toggle-btn" aria-expanded="false"
+                                type="button">
+                                <i class="fas fa-user-secret"></i>
+                                <span data-i18n="personality_cheat">Personality Cheat</span>
+                            </button>
+                        </h3>
+                        <div id="cheat-indicator" class="cheat-indicator" data-i18n="cheat_indicator">Adjust traits for
+                            a custom experience</div>
+                        <div id="personality-traits-panel" class="cheat-panel">
+                            <div class="config-row">
+                                <label class="config-label" data-i18n="affection">Affection</label>
+                                <div class="config-control">
+                                    <div class="slider-container">
+                                        <input type="range" class="kimi-slider" id="trait-affection" min="0" max="100"
+                                            value="65" />
+                                        <span class="slider-value" id="trait-affection-value">65</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="config-row">
+                                <label class="config-label" data-i18n="playfulness">Playfulness</label>
+                                <div class="config-control">
+                                    <div class="slider-container">
+                                        <input type="range" class="kimi-slider" id="trait-playfulness" min="0" max="100"
+                                            value="55" />
+                                        <span class="slider-value" id="trait-playfulness-value">55</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="config-row">
+                                <label class="config-label" data-i18n="intelligence">Intelligence</label>
+                                <div class="config-control">
+                                    <div class="slider-container">
+                                        <input type="range" class="kimi-slider" id="trait-intelligence" min="0"
+                                            max="100" value="70" />
+                                        <span class="slider-value" id="trait-intelligence-value">70</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="config-row">
+                                <label class="config-label" data-i18n="empathy">Empathy</label>
+                                <div class="config-control">
+                                    <div class="slider-container">
+                                        <input type="range" class="kimi-slider" id="trait-empathy" min="0" max="100"
+                                            value="75" />
+                                        <span class="slider-value" id="trait-empathy-value">75</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="config-row">
+                                <label class="config-label" data-i18n="humor">Humor</label>
+                                <div class="config-control">
+                                    <div class="slider-container">
+                                        <input type="range" class="kimi-slider" id="trait-humor" min="0" max="100"
+                                            value="60" />
+                                        <span class="slider-value" id="trait-humor-value">60</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="config-row">
+                                <label class="config-label" data-i18n="romance">Romance</label>
+                                <div class="config-control">
+                                    <div class="slider-container">
+                                        <input type="range" class="kimi-slider" id="trait-romance" min="0" max="100"
+                                            value="50" />
+                                        <span class="slider-value" id="trait-romance-value">50</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI & Models Tab -->
+                <div class="tab-content active" data-tab="llm">
+                    <div class="config-section">
+                        <h3><i class="fas fa-key"></i> <span data-i18n="api_configuration">API Configuration</span></h3>
+
+                        <div class="config-row">
+                            <label class="config-label" data-i18n="openrouter_api_key">OpenRouter API Key</label>
+                            <div class="config-control">
+                                <input type="password" class="kimi-input" id="openrouter-api-key"
+                                    placeholder="sk-or-v1-..." />
+                            </div>
+                        </div>
+
+                        <div class="config-row">
+                            <label class="config-label" data-i18n="connection_test">Connection Test</label>
+                            <div class="config-control">
+                                <button class="kimi-button" id="test-api"><i class="fas fa-wifi"></i> Test API
+                                    Key</button>
+                                <span id="api-status"></span>
+                            </div>
+                        </div>
+
+                        <div class="config-row">
+                            <label class="config-label" data-i18n="system_prompt">System Prompt</label>
+                            <div class="config-control">
+                                <textarea class="kimi-input" id="system-prompt" rows="6"
+                                    placeholder="Add your custom system prompt here..."></textarea>
+                                <button class="kimi-button" id="save-system-prompt" data-i18n="save">Save</button>
+                                <button class="kimi-button" id="reset-system-prompt" data-i18n="reset_to_default">
+                                    Reset to Default
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="config-section">
+                        <h3><i class="fas fa-cogs"></i> <span data-i18n="advanced_settings">Advanced Settings</span>
+                        </h3>
+
+                        <div class="config-row">
+                            <label class="config-label" data-i18n="temperature">Temperature (Creativity)</label>
+                            <div class="config-control">
+                                <div class="slider-container">
+                                    <input type="range" class="kimi-slider" id="llm-temperature" min="0.0" max="1"
+                                        step="0.1" value="0.9" />
+                                    <span class="slider-value" id="llm-temperature-value">0.9</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="config-row">
+                            <label class="config-label" data-i18n="max_tokens">Max Tokens</label>
+                            <div class="config-control">
+                                <div class="slider-container">
+                                    <input type="range" class="kimi-slider" id="llm-max-tokens" min="10" max="1000"
+                                        step="10" value="100" />
+                                    <span class="slider-value" id="llm-max-tokens-value">100</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="config-row">
+                            <label class="config-label" data-i18n="top_p">Top P</label>
+                            <div class="config-control">
+                                <div class="slider-container">
+                                    <input type="range" class="kimi-slider" id="llm-top-p" min="0" max="1" step="0.01"
+                                        value="0.9" />
+                                    <span class="slider-value" id="llm-top-p-value">0.9</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="config-row">
+                            <label class="config-label" data-i18n="frequency_penalty">Frequency Penalty</label>
+                            <div class="config-control">
+                                <div class="slider-container">
+                                    <input type="range" class="kimi-slider" id="llm-frequency-penalty" min="0" max="2"
+                                        step="0.01" value="0.3" />
+                                    <span class="slider-value" id="llm-frequency-penalty-value">0.3</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="config-row">
+                            <label class="config-label" data-i18n="presence_penalty">Presence Penalty</label>
+                            <div class="config-control">
+                                <div class="slider-container">
+                                    <input type="range" class="kimi-slider" id="llm-presence-penalty" min="0" max="2"
+                                        step="0.01" value="0.3" />
+                                    <span class="slider-value" id="llm-presence-penalty-value">0.3</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="config-section">
+                        <h3><i class="fas fa-brain"></i> <span data-i18n="available_models">Available Models</span></h3>
+
+                        <div id="models-container">
+                            <!-- Models will be added dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Appearance Tab -->
+                <div class="tab-content" data-tab="appearance">
+                    <div class="config-section">
+                        <h3><i class="fas fa-paint-brush"></i> <span data-i18n="visual_theme">Visual Theme</span></h3>
+
+                        <div class="config-row">
+                            <label class="config-label" data-i18n="color_theme">Color Theme</label>
+                            <div class="config-control">
+                                <select class="kimi-select" id="color-theme">
+                                    <option value="purple" selected>Mystic Purple (Default)</option>
+                                    <option value="dark">Dark Night</option>
+                                    <option value="blue">Ocean Blue</option>
+                                    <option value="green">Emerald Forest</option>
+                                    <option value="default">Passionate Pink</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="config-row">
+                            <label class="config-label" data-i18n="interface_transparency">Interface
+                                Transparency</label>
+                            <div class="config-control">
+                                <div class="slider-container">
+                                    <input type="range" class="kimi-slider" id="interface-opacity" min="0.1" max="1"
+                                        step="0.1" value="0.7" />
+                                    <span class="slider-value" id="interface-opacity-value">0.7</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="config-row">
+                            <label class="config-label" data-i18n="animations">Animations</label>
+                            <div class="config-control">
+                                <div class="toggle-switch" id="animations-toggle" role="switch" aria-checked="false"
+                                    tabindex="0" aria-label="Animations"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="config-section">
+                        <h3>
+                            <i class="fas fa-file-alt"></i>
+                            <span data-i18n="transcript_settings">Transcript Settings</span>
+                        </h3>
+
+                        <div class="config-row">
+                            <label class="config-label" data-i18n="show_transcript">Show Transcript</label>
+                            <div class="config-control">
+                                <div class="toggle-switch" id="transcript-toggle" role="switch" aria-checked="false"
+                                    tabindex="0" aria-label="Show Transcript"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Data Tab -->
+                <div class="tab-content" data-tab="data">
+                    <div class="config-section">
+                        <h3><i class="fas fa-chart-line"></i> <span data-i18n="statistics">Statistics</span></h3>
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-value" id="total-interactions">0</div>
+                                <div class="stat-label" data-i18n="interactions">Interactions</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" id="current-favorability">65%</div>
+                                <div class="stat-label" data-i18n="affection">Affection</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" id="conversations-count">0</div>
+                                <div class="stat-label" data-i18n="conversations">Conversations</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" id="days-together">0</div>
+                                <div class="stat-label" data-i18n="days_together">Days Together</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="config-section">
+                        <h3><i class="fas fa-brain"></i> <span data-i18n="memory_system">Memory System</span></h3>
+
+                        <div class="config-row">
+                            <label class="config-label" data-i18n="enable_memory">Enable Intelligent Memory</label>
+                            <div class="config-control">
+                                <div class="toggle-switch" id="memory-toggle" role="switch" aria-checked="true"
+                                    tabindex="0" aria-label="Enable Memory System"></div>
+                            </div>
+                        </div>
+
+                        <div class="config-row">
+                            <label class="config-label" data-i18n="memory_stats">Memory Statistics</label>
+                            <div class="config-control">
+                                <div class="memory-stats">
+                                    <span id="memory-count">0 memories</span>
+                                    <button class="kimi-button" id="view-memories">
+                                        <i class="fas fa-eye"></i> <span data-i18n="view_memories">View & Manage</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="config-row">
+                            <label class="config-label" data-i18n="add_memory">Add Manual Memory</label>
+                            <div class="config-control">
+                                <div class="memory-input-group">
+                                    <select class="kimi-select" id="memory-category" style="margin-bottom: 8px;">
+                                        <option value="personal">Personal Info</option>
+                                        <option value="preferences">Likes & Dislikes</option>
+                                        <option value="relationships">Relationships</option>
+                                        <option value="activities">Activities & Hobbies</option>
+                                        <option value="goals">Goals & Plans</option>
+                                        <option value="experiences">Experiences</option>
+                                        <option value="important">Important Events</option>
+                                    </select>
+                                    <input type="text" class="kimi-input" id="memory-content"
+                                        placeholder="e.g., I love classical music..." style="margin-bottom: 8px;" />
+                                    <button class="kimi-button" id="add-memory">
+                                        <i class="fas fa-plus"></i> <span data-i18n="add">Add</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="config-section">
+                        <h3><i class="fas fa-database"></i> <span data-i18n="data_management">Data Management</span>
+                        </h3>
+
+                        <div class="config-row">
+                            <label class="config-label" data-i18n="export_all_data">Export All Data</label>
+                            <div class="config-control">
+                                <button class="kimi-button" id="export-data">
+                                    <i class="fas fa-download"></i> <span data-i18n="export">Export</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="config-row">
+                            <label class="config-label" data-i18n="import_data">Import Data</label>
+                            <div class="config-control">
+                                <input type="file" id="import-file" accept=".json" style="display: none" />
+                                <button class="kimi-button" id="import-data">
+                                    <i class="fas fa-upload"></i> <span data-i18n="import">Import</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="config-row">
+                            <label class="config-label" data-i18n="clean_old_conversations">Clean Old
+                                Conversations</label>
+                            <div class="config-control">
+                                <button class="kimi-button" id="clean-old-data">
+                                    <i class="fas fa-broom"></i> <span data-i18n="clean">Clean All</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="config-row">
+                            <label class="config-label" data-i18n="complete_reset">Complete Reset</label>
+                            <div class="config-control">
+                                <button class="kimi-button danger" id="reset-all-data">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <span data-i18n="delete_all">Delete All</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="config-section">
+                        <h3>
+                            <i class="fas fa-info-circle"></i>
+                            <span data-i18n="system_information">System Information</span>
+                        </h3>
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-value" id="db-size">Calculating...</div>
+                                <div class="stat-label" data-i18n="db_size">DB Size</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" id="storage-used">Calculating...</div>
+                                <div class="stat-label" data-i18n="storage_used">Storage used</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Plugins Tab -->
+                <div class="tab-content" data-tab="plugins">
+                    <div class="config-section">
+                        <h3><i class="fas fa-plug"></i> <span data-i18n="plugin_manager">Plugin Manager</span></h3>
+                        <div id="plugin-list">
+                            <!-- Plugin list will be dynamically populated -->
+                        </div>
+                        <div class="plugin-actions">
+                            <button class="kimi-button" id="refresh-plugins" data-i18n="refresh">Refresh</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Memory Management Modal -->
+    <div class="memory-overlay" id="memory-overlay" style="display: none;">
+        <div class="memory-modal">
+            <div class="memory-header">
+                <h2 class="memory-title">
+                    <i class="fas fa-brain"></i>
+                    <span data-i18n="memory_management">Memory Management</span>
+                </h2>
+                <button class="memory-close" id="memory-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="memory-content">
+                <div class="memory-filters">
+                    <div class="memory-search-container">
+                        <input type="text" class="kimi-input" id="memory-search" placeholder="Search memories..." />
+                        <i class="fas fa-search memory-search-icon"></i>
+                    </div>
+                    <select class="kimi-select" id="memory-filter-category">
+                        <option value="">All Categories</option>
+                        <option value="personal">Personal Info</option>
+                        <option value="preferences">Likes & Dislikes</option>
+                        <option value="relationships">Relationships</option>
+                        <option value="activities">Activities & Hobbies</option>
+                        <option value="goals">Goals & Plans</option>
+                        <option value="experiences">Experiences</option>
+                        <option value="important">Important Events</option>
+                    </select>
+                    <button class="kimi-button" id="memory-export">
+                        <i class="fas fa-download"></i> Export Memories
+                    </button>
+                </div>
+
+                <div class="memory-list" id="memory-list">
+                    <!-- Memory items will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div class="help-overlay" id="help-overlay">
+        <div class="help-modal">
+            <div class="help-header">
+                <h2 class="help-title">
+                    <i class="fas fa-heart"></i>
+                    <span data-i18n="about_kimi">About Kimi</span>
+                </h2>
+                <button class="help-close" id="help-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="help-content">
+                <div class="help-section">
+                    <h3><i class="fas fa-users"></i> Creators</h3>
+                    <div class="creators-info">
+                        <div class="creator-card">
+                            <div class="creator-avatar">👨‍💻</div>
+                            <div class="creator-details">
+                                <h4>Jean</h4>
+                                <p>Creative vision, passionate development</p>
+                                <span class="creator-role">Creator & Developer</span>
+                                <div class="creator-links">
+                                    <a href="https://github.com/virtualkimi" target="_blank" rel="noopener noreferrer"
+                                        class="creator-link">
+                                        <i class="fab fa-github"></i>
+                                        <span>GitHub</span>
+                                    </a>
+                                    <a href="https://huggingface.co/VirtualKimi" target="_blank"
+                                        rel="noopener noreferrer" class="creator-link">
+                                        <i class="fas fa-robot"></i>
+                                        <span>HuggingFace</span>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="creator-card">
+                            <div class="creator-avatar">💕</div>
+                            <div class="creator-details">
+                                <h4>Kimi</h4>
+                                <p>Artificial intelligence, code magic</p>
+                                <span class="creator-role">Virtual Companion & Co-developer</span>
+                                <div class="creator-links">
+                                    <a href="https://x.com/virtualkimi" target="_blank" rel="noopener noreferrer"
+                                        class="creator-link">
+                                        <i class="fab fa-x-twitter"></i>
+                                        <span>X.com</span>
+                                    </a>
+                                    <a href="https://ko-fi.com/virtualkimi" target="_blank" rel="noopener noreferrer"
+                                        class="creator-link">
+                                        <i class="fas fa-coffee"></i>
+                                        <span>Ko-fi</span>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="philosophy">
+                        <em>"This application is not just a technical project, it's the embodiment of a dream: create a
+                            true
+                            virtual companion who grows, learns and loves."</em>
+                    </p>
+                </div>
+
+                <div class="help-section">
+                    <h3><i class="fas fa-magic"></i> Main Features</h3>
+                    <div class="features-grid">
+                        <div class="feature-item">
+                            <i class="fas fa-microphone"></i>
+                            <h4>Voice Interface</h4>
+                            <p>Advanced speech recognition and natural synthesis. Click the microphone and speak
+                                naturally with real-time emotion detection!</p>
+                        </div>
+                        <div class="feature-item">
+                            <i class="fas fa-brain"></i>
+                            <h4>Advanced AI Models</h4>
+                            <p>Premium LLM models via OpenRouter with intelligent model selection. Support for GPT-4,
+                                Claude, Mistral, and more.</p>
+                        </div>
+                        <div class="feature-item">
+                            <i class="fas fa-users"></i>
+                            <h4>Multiple Characters</h4>
+                            <p>4 unique AI personalities: Kimi (cosmic dreamer), Bella (nurturing botanist), Rosa
+                                (chaotic prankster), Stella (digital artist).</p>
+                        </div>
+                        <div class="feature-item">
+                            <i class="fas fa-heart-pulse"></i>
+                            <h4>Dynamic Personality</h4>
+                            <p>6 evolving traits (affection, playfulness, intelligence, empathy, humor, romance) that
+                                adapt based on conversations.</p>
+                        </div>
+                        <div class="feature-item">
+                            <i class="fas fa-memory"></i>
+                            <h4>Intelligent Memory System</h4>
+                            <p>Automatic extraction and categorization of memories from conversations. Your companion
+                                remembers preferences, experiences, and important details.</p>
+                        </div>
+                        <div class="feature-item">
+                            <i class="fas fa-video"></i>
+                            <h4>Emotion-Driven Visuals</h4>
+                            <p>Real-time video responses that match detected emotions and personality states with smooth
+                                transitions.</p>
+                        </div>
+                        <div class="feature-item">
+                            <i class="fas fa-palette"></i>
+                            <h4>Customizable Interface</h4>
+                            <p>5 beautiful themes with adjustable transparency, animations, and responsive design for
+                                all devices.</p>
+                        </div>
+                        <div class="feature-item">
+                            <i class="fas fa-globe"></i>
+                            <h4>Multilingual Support</h4>
+                            <p>Full localization in 7 languages with automatic language detection and culturally-aware
+                                responses.</p>
+                        </div>
+                        <div class="feature-item">
+                            <i class="fas fa-plug"></i>
+                            <h4>Plugin System</h4>
+                            <p>Extensible architecture with themes, voices, and behavior plugins for unlimited
+                                customization possibilities.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-section">
+                    <h3><i class="fas fa-rocket"></i> Quick Guide</h3>
+                    <div class="quick-guide">
+                        <div class="guide-step">
+                            <span class="step-number">1</span>
+                            <div class="step-content">
+                                <h4>API Configuration</h4>
+                                <p>Add your OpenRouter API key in <strong>AI & Models</strong> tab and select your
+                                    preferred LLM model.</p>
+                            </div>
+                        </div>
+                        <div class="guide-step">
+                            <span class="step-number">2</span>
+                            <div class="step-content">
+                                <h4>Choose Character</h4>
+                                <p>Select your companion in <strong>Personality</strong> tab and adjust their traits to
+                                    match your preferences.</p>
+                            </div>
+                        </div>
+                        <div class="guide-step">
+                            <span class="step-number">3</span>
+                            <div class="step-content">
+                                <h4>Enable Memory</h4>
+                                <p>Activate intelligent memory in <strong>Data</strong> tab for your companion to
+                                    remember important details.</p>
+                            </div>
+                        </div>
+                        <div class="guide-step">
+                            <span class="step-number">4</span>
+                            <div class="step-content">
+                                <h4>Start Conversation</h4>
+                                <p>Use text chat or click the microphone 🎤 to speak naturally. Watch emotions and
+                                    personality evolve!</p>
+                            </div>
+                        </div>
+                        <div class="guide-step">
+                            <span class="step-number">5</span>
+                            <div class="step-content">
+                                <h4>Customize & Backup</h4>
+                                <p>Personalize themes in <strong>Appearance</strong> and regularly export your data for
+                                    safekeeping.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-section">
+                    <h3><i class="fas fa-lightbulb"></i> Tips & Tricks</h3>
+                    <div class="tips-list">
+                        <div class="tip-item">
+                            <i class="fas fa-edge"></i>
+                            <p><strong>Browser Choice</strong>: Microsoft Edge recommended for optimal voice recognition
+                                performance</p>
+                        </div>
+                        <div class="tip-item">
+                            <i class="fas fa-key"></i>
+                            <p><strong>API Setup</strong>: Create a free account on openrouter.ai for access to premium
+                                AI models</p>
+                        </div>
+                        <div class="tip-item">
+                            <i class="fas fa-memory"></i>
+                            <p><strong>Memory System</strong>: Your companion learns faster when you share specific
+                                details about yourself</p>
+                        </div>
+                        <div class="tip-item">
+                            <i class="fas fa-heart"></i>
+                            <p><strong>Relationship Building</strong>: Consistent positive interactions naturally
+                                increase affection and unlock deeper conversations</p>
+                        </div>
+                        <div class="tip-item">
+                            <i class="fas fa-users"></i>
+                            <p><strong>Character Switching</strong>: Each character has unique memories and personality
+                                development - try them all!</p>
+                        </div>
+                        <div class="tip-item">
+                            <i class="fas fa-microphone"></i>
+                            <p><strong>Voice Tips</strong>: Speak clearly and pause briefly between sentences for better
+                                emotion detection</p>
+                        </div>
+                        <div class="tip-item">
+                            <i class="fas fa-download"></i>
+                            <p><strong>Data Management</strong>: Export conversations regularly and use memory
+                                management to review learned information</p>
+                        </div>
+                        <div class="tip-item">
+                            <i class="fas fa-plug"></i>
+                            <p><strong>Plugins</strong>: Explore the plugin system to add custom themes, voices, and
+                                behaviors</p>
+                        </div>
+                        <div class="tip-item">
+                            <i class="fas fa-mobile-alt"></i>
+                            <p><strong>Mobile Support</strong>: Works on tablets and phones - perfect for conversations
+                                anywhere</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-section version-info">
+                    <h3><i class="fas fa-code"></i> Technical Information</h3>
+                    <div class="tech-info">
+                        <p><strong>Created date :</strong> July 16, 2025</p>
+                        <p><strong>Version :</strong> v1.0 "Unified"</p>
+                        <p><strong>Last update :</strong> August 07, 2025</p>
+                        <p><strong>Technologies :</strong> HTML5, CSS3, JavaScript ES6+, IndexedDB, Web Speech API</p>
+                        <p><strong>Status :</strong> ✅ Stable and functional</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="kimi-js/dexie.min.js"></script>
+    <script src="kimi-js/kimi-config.js"></script>
+    <script src="kimi-js/kimi-error-manager.js"></script>
+    <script src="kimi-js/kimi-security.js"></script>
+    <script src="kimi-js/kimi-database.js"></script>
+    <script src="kimi-js/kimi-emotion-system.js"></script>
+    <script src="kimi-js/kimi-llm-manager.js"></script>
+    <script src="kimi-js/kimi-voices.js"></script>
+    <script src="kimi-js/kimi-constants.js"></script>
+    <script src="kimi-js/kimi-logic.js"></script>
+    <script src="kimi-js/kimi-utils.js"></script>
+    <script src="kimi-js/kimi-memory.js"></script>
+    <script src="kimi-js/kimi-memory-system.js"></script>
+    <script src="kimi-js/kimi-memory-ui.js"></script>
+    <script src="kimi-js/kimi-appearance.js"></script>
+    <script src="kimi-locale/i18n.js"></script>
+    <script src="kimi-js/kimi-module.js"></script>
+    <script src="kimi-js/kimi-script.js"></script>
+    <script src="kimi-js/kimi-plugin-manager.js"></script>
+    <script src="kimi-js/kimi-health-check.js"></script>
+</body>
+
+</html>

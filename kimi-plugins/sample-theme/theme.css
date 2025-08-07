@@ -1,0 +1,139 @@
+[data-theme="plugin-sample-theme"] {
+    --primary-color: #3b82f6;
+    --secondary-color: #a5b4fc;
+    --accent-color: #6366f1;
+    --background-overlay: rgba(59, 130, 246, 0.15);
+    --gradient-start: #3b82f6;
+    --gradient-end: #6366f1;
+    --text-glow: 0 0 10px rgba(59, 130, 246, 0.5);
+    --button-hover: rgba(59, 130, 246, 0.3);
+    --switch-color: #fff;
+
+    /* Modal & Overlay Colors */
+    --modal-bg: #181f2a;
+    --modal-border: #3b82f6;
+    --modal-header-bg: linear-gradient(135deg, #3b82f6 80%, #181f2a 100%);
+    --modal-text: #e0e7ef;
+    --modal-title-color: #fff;
+    --modal-overlay-bg: rgba(0, 0, 0, 0.8);
+
+    /* Settings Panel & Tabs */
+    --settings-bg: #0f1419;
+    --settings-tab-bg: #131a26;
+    --settings-tab-color: #8a9aad;
+    --settings-tab-hover-bg: rgba(59, 130, 246, 0.1);
+    --settings-tab-hover-color: #e0e7ef;
+    --settings-tab-active-bg: #3b82f6;
+    --settings-tab-active-color: #fff;
+    --settings-tab-border: #3b82f6;
+    --settings-section-bg: #232a3a;
+    --settings-section-border: #3b4a6a;
+
+    /* Form Elements */
+    --input-bg: #232a3a;
+    --input-border: #3b82f6;
+    --input-focus-bg: #181f2a;
+    --input-focus-border: #6366f1;
+    --input-placeholder: #a5b4fc;
+
+    /* Select Options */
+    --select-option-bg: #232a3a;
+    --select-option-text: #e0e7ef;
+    --select-option-hover-bg: #3b82f6;
+    --select-option-hover-text: #fff;
+    --select-option-checked-bg: #6366f1;
+    --select-option-checked-text: #fff;
+    --select-option-disabled-bg: #222;
+    --select-option-disabled-text: #666;
+
+    /* Slider Components */
+    --slider-value-bg: #0f1419;
+    --slider-value-border: #6366f1;
+    --slider-value-color: #e0e7ef;
+
+    /* Toggle Switch */
+    --switch-bg-inactive: #2a3442;
+    --switch-bg-active: linear-gradient(90deg, #3b82f6, #6366f1);
+    --switch-thumb-color: #fff;
+    --switch-thumb-shadow: 0 2px 8px #000;
+
+    /* Mic Button & Pulse Effect */
+    --mic-button-bg: rgba(59, 130, 246, 0.3);
+    --mic-button-border: #3b82f6;
+    --mic-button-shadow: 0 0 15px #3b82f6;
+    --mic-button-hover-bg: #3b82f6;
+    --mic-button-hover-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+    --mic-button-icon-color: white;
+    --mic-listening-border: #6366f1;
+    --mic-listening-shadow: 0 0 15px #6366f1;
+    --mic-pulse-color: rgba(99, 102, 241, 0.5);
+
+    /* Cards & Stats */
+    --card-bg: rgba(59, 130, 246, 0.05);
+    --card-border: rgba(59, 130, 246, 0.2);
+    --card-hover-bg: rgba(59, 130, 246, 0.08);
+    --stat-value-color: #6366f1;
+    --stat-label-color: #a5b4fc;
+
+    /* Plugin Cards */
+    --plugin-card-bg: linear-gradient(135deg, #232a3a 80%, #181f2a 100%);
+    --plugin-card-border: #3b82f6;
+    --plugin-card-title-color: #e0e7ef;
+    --plugin-card-desc-color: #b0c4d6;
+    --plugin-card-author-color: #8a9aad;
+    --plugin-type-badge-bg: #6366f1;
+    --plugin-active-badge-bg: linear-gradient(90deg, #3b82f6, #6366f1);
+
+    /* Help Modal */
+    --help-modal-bg: #181f2a;
+    --help-modal-border: #3b82f6;
+    --help-content-color: #e0e7ef;
+    --help-section-border: rgba(59, 130, 246, 0.2);
+    --creator-card-bg: rgba(59, 130, 246, 0.05);
+    --creator-card-border: rgba(59, 130, 246, 0.2);
+    --creator-avatar-bg: linear-gradient(135deg, #3b82f6, #a5b4fc);
+    --creator-name-color: #6366f1;
+    --creator-role-bg: linear-gradient(135deg, #3b82f6, #a5b4fc);
+    --creator-role-color: #fff;
+    --philosophy-bg: rgba(59, 130, 246, 0.1);
+    --philosophy-border: rgba(59, 130, 246, 0.3);
+    --philosophy-border-left: #3b82f6;
+    --feature-item-bg: rgba(59, 130, 246, 0.05);
+    --feature-item-border: rgba(59, 130, 246, 0.2);
+    --feature-icon-color: #6366f1;
+    --feature-title-color: #6366f1;
+    --feature-text-color: #a5b4fc;
+
+    /* Scrollbar */
+    --scrollbar-thumb-bg: rgba(59, 130, 246, 0.4);
+    --scrollbar-thumb-hover-bg: rgba(59, 130, 246, 0.6);
+    --scrollbar-thumb-active-bg: rgba(59, 130, 246, 0.8);
+
+    /* Text Colors */
+    --text-primary: #e0e7ef;
+    --text-secondary: #a5b4fc;
+
+    /* Character Selection Colors */
+    --character-selected-border: #6366f1;
+    --character-selected-bg: rgba(99, 102, 241, 0.13);
+
+    /* Waiting Indicator */
+    --waiting-indicator-color: #8a9aad;
+
+    /* UI Components */
+    --chat-bg: rgba(59, 130, 246, 0.9);
+    --chat-border: #3b82f6;
+    --chat-message-user-bg: #3b82f6;
+    --input-border: #3b82f6;
+    --input-focus-border: #6366f1;
+
+    /* Model Colors */
+    --model-strength-color: #6366f1;
+    --model-strength-text: #fff;
+    --model-provider-color: #3b82f6;
+    --model-provider-text: #fff;
+}
+
+[data-theme="plugin-sample-theme"] body {
+    background: #101624;
+}

@@ -1,0 +1,9 @@
+{
+    "name": "Sample Voice",
+    "type": "voice",
+    "description": "A sample voice plugin for Kimi, adds a new synthetic voice option.",
+    "version": "1.0.0",
+    "author": "Kimi Team",
+    "main": "voice.js",
+    "enabled": false
+}
