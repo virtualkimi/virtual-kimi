@@ -64,30 +64,9 @@ window.applyTranslations = function () {
 };
 
 if (typeof document !== "undefined") {
-    // Ensure singleton instance on window
     if (!window.kimiI18nManager) {
         window.kimiI18nManager = new KimiI18nManager();
     }
-    document.addEventListener("DOMContentLoaded", async function () {
-        let lang = "en";
-        if (window.kimiDB && window.kimiDB.getPreference) {
-            lang = await window.kimiDB.getPreference("selectedLanguage", window.kimiI18nManager.detectLanguage());
-        } else {
-            lang = window.kimiI18nManager.detectLanguage();
-        }
-        await window.kimiI18nManager.setLanguage(lang);
-        const langSelect = document.getElementById("language-selection");
-        if (langSelect) {
-            langSelect.value = lang;
-            langSelect.addEventListener("change", async function (e) {
-                const selectedLang = e.target.value;
-                if (window.kimiDB && window.kimiDB.setPreference) {
-                    await window.kimiDB.setPreference("selectedLanguage", selectedLang);
-                }
-                await window.kimiI18nManager.setLanguage(selectedLang);
-            });
-        }
-    });
 }
 
 window.KimiI18nManager = KimiI18nManager;
