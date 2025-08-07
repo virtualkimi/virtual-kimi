@@ -1,3 +1,11 @@
+<div align="center">
+# Virtual Kimi - AI Companion Application 💖
+---
+[![Open Source](https://img.shields.io/badge/Open%20Source-GitHub-brightgreen?style=flat-square&logo=github)](https://github.com/virtualkimi)
+[![No Commercial Use](https://img.shields.io/badge/No%20Commercial%20Use-%F0%9F%9A%AB-red?style=flat-square)](#license)
+
+</div>
+
 # Virtual Kimi - AI Companion Application 💖
 
 A sophisticated web-based AI companion featuring adaptive personalities, intelligent memory systems, and immersive conversational experiences.
@@ -28,9 +36,6 @@ Built with vanilla JavaScript and modern web APIs, it offers a rich, responsive 
 - **Qwen3-235b-a22b-think**: 0.13$ input, 0.6$ output (262k context)
 - **Nous Hermes Llama 3.1 405B**: 0.7$ input, 0.8$ output (131k context)
 - **Local Model (Ollama)**: 0$ input, 0$ output (4k context, runs offline — _experimental, not fully functional yet_)
-- Intelligent model selection and switching
-- Real-time emotion detection and analysis
-- Contextually-aware responses
 
 ### 👥 **Multiple AI Personalities**
 
@@ -49,9 +54,12 @@ Built with vanilla JavaScript and modern web APIs, it offers a rich, responsive 
 ### 💫 **Dynamic Personality Evolution**
 
 - Six personality traits that evolve based on interactions:
-    - Affection, Playfulness, Intelligence, Empathy, Humor, Romance
+- Affection, Playfulness, Intelligence, Empathy, Humor, Romance
 - Real-time trait adjustments based on conversation tone and content
 - Visual personality indicators and progression tracking
+- Intelligent model selection and switching
+- Real-time emotion detection and analysis
+- Contextually-aware responses
 
 ### 🎬 **Emotion-Driven Visual Experience**
 
@@ -369,18 +377,17 @@ We welcome contributions! Please see our contributing guidelines:
 
 ## ✨ Inspiration & Assets
 
-This project was originally inspired by the [JackyWine GitHub repository](https://github.com/Jackywine).
+This project was originally inspired by the [JackyWine GitHub repository](https://github.com/Jackywine). @Jackywine on X (Twitter)
 
 The four main characters are visually based on images from four creators on X (Twitter):
 
-- @astroDreamer (Kimi)
-- @plantMuse (Bella)
-- @chaosJoke (Rosa)
-- @pixelVision (Stella)
+- @JulyFox33 (Kimi)
+- @belisaria1991 (Bella)
+- @JuliAIkiko (Rosa)
+- @JuliAIkiko (Stella)
   _(These are placeholder usernames; real credits will be added soon.)_
 
-All character videos were generated using the image-to-video AI from Kling.ai, specifically with the Kling v2.1 model.
-Get 50% bonus Credits in your first month with this referral code : 7BR9GT2WQ6JF - link: https://klingai.com/h5-app/invitation?code=7BR9GT2WQ6JF
+All character videos were generated using the image-to-video AI from [Kling.ai](https://kling.ai), specifically with the Kling v2.1 model.
 
 ---
 
@@ -412,7 +419,3 @@ See the [LICENSE](LICENSE) file for details.
 > "In code as in life, love is the best motivation." 💕
 >
 > — 2025 Virtual Kimi - Created with 💜 by Jean & Kimi
-
-
-
-
