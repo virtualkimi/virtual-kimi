@@ -136,8 +136,11 @@ class KimiVoiceManager {
 
         this.availableVoices = this.speechSynthesis.getVoices();
 
-        const selectedLanguage = await this.db?.getPreference("selectedLanguage", "en");
-        this.selectedLanguage = selectedLanguage || "en";
+        // Only get language from DB if not already set
+        if (!this.selectedLanguage) {
+            const selectedLanguage = await this.db?.getPreference("selectedLanguage", "en");
+            this.selectedLanguage = selectedLanguage || "en";
+        }
 
         const savedVoice = await this.db?.getPreference("selectedVoice", "auto");
 
@@ -146,7 +149,8 @@ class KimiVoiceManager {
             filteredVoices = this.availableVoices.filter(voice => voice.lang.toLowerCase().includes(this.selectedLanguage));
         }
         if (filteredVoices.length === 0) {
-            filteredVoices = this.availableVoices.filter(voice => voice.lang.toLowerCase().includes("en"));
+            // As a last resort, use any available voice rather than defaulting to English
+            filteredVoices = this.availableVoices;
         }
 
         if (savedVoice && savedVoice !== "auto") {
@@ -157,11 +161,13 @@ class KimiVoiceManager {
             if (foundVoice) {
                 this.kimiEnglishVoice = foundVoice;
                 this.updateVoiceSelector();
+                this._initializingVoices = false;
                 return;
             } else if (filteredVoices.length > 0) {
                 this.kimiEnglishVoice = filteredVoices[0];
                 await this.db?.setPreference("selectedVoice", this.kimiEnglishVoice.name);
                 this.updateVoiceSelector();
+                this._initializingVoices = false;
                 return;
             }
         }
@@ -207,7 +213,8 @@ class KimiVoiceManager {
             filteredVoices = this.availableVoices.filter(voice => voice.lang.toLowerCase().includes(this.selectedLanguage));
         }
         if (filteredVoices.length === 0) {
-            filteredVoices = this.availableVoices.filter(voice => voice.lang.toLowerCase().includes("en"));
+            // Show all voices if none match the selected language
+            filteredVoices = this.availableVoices;
         }
 
         filteredVoices.forEach(voice => {
@@ -935,9 +942,25 @@ class KimiVoiceManager {
 
     async handleLanguageChange(e) {
         const newLang = e.target.value;
+        console.log(`🎤 Language changing to: ${newLang}`);
         this.selectedLanguage = newLang;
         await this.db?.setPreference("selectedLanguage", newLang);
+
+        // Force voice reset when changing language
+        const currentVoicePref = await this.db?.getPreference("selectedVoice", "auto");
+        if (currentVoicePref === "auto") {
+            // Reset voice selection to force auto-selection for new language
+            this.kimiEnglishVoice = null;
+            console.log(`🎤 Voice reset for auto-selection in ${newLang}`);
+        }
+
         await this.initVoices();
+        console.log(
+            `🎤 Voice initialized for ${newLang}, selected voice:`,
+            this.kimiEnglishVoice?.name,
+            this.kimiEnglishVoice?.lang
+        );
+
         if (this.recognition) {
             let langCode = newLang;
             if (langCode === "fr") langCode = "fr-FR";
