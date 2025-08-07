@@ -1,6 +1,7 @@
 <div align="center">
-# Virtual Kimi - AI Companion Application 💖
----
+  
+Virtual Kimi
+
 [![Open Source](https://img.shields.io/badge/Open%20Source-GitHub-brightgreen?style=flat-square&logo=github)](https://github.com/virtualkimi)
 [![No Commercial Use](https://img.shields.io/badge/No%20Commercial%20Use-%F0%9F%9A%AB-red?style=flat-square)](#license)
 
@@ -419,3 +420,4 @@ See the [LICENSE](LICENSE) file for details.
 > "In code as in life, love is the best motivation." 💕
 >
 > — 2025 Virtual Kimi - Created with 💜 by Jean & Kimi
+
