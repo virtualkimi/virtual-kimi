@@ -931,8 +931,6 @@ class KimiVoiceManager {
         const languageSelect = document.getElementById("language-selection");
         if (!languageSelect) return;
         languageSelect.value = this.selectedLanguage || "en";
-        languageSelect.removeEventListener("change", this.handleLanguageChange);
-        languageSelect.addEventListener("change", this.handleLanguageChange.bind(this));
     }
 
     async handleLanguageChange(e) {
@@ -943,7 +941,12 @@ class KimiVoiceManager {
         if (this.recognition) {
             let langCode = newLang;
             if (langCode === "fr") langCode = "fr-FR";
-            if (langCode === "en") langCode = "en-US";
+            else if (langCode === "en") langCode = "en-US";
+            else if (langCode === "es") langCode = "es-ES";
+            else if (langCode === "de") langCode = "de-DE";
+            else if (langCode === "it") langCode = "it-IT";
+            else if (langCode === "ja") langCode = "ja-JP";
+            else if (langCode === "zh") langCode = "zh-CN";
             this.recognition.lang = langCode;
         }
     }

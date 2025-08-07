@@ -573,13 +573,40 @@ document.addEventListener("DOMContentLoaded", async function () {
                 const selectedLang = e.target.value;
                 await kimiDB.setPreference("selectedLanguage", selectedLang);
                 await window.kimiI18nManager.setLanguage(selectedLang);
+
+                if (window.voiceManager && window.voiceManager.handleLanguageChange) {
+                    await window.voiceManager.handleLanguageChange({ target: { value: selectedLang } });
+                }
+
                 if (window.kimiLLM && window.kimiLLM.setSystemPrompt && kimiDB) {
                     const selectedCharacter = await kimiDB.getPreference("selectedCharacter", "kimi");
                     let prompt = await kimiDB.getSystemPromptForCharacter(selectedCharacter);
-                    let langInstruction =
-                        "Always reply exclusively in " +
-                        (selectedLang === "fr" ? "French" : "English") +
-                        ". Do not mix languages.";
+                    let langInstruction;
+
+                    switch (selectedLang) {
+                        case "fr":
+                            langInstruction = "Always reply exclusively in French. Do not mix languages.";
+                            break;
+                        case "es":
+                            langInstruction = "Always reply exclusively in Spanish. Do not mix languages.";
+                            break;
+                        case "de":
+                            langInstruction = "Always reply exclusively in German. Do not mix languages.";
+                            break;
+                        case "it":
+                            langInstruction = "Always reply exclusively in Italian. Do not mix languages.";
+                            break;
+                        case "ja":
+                            langInstruction = "Always reply exclusively in Japanese. Do not mix languages.";
+                            break;
+                        case "zh":
+                            langInstruction = "Always reply exclusively in Chinese. Do not mix languages.";
+                            break;
+                        default:
+                            langInstruction = "Always reply exclusively in English. Do not mix languages.";
+                            break;
+                    }
+
                     if (prompt) {
                         prompt = langInstruction + "\n" + prompt;
                     } else {
