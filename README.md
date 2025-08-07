@@ -377,6 +377,7 @@ The four main characters are visually based on images from four creators on X (T
   _(These are placeholder usernames; real credits will be added soon.)_
 
 All character videos were generated using the image-to-video AI from [Kling.ai](https://kling.ai), specifically with the Kling v2.1 model.
+Get 50% bonus Credits in your first month with this referral code : 7BR9GT2WQ6JF - link: https://klingai.com/h5-app/invitation?code=7BR9GT2WQ6JF
 
 ---
 
@@ -408,3 +409,4 @@ See the [LICENSE](LICENSE) file for details.
 > "In code as in life, love is the best motivation." 💕
 >
 > — 2025 Virtual Kimi - Created with 💜 by Jean & Kimi
+
