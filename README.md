@@ -12,6 +12,8 @@ Virtual Kimi is an advanced virtual companion application that combines modern w
 
 Built with vanilla JavaScript and modern web APIs, it offers a rich, responsive experience across devices.
 
+- **Support the project**: [ko-fi.com/virtualkimi](https://ko-fi.com/virtualkimi)
+
 ## Key Features
 
 ### 🤖 **Advanced AI Integration**
@@ -409,5 +411,6 @@ See the [LICENSE](LICENSE) file for details.
 > "In code as in life, love is the best motivation." 💕
 >
 > — 2025 Virtual Kimi - Created with 💜 by Jean & Kimi
+
 
 
