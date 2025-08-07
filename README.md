@@ -21,8 +21,21 @@ Virtual Kimi is an advanced virtual companion application that combines modern w
 
 Built with vanilla JavaScript and modern web APIs, it offers a rich, responsive experience across devices.
 
+## 🌐 Support & Links
+
+- **Website**: [virtualkimi.com](https://virtualkimi.com)
+- **Email**: [ijohn@virtualkimi.com](ijohn@virtualkimi.com)
+- **X (Twitter)**: [x.com/virtualkimi](https://x.com/virtualkimi)
+- **GitHub**: [github.com/virtualkimi](https://github.com/virtualkimi)
+- **HuggingFace**: [huggingface.co/VirtualKimi](https://huggingface.co/VirtualKimi)
+- **YouTube**: [YouTube Channel](https://www.youtube.com/channel/UCitpEAj4kTjrmjhw5qsDFqA)
+
 - **Support the project**: [ko-fi.com/virtualkimi](https://ko-fi.com/virtualkimi)
   _If you like this project or want to help me (I'm currently without a permanent job), you can buy me a coffee or make a donation. Every bit helps keep Virtual Kimi alive and evolving!_
+
+- ETH Wallet: 0x836C9D2e605f98Bc7144C62Bef837627b1a9C30c
+
+---
 
 ## Key Features
 
@@ -44,6 +57,17 @@ Built with vanilla JavaScript and modern web APIs, it offers a rich, responsive 
 - **Bella**: Nurturing botanist who sees people as plants needing care
 - **Rosa**: Chaotic prankster thriving on controlled chaos
 - **Stella**: Digital artist transforming reality through pixelated vision
+
+### Personality Trait Ranges
+
+All personality traits operate on a 0-100 scale:
+
+- **Affection**: Emotional warmth and attachment
+- **Playfulness**: Fun-loving and spontaneous behavior
+- **Intelligence**: Analytical and thoughtful responses
+- **Empathy**: Understanding and emotional support
+- **Humor**: Wit and lighthearted interactions
+- **Romance**: Romantic and intimate expressions
 
 ### 🧠 **Intelligent Memory System**
 
@@ -230,17 +254,6 @@ const memoryCategories = [
 ];
 ```
 
-### Personality Trait Ranges
-
-All personality traits operate on a 0-100 scale:
-
-- **Affection**: Emotional warmth and attachment
-- **Playfulness**: Fun-loving and spontaneous behavior
-- **Intelligence**: Analytical and thoughtful responses
-- **Empathy**: Understanding and emotional support
-- **Humor**: Wit and lighthearted interactions
-- **Romance**: Romantic and intimate expressions
-
 ## 🛠️ Development
 
 ### Project Structure
@@ -405,23 +418,10 @@ See the [LICENSE](LICENSE) file for details.
 [![Open Source](https://img.shields.io/badge/Open%20Source-GitHub-brightgreen?style=flat-square&logo=github)](https://github.com/virtualkimi)
 [![No Commercial Use](https://img.shields.io/badge/No%20Commercial%20Use-%F0%9F%9A%AB-red?style=flat-square)](#license)
 
-## 🌐 Support & Links
-
-- **Website**: [virtualkimi.com](https://virtualkimi.com)
-- **Email**: [ijohn@virtualkimi.com](ijohn@virtualkimi.com)
-- **X (Twitter)**: [x.com/virtualkimi](https://x.com/virtualkimi)
-- **GitHub**: [github.com/virtualkimi](https://github.com/virtualkimi)
-- **HuggingFace**: [huggingface.co/VirtualKimi](https://huggingface.co/VirtualKimi)
-- **YouTube**: [YouTube Channel](https://www.youtube.com/channel/UCitpEAj4kTjrmjhw5qsDFqA)
-
-- **Support the project**: [ko-fi.com/virtualkimi](https://ko-fi.com/virtualkimi)
-  _If you like this project or want to help me (I'm currently without a permanent job), you can buy me a coffee or make a donation. Every bit helps keep Virtual Kimi alive and evolving!_
-
 ---
 
 **Virtual Kimi** - Creating meaningful connections between humans and AI, one conversation at a time.
 
-> "In code as in life, love is the best motivation." 💕
+> _"Love is the most powerful code"_ 💕
 >
 > — 2025 Virtual Kimi - Created with 💜 by Jean & Kimi
-
