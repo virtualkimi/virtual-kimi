@@ -1,7 +1,17 @@
-<div align="center">
-  
-Virtual Kimi
+---
+title: Virtual Kimi
+emoji: 😻
+colorFrom: purple
+colorTo: green
+sdk: static
+pinned: false
+license: openrail
+short_description: Virtual Kimi - AI Companion Application 💖
+---
 
+<div align="center">
+# Virtual Kimi - AI Companion Application 💖
+---
 [![Open Source](https://img.shields.io/badge/Open%20Source-GitHub-brightgreen?style=flat-square&logo=github)](https://github.com/virtualkimi)
 [![No Commercial Use](https://img.shields.io/badge/No%20Commercial%20Use-%F0%9F%9A%AB-red?style=flat-square)](#license)
 
@@ -378,7 +388,8 @@ We welcome contributions! Please see our contributing guidelines:
 
 ## ✨ Inspiration & Assets
 
-This project was originally inspired by the [JackyWine GitHub repository](https://github.com/Jackywine). @Jackywine on X (Twitter)
+This project was originally inspired by the [JackyWine GitHub repository](https://github.com/Jackywine). 
+@Jackywine on X (Twitter)
 
 The four main characters are visually based on images from four creators on X (Twitter):
 
@@ -386,9 +397,10 @@ The four main characters are visually based on images from four creators on X (T
 - @belisaria1991 (Bella)
 - @JuliAIkiko (Rosa)
 - @JuliAIkiko (Stella)
-  _(These are placeholder usernames; real credits will be added soon.)_
 
-All character videos were generated using the image-to-video AI from [Kling.ai](https://kling.ai), specifically with the Kling v2.1 model.
+All character videos were generated using the image-to-video AI from Kling.ai, specifically with the Kling v2.1 model.
+
+Get 50% bonus Credits in your first month with thiscode referral 7BR9GT2WQ6JF - link: [https://klingai.com](https://klingai.com/h5-app/invitation?code=7BR9GT2WQ6JF)
 
 ---
 
@@ -420,4 +432,3 @@ See the [LICENSE](LICENSE) file for details.
 > "In code as in life, love is the best motivation." 💕
 >
 > — 2025 Virtual Kimi - Created with 💜 by Jean & Kimi
-
