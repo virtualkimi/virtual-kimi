@@ -92,7 +92,7 @@ All personality traits operate on a 0-100 scale:
 
 - Real-time video responses matching detected emotions
 - Smooth transitions between emotional states
-- Character-specific visual libraries with 200+ video clips
+- Character-specific visual libraries with 50+ video clips
 - Context-aware video selection system
 
 ### 🎨 **Customizable Interface**
@@ -427,5 +427,6 @@ See the [LICENSE](LICENSE) file for details.
 > _"Love is the most powerful code"_ 💕
 >
 > — 2025 Virtual Kimi - Created with 💜 by Jean & Kimi
+
 
 
