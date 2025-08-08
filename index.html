@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="kimi-css/kimi-style.css" />
     <link rel="stylesheet" href="kimi-css/kimi-settings.css" />
     <link rel="stylesheet" href="kimi-css/kimi-memory-styles.css" />
-	
+
     <!-- SEO Meta Tags -->
     <meta name="description"
         content="Virtual Kimi is a revolutionary AI companion with evolving personality, advanced voice recognition and immersive interface. Discover the future of human-AI relationships.">
@@ -64,7 +64,7 @@
 
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-	
+
 </head>
 
 <body>
@@ -119,6 +119,9 @@
                 <button class="control-button-unified" id="chat-button" aria-label="Open Chat">
                     <i class="fa-regular fa-comments"></i>
                 </button>
+                <div class="global-typing-indicator" id="global-typing-indicator" aria-hidden="true">
+                    <span></span><span></span><span></span>
+                </div>
                 <button class="mic-button" id="mic-button" aria-label="Start Listening"
                     title="⚠️ Le navigateur demandera l'autorisation microphone au premier clic">
                     <i class="fas fa-microphone"></i>
@@ -357,7 +360,10 @@
                             <label class="config-label" data-i18n="openrouter_api_key">OpenRouter API Key</label>
                             <div class="config-control">
                                 <input type="password" class="kimi-input" id="openrouter-api-key"
-                                    placeholder="sk-or-v1-..." />
+                                    name="openrouter_api_key" placeholder="sk-or-v1-..." autocomplete="new-password"
+                                    autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="text"
+                                    aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true"
+                                    data-bwignore="true" />
                             </div>
                         </div>
 
@@ -949,7 +955,7 @@
     <script src="kimi-js/kimi-script.js"></script>
     <script src="kimi-js/kimi-plugin-manager.js"></script>
     <script src="kimi-js/kimi-health-check.js"></script>
-	
+
     <!-- Schema.org JSON-LD for better SEO -->
     <script type="application/ld+json">
     {
