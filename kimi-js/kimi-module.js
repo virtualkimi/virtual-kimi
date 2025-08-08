@@ -116,94 +116,6 @@ class KimiDataManager extends KimiBaseManager {
         }
     }
 
-    async importData(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        if (!this.db) {
-            console.error("Database not available");
-            return;
-        }
-
-        try {
-            const text = await file.text();
-            const importData = JSON.parse(text);
-
-            if (!importData.version || !importData.conversations) {
-                throw new Error("Invalid file format");
-            }
-
-            const confirmImport = confirm(
-                `Do you want to import this data?\n\n` +
-                    `Version: ${importData.version}\n` +
-                    `Export date: ${new Date(importData.exportDate).toLocaleDateString()}\n` +
-                    `Conversations: ${importData.metadata?.totalConversations || 0}\n` +
-                    `Preferences: ${importData.metadata?.totalPreferences || 0}\n\n` +
-                    `This action will replace your current data!`
-            );
-
-            if (!confirmImport) {
-                return;
-            }
-
-            // Get selected character once for reuse
-            const selectedCharacter = await this.db.getSelectedCharacter();
-
-            // Batch import for conversations
-            if (importData.conversations && importData.conversations.length > 0) {
-                const batchSize = 100;
-
-                for (let i = 0; i < importData.conversations.length; i += batchSize) {
-                    const batch = importData.conversations.slice(i, i + batchSize);
-                    const promises = batch.map(conv =>
-                        this.db.saveConversation(
-                            conv.user,
-                            conv.kimi,
-                            conv.favorability,
-                            new Date(conv.timestamp),
-                            conv.character || selectedCharacter
-                        )
-                    );
-                    await Promise.all(promises);
-                    console.log(
-                        `Batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(importData.conversations.length / batchSize)} imported`
-                    );
-                }
-            }
-
-            // Batch import for preferences
-            if (importData.preferences && Object.keys(importData.preferences).length > 0) {
-                console.log(`Batch importing ${Object.keys(importData.preferences).length} preferences`);
-                const prefsArray = Object.entries(importData.preferences).map(([key, value]) => ({ key, value }));
-                await this.db.setPreferencesBatch(prefsArray);
-            }
-
-            // Batch import for personality traits
-            if (importData.personalityTraits && Object.keys(importData.personalityTraits).length > 0) {
-                console.log(`Batch importing ${Object.keys(importData.personalityTraits).length} personality traits`);
-                await this.db.setPersonalityBatch(importData.personalityTraits);
-            }
-
-            // Batch import for models
-            if (importData.models && importData.models.length > 0) {
-                const promises = importData.models.map(model =>
-                    this.db.saveLLMModel(model.id, model.name, model.provider, model.apiKey, model.config)
-                );
-                await Promise.all(promises);
-            }
-
-            setTimeout(() => {
-                if (confirm("Do you want to reload the page to apply changes?")) {
-                    location.reload();
-                }
-            }, 2000);
-        } catch (error) {
-            console.error("Error during import:", error);
-        }
-
-        event.target.value = "";
-    }
-
     async cleanOldData() {
         if (!this.db) {
             console.error("Database not available");
@@ -1163,7 +1075,22 @@ async function loadAvailableModels() {
     try {
         const stats = await kimiLLM.getModelStats();
 
-        // Clear existing models
+        const signature = JSON.stringify(Object.keys(stats.available || {}).sort());
+
+        if (loadAvailableModels._rendered && loadAvailableModels._signature === signature) {
+            const currentId = stats.current && stats.current.id;
+            const cards = modelsContainer.querySelectorAll(".model-card");
+            cards.forEach(card => {
+                if (card.dataset.modelId === currentId) {
+                    card.classList.add("selected");
+                } else {
+                    card.classList.remove("selected");
+                }
+            });
+            loadAvailableModels._loading = false;
+            return;
+        }
+
         while (modelsContainer.firstChild) {
             modelsContainer.removeChild(modelsContainer.firstChild);
         }
@@ -1190,6 +1117,10 @@ async function loadAvailableModels() {
             const modelDiv = document.createElement("div");
             modelDiv.className = `model-card ${id === stats.current.id ? "selected" : ""}`;
             modelDiv.dataset.modelId = id;
+            const searchable = [model.name || "", model.provider || "", id, (model.strengths || []).join(" ")]
+                .join(" ")
+                .toLowerCase();
+            modelDiv.dataset.search = searchable;
 
             // Create model card elements safely
             const modelHeader = document.createElement("div");
@@ -1208,10 +1139,44 @@ async function loadAvailableModels() {
 
             const modelDescription = document.createElement("div");
             modelDescription.className = "model-description";
-            modelDescription.textContent = `Context: ${model.contextWindow.toLocaleString()} tokens | Price: ${model.pricing.input}$/1M input, ${model.pricing.output}$/1M output`;
+            const rawIn = model.pricing && typeof model.pricing.input !== "undefined" ? model.pricing.input : "N/A";
+            const rawOut = model.pricing && typeof model.pricing.output !== "undefined" ? model.pricing.output : "N/A";
+            const inNum = typeof rawIn === "number" ? rawIn : typeof rawIn === "string" ? Number(rawIn) : NaN;
+            const outNum = typeof rawOut === "number" ? rawOut : typeof rawOut === "string" ? Number(rawOut) : NaN;
+            const inIsNum = Number.isFinite(inNum);
+            const outIsNum = Number.isFinite(outNum);
+            const bothNA = !inIsNum && !outIsNum;
+            const bothZero = inIsNum && outIsNum && inNum === 0 && outNum === 0;
+            const isFreeName =
+                /free/i.test(model.name || "") ||
+                /free/i.test(id || "") ||
+                (Array.isArray(model.strengths) && model.strengths.some(s => /free/i.test(s)));
+            const fmt = n => {
+                if (!Number.isFinite(n)) return "N/A";
+                const roundedInt = Math.round(n);
+                if (Math.abs(n - roundedInt) < 1e-6) return `${roundedInt}$`;
+                return `${n.toFixed(2)}$`;
+            };
+            let inStr = inIsNum ? (inNum === 0 ? "Free" : fmt(inNum)) : "N/A";
+            let outStr = outIsNum ? (outNum === 0 ? "Free" : fmt(outNum)) : "N/A";
+            let priceText;
+            if (bothZero || isFreeName) {
+                priceText = "Price: Free";
+            } else if (bothNA) {
+                priceText = "Price: N/A";
+            } else {
+                priceText = `Price: ${inStr} per 1M input tokens, ${outStr} per 1M output tokens`;
+            }
+            modelDescription.textContent = `Context: ${model.contextWindow.toLocaleString()} tokens | ${priceText}`;
 
             const modelStrengths = document.createElement("div");
             modelStrengths.className = "model-strengths";
+            if (priceText === "Price: Free") {
+                const badge = document.createElement("span");
+                badge.className = "strength-tag";
+                badge.textContent = "Free";
+                modelStrengths.appendChild(badge);
+            }
             model.strengths.forEach(strength => {
                 const strengthTag = document.createElement("span");
                 strengthTag.className = "strength-tag";
@@ -1269,25 +1234,111 @@ async function loadAvailableModels() {
             .filter(([id]) => !recommendedIds.includes(id))
             .sort((a, b) => (a[1].name || a[0]).localeCompare(b[1].name || b[0]));
 
+        const searchWrap = document.createElement("div");
+        searchWrap.className = "models-search-container";
+        const searchInput = document.createElement("input");
+        searchInput.type = "text";
+        searchInput.className = "kimi-input";
+        searchInput.id = "models-search";
+        searchInput.placeholder = "Filter models...";
+        searchWrap.appendChild(searchInput);
+        modelsContainer.appendChild(searchWrap);
+        if (typeof loadAvailableModels._searchValue === "string") {
+            searchInput.value = loadAvailableModels._searchValue;
+        }
+
         if (recommendedEntries.length > 0) {
+            const recSection = document.createElement("div");
+            recSection.className = "models-section recommended-models";
             const title = document.createElement("div");
             title.className = "models-section-title";
             title.textContent = "Recommended models";
-            modelsContainer.appendChild(title);
+            recSection.appendChild(title);
+            const list = document.createElement("div");
+            list.className = "models-list";
             recommendedEntries.forEach(([id, model]) => {
-                modelsContainer.appendChild(createCard(id, model));
+                list.appendChild(createCard(id, model));
             });
+            recSection.appendChild(list);
+            modelsContainer.appendChild(recSection);
         }
 
         if (otherEntries.length > 0) {
-            const title = document.createElement("div");
-            title.className = "models-section-title";
-            title.textContent = "All models";
-            modelsContainer.appendChild(title);
-            otherEntries.forEach(([id, model]) => {
-                modelsContainer.appendChild(createCard(id, model));
+            const allSection = document.createElement("div");
+            allSection.className = "models-section all-models";
+            const header = document.createElement("div");
+            header.className = "models-section-title";
+            const toggleBtn = document.createElement("button");
+            toggleBtn.type = "button";
+            toggleBtn.className = "kimi-button";
+            toggleBtn.style.marginLeft = "8px";
+            toggleBtn.textContent = loadAvailableModels._allCollapsed === false ? "Hide" : "Show";
+            const label = document.createElement("span");
+            label.textContent = "All models";
+            header.appendChild(label);
+            header.appendChild(toggleBtn);
+            const refreshBtn = document.createElement("button");
+            refreshBtn.type = "button";
+            refreshBtn.className = "kimi-button";
+            refreshBtn.style.marginLeft = "8px";
+            refreshBtn.textContent = "Refresh";
+            refreshBtn.addEventListener("click", async () => {
+                try {
+                    refreshBtn.disabled = true;
+                    const oldText = refreshBtn.textContent;
+                    refreshBtn.textContent = "Refreshing...";
+                    if (window.kimiLLM && window.kimiLLM.refreshRemoteModels) {
+                        await window.kimiLLM.refreshRemoteModels();
+                    }
+                    loadAvailableModels._signature = null;
+                    loadAvailableModels._rendered = false;
+                    const savedSearch = searchInput.value;
+                    loadAvailableModels._searchValue = savedSearch;
+                    await loadAvailableModels();
+                } catch (e) {
+                    console.error("Error refreshing models:", e);
+                } finally {
+                    refreshBtn.disabled = false;
+                    refreshBtn.textContent = "Refresh";
+                }
             });
+            header.appendChild(refreshBtn);
+            const list = document.createElement("div");
+            list.className = "models-list";
+            otherEntries.forEach(([id, model]) => {
+                list.appendChild(createCard(id, model));
+            });
+            const collapsed = loadAvailableModels._allCollapsed !== false;
+            list.style.display = collapsed ? "none" : "block";
+            toggleBtn.addEventListener("click", () => {
+                const nowCollapsed = list.style.display !== "none";
+                list.style.display = nowCollapsed ? "none" : "block";
+                loadAvailableModels._allCollapsed = nowCollapsed;
+                toggleBtn.textContent = nowCollapsed ? "Show" : "Hide";
+            });
+            allSection.appendChild(header);
+            allSection.appendChild(list);
+            modelsContainer.appendChild(allSection);
         }
+
+        const applyFilter = term => {
+            const q = (term || "").toLowerCase().trim();
+            const cards = modelsContainer.querySelectorAll(".model-card");
+            cards.forEach(card => {
+                const hay = card.dataset.search || "";
+                card.style.display = q && !hay.includes(q) ? "none" : "";
+            });
+        };
+        searchInput.addEventListener("input", e => {
+            loadAvailableModels._searchValue = e.target.value;
+            applyFilter(e.target.value);
+        });
+        if (searchInput.value) {
+            applyFilter(searchInput.value);
+        }
+
+        loadAvailableModels._rendered = true;
+        loadAvailableModels._signature = signature;
     } catch (error) {
         console.error("Error loading available models:", error);
         const errorDiv = document.createElement("div");

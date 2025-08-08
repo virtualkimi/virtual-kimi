@@ -62,23 +62,19 @@ class KimiLLMManager {
     }
 
     async init() {
-        // Prefer fetching available models from OpenRouter to avoid stale IDs
         try {
             await this.refreshRemoteModels();
         } catch (e) {
             console.warn("Unable to refresh remote models list:", e?.message || e);
         }
 
-        // Load the default model
         const defaultModel = await this.db.getPreference("defaultLLMModel", "mistralai/mistral-small-3.2-24b-instruct");
         await this.setCurrentModel(defaultModel);
-
-        // Load the conversation context
         await this.loadConversationContext();
     }
+
     async setCurrentModel(modelId) {
         if (!this.availableModels[modelId]) {
-            // If remote models not yet loaded or model missing, try to refresh once and pick best match
             try {
                 await this.refreshRemoteModels();
                 const fallback = this.findBestMatchingModelId(modelId);
@@ -95,7 +91,6 @@ class KimiLLMManager {
         this.currentModel = modelId;
         await this.db.setPreference("defaultLLMModel", modelId);
 
-        // Mark as used
         const modelData = await this.db.getLLMModel(modelId);
         if (modelData) {
             modelData.lastUsed = new Date().toISOString();
@@ -106,20 +101,13 @@ class KimiLLMManager {
     }
 
     async loadConversationContext() {
-        // Rebuild context in natural chronological order without duplicating turns
         const recentConversations = await this.db.getRecentConversations(this.maxContextLength);
         const msgs = [];
-        // recentConversations is sorted by timestamp asc in DB helper; if not, sort here
         const ordered = recentConversations.slice().sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
         for (const conv of ordered) {
-            if (conv.user) {
-                msgs.push({ role: "user", content: conv.user, timestamp: conv.timestamp });
-            }
-            if (conv.kimi) {
-                msgs.push({ role: "assistant", content: conv.kimi, timestamp: conv.timestamp });
-            }
+            if (conv.user) msgs.push({ role: "user", content: conv.user, timestamp: conv.timestamp });
+            if (conv.kimi) msgs.push({ role: "assistant", content: conv.kimi, timestamp: conv.timestamp });
         }
-        // keep only last 2 * maxContextLength messages
         this.conversationContext = msgs.slice(-this.maxContextLength * 2);
     }
 
@@ -708,12 +696,52 @@ class KimiLLMManager {
                 if (!m?.id) return;
                 const id = m.id;
                 const provider = m?.id?.split("/")?.[0] || "OpenRouter";
+                let pricing;
+                const p = m?.pricing;
+                if (p) {
+                    const unitRaw = ((p.unit || p.per || p.units || "") + "").toLowerCase();
+                    let unitTokens = 1;
+                    if (unitRaw) {
+                        if (unitRaw.includes("1m")) unitTokens = 1000000;
+                        else if (unitRaw.includes("1k") || unitRaw.includes("thousand")) unitTokens = 1000;
+                        else {
+                            const num = parseFloat(unitRaw.replace(/[^0-9.]/g, ""));
+                            if (Number.isFinite(num) && num > 0) {
+                                if (unitRaw.includes("m")) unitTokens = num * 1000000;
+                                else if (unitRaw.includes("k")) unitTokens = num * 1000;
+                                else unitTokens = num;
+                            } else if (unitRaw.includes("token")) {
+                                unitTokens = 1;
+                            }
+                        }
+                    }
+                    const toPerMillion = v => {
+                        const n = typeof v === "number" ? v : parseFloat(v);
+                        if (!Number.isFinite(n)) return undefined;
+                        return n * (1000000 / unitTokens);
+                    };
+                    if (typeof p.input !== "undefined" || typeof p.output !== "undefined") {
+                        pricing = {
+                            input: toPerMillion(p.input),
+                            output: toPerMillion(p.output)
+                        };
+                    } else if (typeof p.prompt !== "undefined" || typeof p.completion !== "undefined") {
+                        pricing = {
+                            input: toPerMillion(p.prompt),
+                            output: toPerMillion(p.completion)
+                        };
+                    } else {
+                        pricing = { input: undefined, output: undefined };
+                    }
+                } else {
+                    pricing = { input: undefined, output: undefined };
+                }
                 newMap[id] = {
                     name: m.name || id,
                     provider,
                     type: "openrouter",
                     contextWindow: m.context_length || m?.context_window || 128000,
-                    pricing: m?.pricing || { input: 0, output: 0 },
+                    pricing,
                     strengths: (m?.tags || []).slice(0, 4)
                 };
             });
