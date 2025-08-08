@@ -54,7 +54,8 @@ class KimiLLMManager {
             "mistralai/mistral-small-3.2-24b-instruct",
             "nousresearch/hermes-3-llama-3.1-70b",
             "qwen/qwen3-235b-a22b-thinking-2507",
-            "nousresearch/hermes-3-llama-3.1-405b"
+            "nousresearch/hermes-3-llama-3.1-405b",
+            "local/ollama"
         ];
         this.defaultModels = { ...this.availableModels };
         this._remoteModelsLoaded = false;
