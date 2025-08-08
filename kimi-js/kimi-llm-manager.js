@@ -50,6 +50,13 @@ class KimiLLMManager {
                 strengths: ["Private", "Free", "Offline", "Customizable"]
             }
         };
+        this.recommendedModelIds = [
+            "mistralai/mistral-small-3.2-24b-instruct",
+            "nousresearch/hermes-3-llama-3.1-70b",
+            "qwen/qwen3-235b-a22b-thinking-2507",
+            "nousresearch/hermes-3-llama-3.1-405b"
+        ];
+        this.defaultModels = { ...this.availableModels };
         this._remoteModelsLoaded = false;
         this._isRefreshingModels = false;
     }
@@ -714,6 +721,12 @@ class KimiLLMManager {
             if (this.availableModels["local/ollama"]) {
                 newMap["local/ollama"] = this.availableModels["local/ollama"];
             }
+            this.recommendedModelIds.forEach(id => {
+                const curated = this.defaultModels[id];
+                if (curated) {
+                    newMap[id] = { ...(newMap[id] || {}), ...curated };
+                }
+            });
             this.availableModels = newMap;
             this._remoteModelsLoaded = true;
         } finally {

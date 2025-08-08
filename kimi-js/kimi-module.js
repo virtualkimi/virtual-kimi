@@ -1186,7 +1186,7 @@ async function loadAvailableModels() {
             console.log(`✅ Loaded ${Object.keys(stats.available).length} LLM models`);
             loadAvailableModels._lastLoadTime = Date.now();
         }
-        Object.entries(stats.available).forEach(([id, model]) => {
+        const createCard = (id, model) => {
             const modelDiv = document.createElement("div");
             modelDiv.className = `model-card ${id === stats.current.id ? "selected" : ""}`;
             modelDiv.dataset.modelId = id;
@@ -1257,8 +1257,37 @@ async function loadAvailableModels() {
                 }
             });
 
-            modelsContainer.appendChild(modelDiv);
-        });
+            return modelDiv;
+        };
+
+        const recommendedIds =
+            window.kimiLLM && Array.isArray(window.kimiLLM.recommendedModelIds) ? window.kimiLLM.recommendedModelIds : [];
+
+        const recommendedEntries = recommendedIds.map(id => [id, stats.available[id]]).filter(([, model]) => !!model);
+
+        const otherEntries = Object.entries(stats.available)
+            .filter(([id]) => !recommendedIds.includes(id))
+            .sort((a, b) => (a[1].name || a[0]).localeCompare(b[1].name || b[0]));
+
+        if (recommendedEntries.length > 0) {
+            const title = document.createElement("div");
+            title.className = "models-section-title";
+            title.textContent = "Recommended models";
+            modelsContainer.appendChild(title);
+            recommendedEntries.forEach(([id, model]) => {
+                modelsContainer.appendChild(createCard(id, model));
+            });
+        }
+
+        if (otherEntries.length > 0) {
+            const title = document.createElement("div");
+            title.className = "models-section-title";
+            title.textContent = "All models";
+            modelsContainer.appendChild(title);
+            otherEntries.forEach(([id, model]) => {
+                modelsContainer.appendChild(createCard(id, model));
+            });
+        }
     } catch (error) {
         console.error("Error loading available models:", error);
         const errorDiv = document.createElement("div");

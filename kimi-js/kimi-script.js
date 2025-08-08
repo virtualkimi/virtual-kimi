@@ -38,6 +38,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             if (kimiLLM && kimiLLM.setSystemPrompt) kimiLLM.setSystemPrompt(prompt);
         }
         kimiLLM = new KimiLLMManager(kimiDB);
+        window.kimiLLM = kimiLLM;
         await kimiLLM.init();
 
         // Initialize unified emotion system
@@ -52,8 +53,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         await kimiMemory.init();
         window.kimiMemory = kimiMemory;
 
-        // Expose globally
-        window.kimiLLM = kimiLLM;
+        // Expose globally (already set before init)
 
         // Load available models now that LLM is ready
         if (window.loadAvailableModels) {
