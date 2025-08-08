@@ -350,6 +350,23 @@
     box-shadow: var(--model-card-selected-shadow);
 }
 
+.models-search-container {
+    margin: 12px 0 16px;
+}
+
+.models-section {
+    margin: 16px 0;
+}
+
+.models-section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: var(--settings-section-header-color);
+    margin: 6px 0 10px;
+}
+
 .model-header {
     display: flex;
     justify-content: space-between;
