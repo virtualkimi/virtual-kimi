@@ -249,7 +249,15 @@ class KimiMemoryUI {
                         </div>
                         <div class="memory-meta">
                             <span class="memory-date">${this.formatDate(memory.timestamp)}</span>
-                            ${memory.sourceText ? `<span class="memory-source" title="${this.escapeHtml(memory.sourceText)}">� Extrait de conversation</span>` : `<span>📝 Ajouté manuellement</span>`}
+                            ${
+                                memory.sourceText
+                                    ? `<span class="memory-source" title="${
+                                          window.KimiValidationUtils && window.KimiValidationUtils.escapeHtml
+                                              ? window.KimiValidationUtils.escapeHtml(memory.sourceText)
+                                              : memory.sourceText
+                                      }">� Extrait de conversation</span>`
+                                    : `<span>📝 Ajouté manuellement</span>`
+                            }
                         </div>
                         <div class="memory-actions">
                             <button class="memory-edit-btn" onclick="kimiMemoryUI.editMemory('${memory.id}')" title="Modifier cette mémoire">
@@ -304,8 +312,11 @@ class KimiMemoryUI {
     }
 
     highlightMemoryContent(content) {
-        // Escape HTML first
-        const escapedContent = this.escapeHtml(content);
+        // Escape HTML first using centralized util
+        const escapedContent =
+            window.KimiValidationUtils && window.KimiValidationUtils.escapeHtml
+                ? window.KimiValidationUtils.escapeHtml(content)
+                : content;
 
         // Simple highlighting for search terms if there's a search active
         const searchInput = document.getElementById("memory-search");
@@ -321,11 +332,7 @@ class KimiMemoryUI {
         return escapedContent;
     }
 
-    escapeHtml(text) {
-        const div = document.createElement("div");
-        div.textContent = text;
-        return div.innerHTML;
-    }
+    // Removed duplicate escapeHtml; use window.KimiValidationUtils.escapeHtml instead
 
     getCategoryIcon(category) {
         const icons = {

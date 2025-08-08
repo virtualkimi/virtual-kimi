@@ -100,13 +100,14 @@ class KimiMemory {
         try {
             const favorabilityBar = document.getElementById("favorability-bar");
             const favorabilityText = document.getElementById("favorability-text");
-            const value = this.affectionTrait;
+            const value = Number(this.affectionTrait) || 0;
+            const clamped = Math.max(0, Math.min(100, value));
 
             if (favorabilityBar) {
-                favorabilityBar.style.width = `${value}%`;
+                favorabilityBar.style.width = `${clamped}%`;
             }
             if (favorabilityText) {
-                favorabilityText.textContent = `${value}%`;
+                favorabilityText.textContent = `${clamped.toFixed(2)}%`;
             }
         } catch (error) {
             console.error("Error updating favorability bar:", error);

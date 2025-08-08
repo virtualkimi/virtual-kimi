@@ -63,16 +63,14 @@ window.KimiValidationUtils = {
         if (!key || typeof key !== "string") {
             return { valid: false, error: "API key must be a string" };
         }
-
         const trimmed = key.trim();
         if (trimmed.length === 0) {
             return { valid: false, error: "API key cannot be empty" };
         }
-
-        if (!trimmed.startsWith("sk-or-v1-")) {
-            return { valid: false, error: "Invalid API key format (must start with sk-or-v1-)" };
+        if (window.KIMI_VALIDATORS && typeof window.KIMI_VALIDATORS.validateApiKey === "function") {
+            const ok = window.KIMI_VALIDATORS.validateApiKey(trimmed);
+            return ok ? { valid: true, sanitized: trimmed } : { valid: false, error: "Invalid API key format" };
         }
-
         return { valid: true, sanitized: trimmed };
     }
 };
@@ -238,6 +236,9 @@ class KimiSecurityUtils {
 
     static validateApiKey(key) {
         if (!key || typeof key !== "string") return false;
+        if (window.KIMI_VALIDATORS && typeof window.KIMI_VALIDATORS.validateApiKey === "function") {
+            return !!window.KIMI_VALIDATORS.validateApiKey(key.trim());
+        }
         return key.trim().length > 10 && (key.startsWith("sk-") || key.startsWith("sk-or-"));
     }
 
@@ -1528,9 +1529,11 @@ class KimiUIStateManager {
         if (this.tabManager) this.tabManager.activateTab(tabName);
     }
     setFavorability(value) {
-        this.state.favorability = value;
-        window.KimiDOMUtils.setText("#favorability-text", `${value}%`);
-        window.KimiDOMUtils.get("#favorability-bar").style.width = `${value}%`;
+        const v = Number(value) || 0;
+        const clamped = Math.max(0, Math.min(100, v));
+        this.state.favorability = clamped;
+        window.KimiDOMUtils.setText("#favorability-text", `${clamped.toFixed(2)}%`);
+        window.KimiDOMUtils.get("#favorability-bar").style.width = `${clamped}%`;
     }
     setTranscript(text) {
         this.state.transcript = text;

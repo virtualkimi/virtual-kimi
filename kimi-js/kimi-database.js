@@ -476,20 +476,6 @@ class KimiDatabase {
         }
     }
 
-    async setSelectedCharacter(characterName) {
-        return this.setPreference("selectedCharacter", characterName);
-    }
-    async getSelectedCharacter() {
-        return this.getPreference("selectedCharacter", "kimi");
-    }
-    async setSystemPromptForCharacter(characterName, prompt) {
-        return this.setPreference(`systemPrompt_${characterName}`, prompt);
-    }
-    async getSystemPromptForCharacter(characterName) {
-        const defaultPrompt = (window.KIMI_CHARACTERS && window.KIMI_CHARACTERS[characterName]?.defaultPrompt) || "";
-        return this.getPreference(`systemPrompt_${characterName}`, defaultPrompt);
-    }
-
     async deleteSingleMessage(conversationId, sender) {
         const conv = await this.db.conversations.get(conversationId);
         if (!conv) return;

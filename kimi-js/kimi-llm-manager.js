@@ -50,9 +50,18 @@ class KimiLLMManager {
                 strengths: ["Private", "Free", "Offline", "Customizable"]
             }
         };
+        this._remoteModelsLoaded = false;
+        this._isRefreshingModels = false;
     }
 
     async init() {
+        // Prefer fetching available models from OpenRouter to avoid stale IDs
+        try {
+            await this.refreshRemoteModels();
+        } catch (e) {
+            console.warn("Unable to refresh remote models list:", e?.message || e);
+        }
+
         // Load the default model
         const defaultModel = await this.db.getPreference("defaultLLMModel", "mistralai/mistral-small-3.2-24b-instruct");
         await this.setCurrentModel(defaultModel);
@@ -62,7 +71,18 @@ class KimiLLMManager {
     }
     async setCurrentModel(modelId) {
         if (!this.availableModels[modelId]) {
-            throw new Error(`Model ${modelId} not available`);
+            // If remote models not yet loaded or model missing, try to refresh once and pick best match
+            try {
+                await this.refreshRemoteModels();
+                const fallback = this.findBestMatchingModelId(modelId);
+                if (fallback && this.availableModels[fallback]) {
+                    modelId = fallback;
+                }
+            } catch (e) {}
+
+            if (!this.availableModels[modelId]) {
+                throw new Error(`Model ${modelId} not available`);
+            }
         }
 
         this.currentModel = modelId;
@@ -74,6 +94,8 @@ class KimiLLMManager {
             modelData.lastUsed = new Date().toISOString();
             await this.db.saveLLMModel(modelData.id, modelData.name, modelData.provider, modelData.apiKey, modelData.config);
         }
+
+        this._notifyModelChanged();
     }
 
     async loadConversationContext() {
@@ -396,12 +418,41 @@ class KimiLLMManager {
                         if (response.status === 422) {
                             errorMessage = `Model \"${this.currentModel}\" not available on OpenRouter.`;
 
-                            // Get suggestions for alternative models
-                            const diagnosis = await this.diagnoseModel(this.currentModel);
-                            if (diagnosis.suggestions && diagnosis.suggestions.length > 0) {
-                                const suggestionText = diagnosis.suggestions.map(s => s.name).join(", ");
-                                errorMessage += ` Similar models available: ${suggestionText}`;
-                                suggestions = diagnosis.suggestions;
+                            // Refresh available models from API and try best match once
+                            try {
+                                await this.refreshRemoteModels();
+                                const best = this.findBestMatchingModelId(this.currentModel);
+                                if (best && best !== this.currentModel) {
+                                    // Try once with corrected model
+                                    this.currentModel = best;
+                                    await this.db.setPreference("defaultLLMModel", best);
+                                    this._notifyModelChanged();
+                                    const retryResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                                        method: "POST",
+                                        headers: {
+                                            Authorization: `Bearer ${apiKey}`,
+                                            "Content-Type": "application/json",
+                                            "HTTP-Referer": window.location.origin,
+                                            "X-Title": "Kimi - Virtual Companion"
+                                        },
+                                        body: JSON.stringify({ ...payload, model: best })
+                                    });
+                                    if (retryResponse.ok) {
+                                        const retryData = await retryResponse.json();
+                                        const kimiResponse = retryData.choices?.[0]?.message?.content;
+                                        if (!kimiResponse) throw new Error("Invalid API response - no content generated");
+                                        this.conversationContext.push(
+                                            { role: "user", content: userMessage, timestamp: new Date().toISOString() },
+                                            { role: "assistant", content: kimiResponse, timestamp: new Date().toISOString() }
+                                        );
+                                        if (this.conversationContext.length > this.maxContextLength * 2) {
+                                            this.conversationContext = this.conversationContext.slice(-this.maxContextLength * 2);
+                                        }
+                                        return kimiResponse;
+                                    }
+                                }
+                            } catch (e) {
+                                // Swallow refresh errors; will fall through to standard error handling
                             }
                         } else if (response.status === 401) {
                             errorMessage = "Invalid API key. Check your OpenRouter key in the settings.";
@@ -620,6 +671,93 @@ class KimiLLMManager {
                 error: `Unable to check: ${error.message}`
             };
         }
+    }
+
+    // Fetch models from OpenRouter API and merge into availableModels
+    async refreshRemoteModels() {
+        if (this._isRefreshingModels) return;
+        this._isRefreshingModels = true;
+        try {
+            const apiKey = await this.db.getPreference("openrouterApiKey", "");
+            const res = await fetch("https://openrouter.ai/api/v1/models", {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+                    "HTTP-Referer": window.location.origin,
+                    "X-Title": "Kimi - Virtual Companion"
+                }
+            });
+            if (!res.ok) {
+                throw new Error(`Unable to fetch models: HTTP ${res.status}`);
+            }
+            const data = await res.json();
+            if (!data?.data || !Array.isArray(data.data)) {
+                throw new Error("Invalid models response format");
+            }
+            // Build a fresh map while preserving local/ollama entry
+            const newMap = {};
+            data.data.forEach(m => {
+                if (!m?.id) return;
+                const id = m.id;
+                const provider = m?.id?.split("/")?.[0] || "OpenRouter";
+                newMap[id] = {
+                    name: m.name || id,
+                    provider,
+                    type: "openrouter",
+                    contextWindow: m.context_length || m?.context_window || 128000,
+                    pricing: m?.pricing || { input: 0, output: 0 },
+                    strengths: (m?.tags || []).slice(0, 4)
+                };
+            });
+            // Keep local model entry
+            if (this.availableModels["local/ollama"]) {
+                newMap["local/ollama"] = this.availableModels["local/ollama"];
+            }
+            this.availableModels = newMap;
+            this._remoteModelsLoaded = true;
+        } finally {
+            this._isRefreshingModels = false;
+        }
+    }
+
+    // Try to find best matching model id from remote list when an ID is stale
+    findBestMatchingModelId(preferredId) {
+        if (this.availableModels[preferredId]) return preferredId;
+        const id = (preferredId || "").toLowerCase();
+        const tokens = id.split(/[\/:\-_.]+/).filter(Boolean);
+        let best = null;
+        let bestScore = -1;
+        Object.keys(this.availableModels).forEach(candidateId => {
+            const c = candidateId.toLowerCase();
+            let score = 0;
+            tokens.forEach(t => {
+                if (!t) return;
+                if (c.includes(t)) score += 1;
+            });
+            // Give extra weight to common markers
+            if (c.includes("instruct")) score += 0.5;
+            if (c.includes("mistral") && id.includes("mistral")) score += 0.5;
+            if (c.includes("small") && id.includes("small")) score += 0.5;
+            if (score > bestScore) {
+                bestScore = score;
+                best = candidateId;
+            }
+        });
+        // Avoid returning unrelated local model unless nothing else
+        if (best === "local/ollama" && Object.keys(this.availableModels).length > 1) {
+            return null;
+        }
+        return best;
+    }
+
+    _notifyModelChanged() {
+        try {
+            const detail = { id: this.currentModel };
+            if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
+                window.dispatchEvent(new CustomEvent("llmModelChanged", { detail }));
+            }
+        } catch (e) {}
     }
 }
 

@@ -316,12 +316,14 @@ class KimiDataManager extends KimiBaseManager {
 
 // Fonctions utilitaires et logique (référencent window.*)
 function getPersonalityAverage(traits) {
-    // Use centralized calculation from KimiFallbackManager
-    if (window.KimiFallbackManager && window.KimiFallbackManager._calculatePersonalityAverage) {
-        return window.KimiFallbackManager._calculatePersonalityAverage(traits);
+    if (window.kimiEmotionSystem && typeof window.kimiEmotionSystem.calculatePersonalityAverage === "function") {
+        return window.kimiEmotionSystem.calculatePersonalityAverage(traits);
     }
-
-    // Fallback implementation
+    if (window.getPersonalityAverage) {
+        try {
+            return window.getPersonalityAverage(traits);
+        } catch {}
+    }
     const keys = ["affection", "romance", "empathy", "playfulness", "humor"];
     let sum = 0;
     let count = 0;
@@ -331,7 +333,7 @@ function getPersonalityAverage(traits) {
             count++;
         }
     });
-    return count > 0 ? sum / count : 50; // Default to neutral instead of 0
+    return count > 0 ? sum / count : 50;
 }
 
 function updateFavorabilityLabel(characterKey) {
@@ -658,7 +660,17 @@ async function analyzeAndReact(text, useAdvancedLLM = true) {
                 const apiKey = kimiDB ? await kimiDB.getPreference("openrouterApiKey") : null;
 
                 if (apiKey && apiKey.trim() !== "") {
+                    try {
+                        if (window.dispatchEvent) {
+                            window.dispatchEvent(new CustomEvent("chat:typing:start"));
+                        }
+                    } catch (e) {}
                     response = await kimiLLM.chat(sanitizedText);
+                    try {
+                        if (window.dispatchEvent) {
+                            window.dispatchEvent(new CustomEvent("chat:typing:stop"));
+                        }
+                    } catch (e) {}
 
                     // Extract memories from conversation
                     if (window.kimiMemorySystem) {
@@ -695,6 +707,11 @@ async function analyzeAndReact(text, useAdvancedLLM = true) {
                 }
             } catch (error) {
                 console.warn("LLM not available:", error.message);
+                try {
+                    if (window.dispatchEvent) {
+                        window.dispatchEvent(new CustomEvent("chat:typing:stop"));
+                    }
+                } catch (e) {}
                 // Still show API key message if no key is configured
                 const apiKey = kimiDB ? await kimiDB.getPreference("openrouterApiKey") : null;
                 if (!apiKey || apiKey.trim() === "") {
@@ -1007,7 +1024,10 @@ async function updateStats() {
     const conversationsEl = document.getElementById("conversations-count");
     const daysEl = document.getElementById("days-together");
     if (totalEl) totalEl.textContent = totalInteractions;
-    if (favorabilityEl) favorabilityEl.textContent = `${affectionTrait}%`;
+    if (favorabilityEl) {
+        const v = Number(affectionTrait) || 0;
+        favorabilityEl.textContent = `${Math.max(0, Math.min(100, v)).toFixed(2)}%`;
+    }
     if (conversationsEl) conversationsEl.textContent = conversations.length;
     if (firstInteraction && daysEl) {
         const days = Math.floor((new Date() - new Date(firstInteraction)) / (1000 * 60 * 60 * 24));
@@ -1659,6 +1679,52 @@ document.addEventListener("DOMContentLoaded", function () {
             cheatPanel.classList.toggle("open", !expanded);
         });
     }
+
+    // Refresh UI models list when the LLM model changes programmatically
+    try {
+        window.addEventListener("llmModelChanged", () => {
+            if (typeof window.loadAvailableModels === "function") {
+                window.loadAvailableModels();
+            }
+        });
+    } catch (e) {}
+
+    // Typing indicator wiring
+    try {
+        // Soft tweak of API key input attributes shortly after load to reduce password manager prompts
+        setTimeout(() => {
+            const apiInput = document.getElementById("openrouter-api-key");
+            if (apiInput) {
+                apiInput.setAttribute("autocomplete", "new-password");
+                apiInput.setAttribute("name", "openrouter_api_key");
+                apiInput.setAttribute("data-lpignore", "true");
+            }
+        }, 300);
+
+        window.addEventListener("chat:typing:start", () => {
+            const waitingIndicator = document.getElementById("waiting-indicator");
+            const globalTyping = document.getElementById("global-typing-indicator");
+            clearTimeout(window._kimiTypingDelayTimer);
+            window._kimiTypingDelayTimer = setTimeout(() => {
+                if (waitingIndicator) waitingIndicator.classList.add("visible");
+                if (globalTyping) globalTyping.classList.add("visible");
+            }, 150);
+            // Safety auto-hide after 10s in case stop event is blocked
+            clearTimeout(window._kimiTypingSafetyTimer);
+            window._kimiTypingSafetyTimer = setTimeout(() => {
+                if (waitingIndicator) waitingIndicator.classList.remove("visible");
+                if (globalTyping) globalTyping.classList.remove("visible");
+            }, 10000);
+        });
+        window.addEventListener("chat:typing:stop", () => {
+            const waitingIndicator = document.getElementById("waiting-indicator");
+            const globalTyping = document.getElementById("global-typing-indicator");
+            if (waitingIndicator) waitingIndicator.classList.remove("visible");
+            if (globalTyping) globalTyping.classList.remove("visible");
+            clearTimeout(window._kimiTypingSafetyTimer);
+            clearTimeout(window._kimiTypingDelayTimer);
+        });
+    } catch (e) {}
 });
 
 // Function to sync all personality traits with database and UI
