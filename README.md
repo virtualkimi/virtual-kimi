@@ -9,7 +9,7 @@
 
 # Virtual Kimi - AI Companion Application 💖
 
-A sophisticated web-based AI companion featuring adaptive personalities, intelligent memory systems, and immersive conversational experiences.
+A web-based AI companion featuring adaptive personalities, intelligent memory systems, and immersive conversational experiences.
 
 ## Overview
 
@@ -427,6 +427,7 @@ See the [LICENSE](LICENSE) file for details.
 > _"Love is the most powerful code"_ 💕
 >
 > — 2025 Virtual Kimi - Created with 💜 by Jean & Kimi
+
 
 
 
