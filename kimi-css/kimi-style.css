@@ -1658,16 +1658,17 @@ body {
 
 /* Animation pour l'indicateur d'attente */
 .waiting-indicator {
-    display: inline-block;
-    vertical-align: middle;
-    width: auto;
-    min-height: 0;
-    box-sizing: content-box;
-    margin-bottom: 0;
-    margin-top: 0;
-    position: static;
-    left: auto;
-    right: auto;
+    display: block;
+    text-align: center;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 6px 0 4px 0; /* discret au-dessus de l'input */
+    opacity: 0;
+    transition: opacity 0.25s ease-in-out;
+    pointer-events: none;
+}
+.waiting-indicator.visible {
+    opacity: 1;
 }
 .waiting-indicator span {
     display: inline-block;
@@ -1696,4 +1697,39 @@ body {
         transform: scale(1);
         opacity: 1;
     }
+}
+
+/* Global typing indicator near mic button */
+.global-typing-indicator {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    margin: 0 6px;
+    border-radius: 18px;
+    background: rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(6px);
+    transition: opacity 0.25s ease-in-out;
+    opacity: 0;
+}
+.global-typing-indicator.visible {
+    display: inline-flex;
+    opacity: 1;
+}
+.global-typing-indicator span {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin: 0 1.5px;
+    background: var(--waiting-indicator-color);
+    border-radius: 50%;
+    opacity: 0.6;
+    animation: waiting-bounce 1.4s infinite both;
+}
+.global-typing-indicator span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+.global-typing-indicator span:nth-child(3) {
+    animation-delay: 0.4s;
 }
