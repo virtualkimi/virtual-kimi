@@ -359,6 +359,9 @@ class KimiVideoManager {
         this.pendingSwitch = null;
         this.autoTransitionDuration = 9900;
         this.transitionDuration = 900;
+        this._prefetchCache = new Map();
+        this._prefetchInFlight = new Set();
+        this._maxPrefetch = 3;
         this.updateVideoCategories();
         this.emotionToCategory = {
             listening: "listening",
@@ -463,6 +466,9 @@ class KimiVideoManager {
         this.positiveVideos = this.videoCategories.speakingPositive;
         this.negativeVideos = this.videoCategories.speakingNegative;
         this.neutralVideos = this.videoCategories.neutral;
+
+        const neutrals = this.neutralVideos || [];
+        neutrals.slice(0, 2).forEach(src => this._prefetch(src));
     }
 
     async init(database = null) {
@@ -552,20 +558,20 @@ class KimiVideoManager {
         }
 
         // Adaptive transition timing based on context and priority
-        let minTransitionDelay = 300; // Base minimum
+        let minTransitionDelay = 300;
 
         const now = Date.now();
         const timeSinceLastSwitch = now - (this.lastSwitchTime || 0);
 
         // Context-specific timing adjustments
         if (priority === "speaking") {
-            minTransitionDelay = 200; // Faster for speech responses
+            minTransitionDelay = 200;
         } else if (context === "listening") {
-            minTransitionDelay = 150; // Very fast for listening states
+            minTransitionDelay = 250;
         } else if (context === "dancing") {
-            minTransitionDelay = 500; // Slower for dancing transitions
+            minTransitionDelay = 600;
         } else if (context === "neutral") {
-            minTransitionDelay = 800; // Slower for neutral returns
+            minTransitionDelay = 1200;
         }
 
         // Prevent rapid switching only if not critical
@@ -580,6 +586,8 @@ class KimiVideoManager {
         ) {
             return;
         }
+
+        this._prefetchLikely(category);
 
         this.loadAndSwitchVideo(videoPath, priority);
         this.currentContext = context;
@@ -976,7 +984,7 @@ class KimiVideoManager {
             if (priority === "high" || priority === "speaking") {
                 this._loadingInProgress = false;
                 // Nettoyer les event listeners en cours sur la vidéo inactive
-                this.inactiveVideo.removeEventListener("canplaythrough", this._currentLoadHandler);
+                this.inactiveVideo.removeEventListener("canplay", this._currentLoadHandler);
                 this.inactiveVideo.removeEventListener("error", this._currentErrorHandler);
             } else {
                 return;
@@ -988,15 +996,25 @@ class KimiVideoManager {
         // Nettoyer tous les timers en cours
         clearTimeout(this.autoTransitionTimer);
 
-        // Direct video loading - no preloader needed
-        this.inactiveVideo.querySelector("source").setAttribute("src", videoSrc);
-        this.inactiveVideo.load();
+        const pref = this._prefetchCache.get(videoSrc);
+        if (pref && (pref.readyState >= 2 || pref.buffered.length > 0)) {
+            const source = this.inactiveVideo.querySelector("source");
+            source.setAttribute("src", videoSrc);
+            try {
+                this.inactiveVideo.currentTime = 0;
+            } catch {}
+            this.inactiveVideo.load();
+        } else {
+            this.inactiveVideo.querySelector("source").setAttribute("src", videoSrc);
+            this.inactiveVideo.load();
+        }
 
         // Stocker les références aux handlers pour pouvoir les nettoyer
-        this._currentLoadHandler = () => {
+        const onCanPlay = () => {
             this._loadingInProgress = false;
             this.performSwitch();
         };
+        this._currentLoadHandler = onCanPlay;
 
         const folder = getCharacterInfo(this.characterName).videoFolder;
         const fallbackVideo = `${folder}neutral/neutral-gentle-breathing.mp4`;
@@ -1028,7 +1046,7 @@ class KimiVideoManager {
             }
         };
 
-        this.inactiveVideo.addEventListener("canplaythrough", this._currentLoadHandler, { once: true });
+        this.inactiveVideo.addEventListener("canplay", this._currentLoadHandler, { once: true });
         this.inactiveVideo.addEventListener("error", this._currentErrorHandler, { once: true });
     }
 
@@ -1044,7 +1062,7 @@ class KimiVideoManager {
             this.performSwitch();
         };
 
-        this.inactiveVideo.addEventListener("canplaythrough", this._currentLoadHandler, { once: true });
+        this.inactiveVideo.addEventListener("canplay", this._currentLoadHandler, { once: true });
     }
 
     performSwitch() {
@@ -1056,9 +1074,10 @@ class KimiVideoManager {
 
         this.activeVideo.classList.remove("active");
         this.inactiveVideo.classList.add("active");
-        const temp = this.activeVideo;
-        this.activeVideo = this.inactiveVideo;
-        this.inactiveVideo = temp;
+        const prevActive = this.activeVideo;
+        const prevInactive = this.inactiveVideo;
+        this.activeVideo = prevInactive;
+        this.inactiveVideo = prevActive;
 
         const playPromise = this.activeVideo.play();
         if (playPromise && typeof playPromise.then === "function") {
@@ -1071,6 +1090,15 @@ class KimiVideoManager {
                 })
                 .catch(error => {
                     console.warn("Failed to play video:", error);
+                    // Revert to previous video to avoid frozen state
+                    this.activeVideo.classList.remove("active");
+                    this.inactiveVideo.classList.add("active");
+                    const tmp = this.activeVideo;
+                    this.activeVideo = this.inactiveVideo;
+                    this.inactiveVideo = tmp;
+                    try {
+                        this.activeVideo.play().catch(() => {});
+                    } catch {}
                     this._switchInProgress = false;
                     // Even in case of error, configure listeners
                     this.setupEventListenersForContext(this.currentContext);
@@ -1080,6 +1108,45 @@ class KimiVideoManager {
             this._switchInProgress = false;
             this.setupEventListenersForContext(this.currentContext);
         }
+    }
+
+    _prefetch(src) {
+        if (!src || this._prefetchCache.has(src) || this._prefetchInFlight.has(src)) return;
+        if (this._prefetchCache.size + this._prefetchInFlight.size >= this._maxPrefetch) return;
+        this._prefetchInFlight.add(src);
+        const v = document.createElement("video");
+        v.preload = "auto";
+        v.muted = true;
+        v.playsInline = true;
+        v.src = src;
+        const cleanup = () => {
+            v.oncanplaythrough = null;
+            v.oncanplay = null;
+            v.onerror = null;
+            this._prefetchInFlight.delete(src);
+        };
+        v.oncanplay = () => {
+            this._prefetchCache.set(src, v);
+            cleanup();
+        };
+        v.oncanplaythrough = () => {
+            this._prefetchCache.set(src, v);
+            cleanup();
+        };
+        v.onerror = () => {
+            cleanup();
+        };
+        try {
+            v.load();
+        } catch {}
+    }
+
+    _prefetchLikely(category) {
+        const list = this.videoCategories[category] || [];
+        // Prefetch 1-2 next likely videos different from current
+        const current = this.activeVideo?.querySelector("source")?.getAttribute("src") || null;
+        const candidates = list.filter(s => s && s !== current).slice(0, 2);
+        candidates.forEach(src => this._prefetch(src));
     }
 
     // DIAGNOSTIC AND DEBUG METHODS
@@ -1111,7 +1178,7 @@ class KimiVideoManager {
 
     _cleanupLoadingHandlers() {
         if (this._currentLoadHandler) {
-            this.inactiveVideo.removeEventListener("canplaythrough", this._currentLoadHandler);
+            this.inactiveVideo.removeEventListener("canplay", this._currentLoadHandler);
             this._currentLoadHandler = null;
         }
         if (this._currentErrorHandler) {
