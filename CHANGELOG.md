@@ -1,5 +1,27 @@
 # Virtual Kimi Changelog
 
+## [1.0.2] - 2025-08-09 - "Smoother Video"
+
+### Changed
+
+- Video playback and transition stability improvements:
+    - Lightweight MP4 prefetch queue (neutral + likely next clips) to reduce wait times during switches
+    - Earlier transition on `canplay` (instead of `canplaythrough`) for faster, smoother swaps
+    - Context-aware throttling to prevent rapid switching under load (speaking: ~200ms, listening: ~250ms, dancing: ~600ms, neutral: ~1200ms)
+
+### Fixed
+
+- Safe revert on failed `play()` during a switch to avoid frozen frames
+- Aligned event listeners to `canplay` and ensured proper cleanup to prevent leaks
+- Corrected prefetch cache initialization order (prevented `undefined.has` runtime error)
+- Removed unsupported `<link rel="preload" as="video">` to eliminate console warnings
+
+### Technical
+
+- Front-end performance tweaks: GPU-accelerated fades with `will-change: opacity` and `backface-visibility: hidden`
+- Connection warm-up: added `preconnect`/`dns-prefetch` to the origin for faster first video start
+- Files updated: `index.html`, `kimi-css/kimi-style.css`, `kimi-js/kimi-utils.js`
+
 ## [1.0.1] - 2025-08-08
 
 - Fixed an issue where the browser prompted to save the OpenRouter API key as a password. The input field is now properly configured to prevent password managers from interfering.
