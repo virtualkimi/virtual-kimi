@@ -569,7 +569,10 @@ async function analyzeAndReact(text, useAdvancedLLM = true) {
 
         if (useAdvancedLLM && isSystemReady && kimiLLM) {
             try {
-                const apiKey = kimiDB ? await kimiDB.getPreference("openrouterApiKey") : null;
+                const providerPref = kimiDB ? await kimiDB.getPreference("llmProvider", "openrouter") : "openrouter";
+                const apiKey = kimiDB
+                    ? await kimiDB.getPreference(providerPref === "openrouter" ? "openrouterApiKey" : "llmApiKey")
+                    : null;
 
                 if (apiKey && apiKey.trim() !== "") {
                     try {
@@ -613,7 +616,7 @@ async function analyzeAndReact(text, useAdvancedLLM = true) {
                     // No API key configured - use centralized fallback
                     response = window.KimiFallbackManager
                         ? window.KimiFallbackManager.getFallbackMessage("api_missing")
-                        : "To really chat with me, add your OpenRouter API key in settings! 💕";
+                        : "To chat with me, add your API key in settings! 💕";
                     const updatedTraits = await kimiDB.getAllPersonalityTraits(selectedCharacter);
                     kimiVideo.respondWithEmotion("neutral", updatedTraits, updatedTraits.affection);
                 }
@@ -625,11 +628,14 @@ async function analyzeAndReact(text, useAdvancedLLM = true) {
                     }
                 } catch (e) {}
                 // Still show API key message if no key is configured
-                const apiKey = kimiDB ? await kimiDB.getPreference("openrouterApiKey") : null;
+                const providerPref2 = kimiDB ? await kimiDB.getPreference("llmProvider", "openrouter") : "openrouter";
+                const apiKey = kimiDB
+                    ? await kimiDB.getPreference(providerPref2 === "openrouter" ? "openrouterApiKey" : "llmApiKey")
+                    : null;
                 if (!apiKey || apiKey.trim() === "") {
                     response = window.KimiFallbackManager
                         ? window.KimiFallbackManager.getFallbackMessage("api_missing")
-                        : "To really chat with me, add your OpenRouter API key in settings! 💕";
+                        : "To chat with me, add your API key in settings! 💕";
                 } else {
                     response = await getBasicResponse(reaction);
                 }
@@ -638,11 +644,14 @@ async function analyzeAndReact(text, useAdvancedLLM = true) {
             }
         } else {
             // System not ready - check if it's because of missing API key
-            const apiKey = kimiDB ? await kimiDB.getPreference("openrouterApiKey") : null;
+            const providerPref3 = kimiDB ? await kimiDB.getPreference("llmProvider", "openrouter") : "openrouter";
+            const apiKey = kimiDB
+                ? await kimiDB.getPreference(providerPref3 === "openrouter" ? "openrouterApiKey" : "llmApiKey")
+                : null;
             if (!apiKey || apiKey.trim() === "") {
                 response = window.KimiFallbackManager
                     ? window.KimiFallbackManager.getFallbackMessage("api_missing")
-                    : "To really chat with me, add your OpenRouter API key in settings! 💕";
+                    : "To chat with me, add your API key in settings! 💕";
             } else {
                 response = await getBasicResponse(reaction);
             }
@@ -793,6 +802,10 @@ async function loadSettingsData() {
             "voiceVolume",
             "selectedLanguage",
             "openrouterApiKey",
+            "llmProvider",
+            "llmBaseUrl",
+            "llmModelId",
+            "llmApiKey",
             "selectedCharacter",
             "llmTemperature",
             "llmMaxTokens",
@@ -808,6 +821,10 @@ async function loadSettingsData() {
         const voiceVolume = preferences.voiceVolume !== undefined ? preferences.voiceVolume : 0.8;
         const selectedLanguage = preferences.selectedLanguage || "en";
         const apiKey = preferences.openrouterApiKey || "";
+        const provider = preferences.llmProvider || "openrouter";
+        const baseUrl = preferences.llmBaseUrl || "https://openrouter.ai/api/v1/chat/completions";
+        const modelId = preferences.llmModelId || (window.kimiLLM ? window.kimiLLM.currentModel : "");
+        const genericKey = preferences.llmApiKey || "";
         const selectedCharacter = preferences.selectedCharacter || "kimi";
         const llmTemperature = preferences.llmTemperature !== undefined ? preferences.llmTemperature : 0.9;
         const llmMaxTokens = preferences.llmMaxTokens !== undefined ? preferences.llmMaxTokens : 100;
@@ -852,6 +869,26 @@ async function loadSettingsData() {
         // Update API key input
         const apiKeyInput = document.getElementById("openrouter-api-key");
         if (apiKeyInput) apiKeyInput.value = apiKey;
+        const providerSelect = document.getElementById("llm-provider");
+        if (providerSelect) providerSelect.value = provider;
+        const baseUrlInput = document.getElementById("llm-base-url");
+        if (baseUrlInput) baseUrlInput.value = baseUrl;
+        const modelIdInput = document.getElementById("llm-model-id");
+        if (modelIdInput) modelIdInput.value = modelId;
+        if (provider !== "openrouter" && apiKeyInput) apiKeyInput.value = genericKey;
+        const apiKeyLabel = document.getElementById("api-key-label");
+        if (apiKeyLabel) {
+            const labelByProvider = {
+                openrouter: "OpenRouter API Key",
+                openai: "OpenAI API Key",
+                groq: "Groq API Key",
+                together: "Together API Key",
+                deepseek: "DeepSeek API Key",
+                "openai-compatible": "API Key",
+                ollama: "API Key"
+            };
+            apiKeyLabel.textContent = labelByProvider[provider] || "API Key";
+        }
 
         // Load system prompt
         let systemPrompt = DEFAULT_SYSTEM_PROMPT;
@@ -969,49 +1006,8 @@ function initializeAllSliders() {
     sliders.forEach(sliderId => {
         const slider = document.getElementById(sliderId);
         const valueSpan = document.getElementById(`${sliderId}-value`);
-
         if (slider && valueSpan) {
             valueSpan.textContent = slider.value;
-
-            slider.addEventListener("input", function () {
-                valueSpan.textContent = this.value;
-            });
-
-            // Add save functionality for personality trait sliders - CRITICAL FIX
-            if (sliderId.startsWith("trait-")) {
-                slider.addEventListener("change", async function () {
-                    const traitName = sliderId.replace("trait-", "");
-                    const value = parseFloat(this.value);
-
-                    console.log(`🎛️ Personality trait changed: ${traitName} = ${value}`);
-
-                    if (window.kimiDB) {
-                        try {
-                            const selectedCharacter = await window.kimiDB.getSelectedCharacter();
-                            await window.kimiDB.setPersonalityTrait(traitName, value, selectedCharacter);
-                            console.log(`✅ Saved ${traitName} trait: ${value} for ${selectedCharacter}`);
-
-                            // Update memory system if affection changes
-                            if (traitName === "affection" && window.kimiMemory) {
-                                window.kimiMemory.affectionTrait = value;
-                                if (window.kimiMemory.updateFavorabilityBar) {
-                                    window.kimiMemory.updateFavorabilityBar();
-                                }
-                            }
-
-                            // Dispatch personality update event
-                            const traits = await window.kimiDB.getAllPersonalityTraits(selectedCharacter);
-                            window.dispatchEvent(
-                                new CustomEvent("personalityUpdated", {
-                                    detail: { character: selectedCharacter, traits: traits }
-                                })
-                            );
-                        } catch (error) {
-                            console.error(`❌ Error saving ${traitName} trait:`, error);
-                        }
-                    }
-                });
-            }
         }
     });
 }
@@ -1252,7 +1248,7 @@ async function loadAvailableModels() {
             recSection.className = "models-section recommended-models";
             const title = document.createElement("div");
             title.className = "models-section-title";
-            title.textContent = "Recommended models";
+            title.textContent = "Recommended Openrouter models";
             recSection.appendChild(title);
             const list = document.createElement("div");
             list.className = "models-list";
@@ -1274,7 +1270,7 @@ async function loadAvailableModels() {
             toggleBtn.style.marginLeft = "8px";
             toggleBtn.textContent = loadAvailableModels._allCollapsed === false ? "Hide" : "Show";
             const label = document.createElement("span");
-            label.textContent = "All models";
+            label.textContent = "All Openrouter models";
             header.appendChild(label);
             header.appendChild(toggleBtn);
             const refreshBtn = document.createElement("button");
@@ -1595,6 +1591,13 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
                             if (pendingTraitChanges.affection && kimiMemory) {
                                 await kimiMemory.updateAffectionTrait();
                             }
+
+                            // Update video context based on new personality values
+                            if (window.kimiVideo && window.kimiVideo.setMoodByPersonality) {
+                                const selectedCharacter = await kimiDB.getSelectedCharacter();
+                                const allTraits = await kimiDB.getAllPersonalityTraits(selectedCharacter);
+                                window.kimiVideo.setMoodByPersonality(allTraits);
+                            }
                         } catch (error) {
                             console.error("Error batch saving personality traits:", error);
                         }
@@ -1718,11 +1721,6 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     }
 }
 
-async function syncLLMOnOpen() {
-    setTimeout(syncLLMMaxTokensSlider, 120);
-    setTimeout(syncLLMTemperatureSlider, 120);
-}
-
 // Exposer globalement (Note: KimiMemory and KimiAppearanceManager are now in separate files)
 window.KimiDataManager = KimiDataManager;
 window.getPersonalityAverage = getPersonalityAverage;
@@ -1744,7 +1742,6 @@ window.updateTabsScrollIndicator = updateTabsScrollIndicator;
 window.loadAvailableModels = loadAvailableModels;
 window.sendMessage = sendMessage;
 window.setupSettingsListeners = setupSettingsListeners;
-window.syncLLMOnOpen = syncLLMOnOpen;
 window.syncPersonalityTraits = syncPersonalityTraits;
 window.validateEmotionContext = validateEmotionContext;
 window.ensureVideoContextConsistency = ensureVideoContextConsistency;

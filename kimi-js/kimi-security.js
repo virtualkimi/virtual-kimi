@@ -8,8 +8,9 @@ window.KIMI_SECURITY_CONFIG = {
 
     // Security settings
     API_KEY_PATTERNS: [
-        /^sk-or-v1-[a-zA-Z0-9]{32,}$/, // OpenRouter pattern
-        /^sk-[a-zA-Z0-9]{48,}$/ // OpenAI pattern
+        /^sk-or-v1-[a-zA-Z0-9]{16,}$/, // OpenRouter pattern (relaxed length)
+        /^sk-[a-zA-Z0-9_\-]{16,}$/, // OpenAI and similar (relaxed)
+        /^[a-zA-Z0-9_\-]{16,}$/ // Generic API key fallback
     ],
 
     // Cache settings

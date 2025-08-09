@@ -65,6 +65,118 @@ document.addEventListener("DOMContentLoaded", async function () {
     } catch (error) {
         console.error("Initialization error:", error);
     }
+    const presenceDotInit = document.getElementById("api-key-presence");
+    const presenceDotInitTest = document.getElementById("api-key-presence-test");
+    if (presenceDotInit || presenceDotInitTest) {
+        const currentVal = (document.getElementById("openrouter-api-key") || {}).value || "";
+        const colorInit = currentVal && currentVal.length > 0 ? "#4caf50" : "#9e9e9e";
+        if (presenceDotInit) presenceDotInit.style.backgroundColor = colorInit;
+        if (presenceDotInitTest) presenceDotInitTest.style.backgroundColor = colorInit;
+    }
+
+    const providerSelectEl = document.getElementById("llm-provider");
+    if (providerSelectEl) {
+        providerSelectEl.addEventListener("change", async () => {
+            const provider = providerSelectEl.value;
+            const baseUrlInput = document.getElementById("llm-base-url");
+            const apiKeyInput = document.getElementById("openrouter-api-key");
+            const modelIdInput = document.getElementById("llm-model-id");
+            const placeholders = {
+                openrouter: {
+                    url: "https://openrouter.ai/api/v1/chat/completions",
+                    keyPh: "sk-or-v1-...",
+                    model: window.kimiLLM ? window.kimiLLM.currentModel : "model-id"
+                },
+                openai: {
+                    url: "https://api.openai.com/v1/chat/completions",
+                    keyPh: "sk-...",
+                    model: "gpt-4o-mini"
+                },
+                groq: {
+                    url: "https://api.groq.com/openai/v1/chat/completions",
+                    keyPh: "gsk_...",
+                    model: "llama-3.1-8b-instant"
+                },
+                together: {
+                    url: "https://api.together.xyz/v1/chat/completions",
+                    keyPh: "together_...",
+                    model: "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo"
+                },
+                deepseek: {
+                    url: "https://api.deepseek.com/chat/completions",
+                    keyPh: "sk-...",
+                    model: "deepseek-chat"
+                },
+                "openai-compatible": {
+                    url: "https://your-endpoint/v1/chat/completions",
+                    keyPh: "your-key",
+                    model: "model-id"
+                },
+                ollama: {
+                    url: "http://localhost:11434/api/chat",
+                    keyPh: "",
+                    model: "llama3"
+                }
+            };
+            const p = placeholders[provider] || placeholders.openai;
+            if (baseUrlInput) {
+                baseUrlInput.placeholder = p.url;
+                baseUrlInput.value = provider === "openrouter" ? "https://openrouter.ai/api/v1/chat/completions" : p.url;
+            }
+            if (apiKeyInput) {
+                apiKeyInput.placeholder = p.keyPh;
+            }
+            if (modelIdInput && !modelIdInput.value) {
+                modelIdInput.placeholder = p.model;
+            }
+            if (window.kimiDB) {
+                await window.kimiDB.setPreference("llmProvider", provider);
+                await window.kimiDB.setPreference(
+                    "llmBaseUrl",
+                    provider === "openrouter" ? "https://openrouter.ai/api/v1/chat/completions" : p.url
+                );
+                const apiKeyLabel = document.getElementById("api-key-label");
+                const savedBadge = document.getElementById("api-key-saved");
+                const statusSpan = document.getElementById("api-status");
+                // Load provider-specific key into the input for clarity
+                const keyPrefMap = {
+                    openrouter: "openrouterApiKey",
+                    openai: "apiKey_openai",
+                    groq: "apiKey_groq",
+                    together: "apiKey_together",
+                    deepseek: "apiKey_deepseek",
+                    "openai-compatible": "apiKey_custom"
+                };
+                const keyPref = keyPrefMap[provider] || "llmApiKey";
+                const storedKey = await window.kimiDB.getPreference(keyPref, "");
+                if (apiKeyInput) apiKeyInput.value = storedKey || "";
+                const presenceDot = document.getElementById("api-key-presence");
+                const presenceDotTest = document.getElementById("api-key-presence-test");
+                const color = storedKey && storedKey.length > 0 ? "#4caf50" : "#9e9e9e";
+                if (presenceDot) presenceDot.style.backgroundColor = color;
+                if (presenceDotTest) presenceDotTest.style.backgroundColor = color;
+
+                // Dynamic label per provider
+                if (apiKeyLabel) {
+                    const labelByProvider = {
+                        openrouter: "OpenRouter API Key",
+                        openai: "OpenAI API Key",
+                        groq: "Groq API Key",
+                        together: "Together API Key",
+                        deepseek: "DeepSeek API Key",
+                        "openai-compatible": "API Key",
+                        ollama: "API Key"
+                    };
+                    apiKeyLabel.textContent = labelByProvider[provider] || "API Key";
+                }
+                if (savedBadge) savedBadge.style.display = "none";
+                if (statusSpan) {
+                    statusSpan.textContent = "";
+                    statusSpan.style.color = "";
+                }
+            }
+        });
+    }
 
     const loadingScreen = document.getElementById("loading-screen");
     if (loadingScreen) {
@@ -146,6 +258,11 @@ document.addEventListener("DOMContentLoaded", async function () {
                 const selectedCard = characterGrid ? characterGrid.querySelector(".character-card.selected") : null;
                 if (!selectedCard) return;
                 const charKey = selectedCard.dataset.character;
+                const savedBadge = document.getElementById("api-key-saved");
+                if (savedBadge) {
+                    savedBadge.textContent = (window.kimiI18nManager && window.kimiI18nManager.t("saved_short")) || "Saved";
+                    savedBadge.style.display = "inline";
+                }
                 const promptInput = window.KimiDOMUtils.get(`#prompt-${charKey}`);
                 const prompt = promptInput ? promptInput.value : "";
 
@@ -161,6 +278,68 @@ document.addEventListener("DOMContentLoaded", async function () {
                     await window.voiceManager.updateSelectedCharacter();
                 }
                 if (window.kimiLLM && window.kimiLLM.setSystemPrompt) {
+                    // Save key as the user types and show the saved badge with debounce
+                    const apiKeyInputEl = document.getElementById("openrouter-api-key");
+                    if (apiKeyInputEl) {
+                        let t;
+                        apiKeyInputEl.addEventListener("input", () => {
+                            clearTimeout(t);
+                            t = setTimeout(async () => {
+                                const providerSelect = document.getElementById("llm-provider");
+                                const provider = providerSelect ? providerSelect.value : "openrouter";
+                                const keyPrefMap = {
+                                    openrouter: "openrouterApiKey",
+                                    openai: "apiKey_openai",
+                                    groq: "apiKey_groq",
+                                    together: "apiKey_together",
+                                    deepseek: "apiKey_deepseek",
+                                    "openai-compatible": "apiKey_custom"
+                                };
+                                const keyPref = keyPrefMap[provider] || "llmApiKey";
+                                if (window.kimiDB) {
+                                    await window.kimiDB.setPreference(keyPref, apiKeyInputEl.value.trim());
+                                }
+                                const savedBadge = document.getElementById("api-key-saved");
+                                if (savedBadge) {
+                                    savedBadge.textContent =
+                                        (window.kimiI18nManager && window.kimiI18nManager.t("saved_short")) || "Saved";
+                                    savedBadge.style.display = "inline";
+                                }
+                                const presenceDot = document.getElementById("api-key-presence");
+                                const presenceDotTest = document.getElementById("api-key-presence-test");
+                                const colorNow = apiKeyInputEl.value.trim().length > 0 ? "#4caf50" : "#9e9e9e";
+                                if (presenceDot) presenceDot.style.backgroundColor = colorNow;
+                                if (presenceDotTest) presenceDotTest.style.backgroundColor = colorNow;
+                                const statusSpan = document.getElementById("api-status");
+                                if (statusSpan) {
+                                    statusSpan.textContent = "";
+                                    statusSpan.style.color = "";
+                                }
+                            }, 500);
+                        });
+                    }
+
+                    // Clear API status when Base URL or Model ID change
+                    const baseUrlInputEl = document.getElementById("llm-base-url");
+                    if (baseUrlInputEl) {
+                        baseUrlInputEl.addEventListener("input", () => {
+                            const statusSpan = document.getElementById("api-status");
+                            if (statusSpan) {
+                                statusSpan.textContent = "";
+                                statusSpan.style.color = "";
+                            }
+                        });
+                    }
+                    const modelIdInputEl = document.getElementById("llm-model-id");
+                    if (modelIdInputEl) {
+                        modelIdInputEl.addEventListener("input", () => {
+                            const statusSpan = document.getElementById("api-status");
+                            if (statusSpan) {
+                                statusSpan.textContent = "";
+                                statusSpan.style.color = "";
+                            }
+                        });
+                    }
                     window.kimiLLM.setSystemPrompt(prompt);
                 }
                 const systemPromptInput = window.KimiDOMUtils.get("#system-prompt");
@@ -400,6 +579,12 @@ document.addEventListener("DOMContentLoaded", async function () {
             const statusSpan = document.getElementById("api-status");
             const apiKeyInput = document.getElementById("openrouter-api-key");
             const apiKey = apiKeyInput ? apiKeyInput.value.trim() : "";
+            const providerSelect = document.getElementById("llm-provider");
+            const baseUrlInput = document.getElementById("llm-base-url");
+            const modelIdInput = document.getElementById("llm-model-id");
+            const provider = providerSelect ? providerSelect.value : "openrouter";
+            const baseUrl = baseUrlInput ? baseUrlInput.value.trim() : "";
+            const modelId = modelIdInput ? modelIdInput.value.trim() : "";
 
             if (!statusSpan) return;
 
@@ -409,15 +594,15 @@ document.addEventListener("DOMContentLoaded", async function () {
                 return;
             }
 
-            if (!apiKey.startsWith("sk-or-v1-")) {
-                statusSpan.textContent =
-                    window.kimiI18nManager?.t("api_key_invalid_format") || "Invalid API key format (must start with sk-or-v1-)";
-                statusSpan.style.color = "#ff6b6b";
-                return;
-            }
-
             if (window.kimiDB) {
-                await window.kimiDB.setPreference("openrouterApiKey", apiKey);
+                if (provider === "openrouter") {
+                    await window.kimiDB.setPreference("openrouterApiKey", apiKey);
+                } else {
+                    await window.kimiDB.setPreference("llmApiKey", apiKey);
+                }
+                await window.kimiDB.setPreference("llmProvider", provider);
+                if (baseUrl) await window.kimiDB.setPreference("llmBaseUrl", baseUrl);
+                if (modelId) await window.kimiDB.setPreference("llmModelId", modelId);
             }
 
             statusSpan.textContent = "Testing in progress...";
@@ -425,10 +610,25 @@ document.addEventListener("DOMContentLoaded", async function () {
 
             try {
                 if (window.kimiLLM) {
-                    const result = await window.kimiLLM.testModel(window.kimiLLM.currentModel, "Bonjour");
+                    let result;
+                    if (provider === "openrouter") {
+                        result = await window.kimiLLM.testModel(window.kimiLLM.currentModel, "Bonjour");
+                    } else if (provider === "ollama") {
+                        const response = await window.kimiLLM.chatWithLocal("Bonjour", { maxTokens: 2 });
+                        result = { success: true, response };
+                    } else {
+                        const response = await window.kimiLLM.chatWithOpenAICompatible("Bonjour", { maxTokens: 2 });
+                        result = { success: true, response };
+                    }
                     if (result.success) {
                         statusSpan.textContent = "Connection successful!";
                         statusSpan.style.color = "#4caf50";
+                        const savedBadge = document.getElementById("api-key-saved");
+                        if (savedBadge) {
+                            savedBadge.textContent =
+                                (window.kimiI18nManager && window.kimiI18nManager.t("saved_short")) || "Saved";
+                            savedBadge.style.display = "inline";
+                        }
 
                         if (result.response) {
                             setTimeout(() => {

@@ -362,6 +362,7 @@ class KimiVideoManager {
         this._prefetchCache = new Map();
         this._prefetchInFlight = new Set();
         this._maxPrefetch = 3;
+        this._loadTimeout = null;
         this.updateVideoCategories();
         this.emotionToCategory = {
             listening: "listening",
@@ -985,7 +986,12 @@ class KimiVideoManager {
                 this._loadingInProgress = false;
                 // Nettoyer les event listeners en cours sur la vidéo inactive
                 this.inactiveVideo.removeEventListener("canplay", this._currentLoadHandler);
+                this.inactiveVideo.removeEventListener("loadeddata", this._currentLoadHandler);
                 this.inactiveVideo.removeEventListener("error", this._currentErrorHandler);
+                if (this._loadTimeout) {
+                    clearTimeout(this._loadTimeout);
+                    this._loadTimeout = null;
+                }
             } else {
                 return;
             }
@@ -995,6 +1001,10 @@ class KimiVideoManager {
 
         // Nettoyer tous les timers en cours
         clearTimeout(this.autoTransitionTimer);
+        if (this._loadTimeout) {
+            clearTimeout(this._loadTimeout);
+            this._loadTimeout = null;
+        }
 
         const pref = this._prefetchCache.get(videoSrc);
         if (pref && (pref.readyState >= 2 || pref.buffered.length > 0)) {
@@ -1010,11 +1020,21 @@ class KimiVideoManager {
         }
 
         // Stocker les références aux handlers pour pouvoir les nettoyer
-        const onCanPlay = () => {
+        let fired = false;
+        const onReady = () => {
+            if (fired) return;
+            fired = true;
             this._loadingInProgress = false;
+            if (this._loadTimeout) {
+                clearTimeout(this._loadTimeout);
+                this._loadTimeout = null;
+            }
+            this.inactiveVideo.removeEventListener("canplay", this._currentLoadHandler);
+            this.inactiveVideo.removeEventListener("loadeddata", this._currentLoadHandler);
+            this.inactiveVideo.removeEventListener("error", this._currentErrorHandler);
             this.performSwitch();
         };
-        this._currentLoadHandler = onCanPlay;
+        this._currentLoadHandler = onReady;
 
         const folder = getCharacterInfo(this.characterName).videoFolder;
         const fallbackVideo = `${folder}neutral/neutral-gentle-breathing.mp4`;
@@ -1022,6 +1042,10 @@ class KimiVideoManager {
         this._currentErrorHandler = e => {
             console.warn(`Error loading video: ${videoSrc}, falling back to: ${fallbackVideo}`);
             this._loadingInProgress = false;
+            if (this._loadTimeout) {
+                clearTimeout(this._loadTimeout);
+                this._loadTimeout = null;
+            }
             if (videoSrc !== fallbackVideo) {
                 // Try fallback video
                 this.loadAndSwitchVideo(fallbackVideo, "high");
@@ -1046,8 +1070,23 @@ class KimiVideoManager {
             }
         };
 
+        this.inactiveVideo.addEventListener("loadeddata", this._currentLoadHandler, { once: true });
         this.inactiveVideo.addEventListener("canplay", this._currentLoadHandler, { once: true });
         this.inactiveVideo.addEventListener("error", this._currentErrorHandler, { once: true });
+
+        if (this.inactiveVideo.readyState >= 2) {
+            queueMicrotask(() => onReady());
+        }
+
+        this._loadTimeout = setTimeout(() => {
+            if (!fired) {
+                if (this.inactiveVideo.readyState >= 2) {
+                    onReady();
+                } else {
+                    this._currentErrorHandler();
+                }
+            }
+        }, 3000);
     }
 
     usePreloadedVideo(preloadedVideo, videoSrc) {
@@ -1179,11 +1218,16 @@ class KimiVideoManager {
     _cleanupLoadingHandlers() {
         if (this._currentLoadHandler) {
             this.inactiveVideo.removeEventListener("canplay", this._currentLoadHandler);
+            this.inactiveVideo.removeEventListener("loadeddata", this._currentLoadHandler);
             this._currentLoadHandler = null;
         }
         if (this._currentErrorHandler) {
             this.inactiveVideo.removeEventListener("error", this._currentErrorHandler);
             this._currentErrorHandler = null;
+        }
+        if (this._loadTimeout) {
+            clearTimeout(this._loadTimeout);
+            this._loadTimeout = null;
         }
         this._loadingInProgress = false;
         this._switchInProgress = false;
@@ -1516,6 +1560,12 @@ class KimiFormManager {
     constructor(options = {}) {
         this.db = options.db || null;
         this.memory = options.memory || null;
+        this._autoInit = options.autoInit === true;
+        if (this._autoInit) {
+            this._initSliders();
+        }
+    }
+    init() {
         this._initSliders();
     }
     _initSliders() {
@@ -1656,11 +1706,11 @@ window.KimiFallbackManager = {
         // Fallback to hardcoded messages in multiple languages
         const fallbacks = {
             api_missing: {
-                fr: "Pour vraiment discuter avec moi, ajoute ta clé API OpenRouter dans les paramètres ! 💕",
-                en: "To really chat with me, add your OpenRouter API key in settings! 💕",
-                es: "Para realmente chatear conmigo, ¡agrega tu clave API de OpenRouter en configuración! 💕",
-                de: "Um wirklich mit mir zu chatten, füge deinen OpenRouter API-Schlüssel in den Einstellungen hinzu! 💕",
-                it: "Per chattare davvero con me, aggiungi la tua chiave API OpenRouter nelle impostazioni! 💕"
+                fr: "Pour discuter avec moi, ajoute ta clé API du provider choisi dans les paramètres ! 💕",
+                en: "To chat with me, add your selected provider API key in settings! 💕",
+                es: "Para chatear conmigo, agrega la clave API de tu proveedor en configuración! 💕",
+                de: "Um mit mir zu chatten, füge deinen Anbieter-API-Schlüssel in den Einstellungen hinzu! 💕",
+                it: "Per chattare con me, aggiungi la chiave API del provider nelle impostazioni! 💕"
             },
             api_error: {
                 fr: "Désolée, le service IA est temporairement indisponible. Veuillez réessayer plus tard.",
@@ -1692,7 +1742,7 @@ window.KimiFallbackManager = {
 
         switch (errorType) {
             case "api_missing":
-                return "To really chat with me, add your OpenRouter API key in settings! 💕";
+                return "To chat with me, add your API key in settings! 💕";
             case "api_error":
             case "api":
                 return "Sorry, the AI service is temporarily unavailable. Please try again later.";

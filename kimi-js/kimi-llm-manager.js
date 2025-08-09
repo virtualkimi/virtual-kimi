@@ -7,7 +7,7 @@ class KimiLLMManager {
         this.maxContextLength = 30;
         this.systemPrompt = "";
 
-        // Available models on OpenRouter (IDs updated July 2025)
+        // Recommended models on OpenRouter (IDs updated July 2025)
         this.availableModels = {
             "mistralai/mistral-small-3.2-24b-instruct": {
                 name: "Mistral-small-3.2",
@@ -19,14 +19,22 @@ class KimiLLMManager {
             },
             "nousresearch/hermes-3-llama-3.1-70b": {
                 name: "Nous Hermes Llama 3.1 70B",
-                provider: "Meta",
+                provider: "Nous",
                 type: "openrouter",
                 contextWindow: 131000,
                 pricing: { input: 0.1, output: 0.28 },
                 strengths: ["Open Source", "Balanced", "Fast", "Economical"]
             },
+            "cohere/command-r-08-2024": {
+                name: "Command-R-08-2024",
+                provider: "Cohere",
+                type: "openrouter",
+                contextWindow: 128000,
+                pricing: { input: 0.15, output: 0.6 },
+                strengths: ["Multilingual", "Economical", "Efficient", "Versatile"]
+            },
             "qwen/qwen3-235b-a22b-thinking-2507": {
-                name: "Qwen3-235b-a22b-think",
+                name: "Qwen3-235b-a22b-Think",
                 provider: "Qwen",
                 type: "openrouter",
                 contextWindow: 262000,
@@ -35,11 +43,19 @@ class KimiLLMManager {
             },
             "nousresearch/hermes-3-llama-3.1-405b": {
                 name: "Nous Hermes Llama 3.1 405B",
-                provider: "Meta",
+                provider: "Nous",
                 type: "openrouter",
                 contextWindow: 131000,
                 pricing: { input: 0.7, output: 0.8 },
                 strengths: ["Open Source", "Logical", "Code", "Multilingual"]
+            },
+            "anthropic/claude-3-haiku": {
+                name: "Claude 3 Haiku",
+                provider: "Anthropic",
+                type: "openrouter",
+                contextWindow: 200000,
+                pricing: { input: 0.25, output: 1.25 },
+                strengths: ["Fast", "Versatile", "Efficient", "Multilingual"]
             },
             "local/ollama": {
                 name: "Local Model (Ollama)",
@@ -53,8 +69,10 @@ class KimiLLMManager {
         this.recommendedModelIds = [
             "mistralai/mistral-small-3.2-24b-instruct",
             "nousresearch/hermes-3-llama-3.1-70b",
+            "cohere/command-r-08-2024",
             "qwen/qwen3-235b-a22b-thinking-2507",
             "nousresearch/hermes-3-llama-3.1-405b",
+            "anthropic/claude-3-haiku",
             "local/ollama"
         ];
         this.defaultModels = { ...this.availableModels };
@@ -306,14 +324,14 @@ class KimiLLMManager {
         const maxTokens = typeof this.maxTokens === "number" ? this.maxTokens : await this.db.getPreference("llmMaxTokens", 500);
         const opts = { ...options, temperature, maxTokens };
         try {
-            const model = this.availableModels[this.currentModel];
-            if (model.type === "openrouter") {
+            const provider = await this.db.getPreference("llmProvider", "openrouter");
+            if (provider === "openrouter") {
                 return await this.chatWithOpenRouter(userMessage, opts);
-            } else if (model.type === "local") {
-                return await this.chatWithLocal(userMessage, opts);
-            } else {
-                throw new Error("Model type not supported");
             }
+            if (provider === "ollama") {
+                return await this.chatWithLocal(userMessage, opts);
+            }
+            return await this.chatWithOpenAICompatible(userMessage, opts);
         } catch (error) {
             console.error("Error during chat:", error);
             if (error.message && error.message.includes("API")) {
@@ -326,6 +344,92 @@ class KimiLLMManager {
                 return this.getFallbackResponse(userMessage, "network");
             }
             return this.getFallbackResponse(userMessage);
+        }
+    }
+
+    async chatWithOpenAICompatible(userMessage, options = {}) {
+        const baseUrl = await this.db.getPreference("llmBaseUrl", "https://api.openai.com/v1/chat/completions");
+        const provider = await this.db.getPreference("llmProvider", "openai");
+        const providerKeyMap = {
+            openrouter: "openrouterApiKey",
+            openai: "apiKey_openai",
+            groq: "apiKey_groq",
+            together: "apiKey_together",
+            deepseek: "apiKey_deepseek",
+            "openai-compatible": "apiKey_custom"
+        };
+        const keyPref = providerKeyMap[provider] || "llmApiKey";
+        let apiKey = await this.db.getPreference(keyPref, "");
+        if (!apiKey) {
+            apiKey = await this.db.getPreference("llmApiKey", "");
+        }
+        const modelId = await this.db.getPreference("llmModelId", this.currentModel || "gpt-4o-mini");
+        if (!apiKey) {
+            throw new Error("API key not configured for selected provider");
+        }
+        const personalityPrompt = await this.generateKimiPersonality();
+        let systemPromptContent =
+            "Always detect the user's language from their message before generating a response. Respond exclusively in that language unless the user explicitly requests otherwise." +
+            "\n" +
+            (this.systemPrompt ? this.systemPrompt + "\n" + personalityPrompt : personalityPrompt);
+
+        const llmSettings = await this.db.getSetting("llm", {
+            temperature: 0.9,
+            maxTokens: 100,
+            top_p: 0.9,
+            frequency_penalty: 0.3,
+            presence_penalty: 0.3
+        });
+        const payload = {
+            model: modelId,
+            messages: [
+                { role: "system", content: systemPromptContent },
+                ...this.conversationContext.slice(-this.maxContextLength),
+                { role: "user", content: userMessage }
+            ],
+            temperature: typeof options.temperature === "number" ? options.temperature : (llmSettings.temperature ?? 0.9),
+            max_tokens: typeof options.maxTokens === "number" ? options.maxTokens : (llmSettings.maxTokens ?? 100),
+            top_p: typeof options.topP === "number" ? options.topP : (llmSettings.top_p ?? 0.9),
+            frequency_penalty:
+                typeof options.frequencyPenalty === "number" ? options.frequencyPenalty : (llmSettings.frequency_penalty ?? 0.3),
+            presence_penalty:
+                typeof options.presencePenalty === "number" ? options.presencePenalty : (llmSettings.presence_penalty ?? 0.3)
+        };
+
+        try {
+            const response = await fetch(baseUrl, {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${apiKey}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload)
+            });
+            if (!response.ok) {
+                let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+                try {
+                    const err = await response.json();
+                    if (err?.error?.message) errorMessage = err.error.message;
+                } catch {}
+                throw new Error(errorMessage);
+            }
+            const data = await response.json();
+            const content = data?.choices?.[0]?.message?.content;
+            if (!content) throw new Error("Invalid API response - no content generated");
+
+            this.conversationContext.push(
+                { role: "user", content: userMessage, timestamp: new Date().toISOString() },
+                { role: "assistant", content: content, timestamp: new Date().toISOString() }
+            );
+            if (this.conversationContext.length > this.maxContextLength * 2) {
+                this.conversationContext = this.conversationContext.slice(-this.maxContextLength * 2);
+            }
+            return content;
+        } catch (e) {
+            if (e.name === "TypeError" && e.message.includes("fetch")) {
+                throw new Error("Network connection error. Check your internet connection.");
+            }
+            throw e;
         }
     }
 

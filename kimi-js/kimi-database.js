@@ -49,7 +49,16 @@ class KimiDatabase {
             { key: "colorTheme", value: "purple" },
             { key: "interfaceOpacity", value: 0.7 },
             { key: "animationsEnabled", value: true },
-            { key: "showTranscript", value: true }
+            { key: "showTranscript", value: true },
+            { key: "llmProvider", value: "openrouter" },
+            { key: "llmBaseUrl", value: "https://openrouter.ai/api/v1/chat/completions" },
+            { key: "llmModelId", value: "mistralai/mistral-small-3.2-24b-instruct" },
+            { key: "llmApiKey", value: "" },
+            { key: "apiKey_openai", value: "" },
+            { key: "apiKey_groq", value: "" },
+            { key: "apiKey_together", value: "" },
+            { key: "apiKey_deepseek", value: "" },
+            { key: "apiKey_custom", value: "" }
         ];
         const defaultSettings = [
             {
@@ -188,24 +197,16 @@ class KimiDatabase {
     }
 
     async setPreference(key, value) {
-        // Special handling for sensitive data like API keys
-        if (key === "openrouterApiKey") {
-            // Use new validation system if available
+        if (key === "openrouterApiKey" || key === "llmApiKey" || key.startsWith("apiKey_")) {
             const isValid = window.KIMI_VALIDATORS?.validateApiKey(value) || window.KimiSecurityUtils?.validateApiKey(value);
-
             if (!isValid && value.length > 0) {
                 throw new Error("Invalid API key format");
             }
-
-            // Encrypt the API key before storing if security utils available
             if (window.KimiSecurityUtils) {
                 const encryptedValue = value ? window.KimiSecurityUtils.encryptApiKey(value) : "";
-
-                // Update cache
                 if (window.KimiCacheManager && typeof window.KimiCacheManager.set === "function") {
                     window.KimiCacheManager.set(`pref_${key}`, value, 60000);
                 }
-
                 return this.db.preferences.put({
                     key: key,
                     value: encryptedValue,
