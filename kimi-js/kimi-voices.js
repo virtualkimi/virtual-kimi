@@ -47,6 +47,9 @@ class KimiVoiceManager {
 
         // Debounce flag for toggle microphone
         this._toggleDebounce = false;
+
+        // Browser detection
+        this.browser = this._detectBrowser();
     }
 
     // ===== INITIALIZATION =====
@@ -93,6 +96,44 @@ class KimiVoiceManager {
             console.error("Error during VoiceManager initialization:", error);
             return false;
         }
+    }
+
+    _detectBrowser() {
+        const ua = navigator.userAgent || "";
+        const isOpera = (!!window.opr && !!opr.addons) || ua.includes(" OPR/");
+        const isFirefox = typeof InstallTrigger !== "undefined" || ua.toLowerCase().includes("firefox");
+        const isSafari = /Safari\//.test(ua) && !/Chrom(e|ium)\//.test(ua) && !/Edg\//.test(ua);
+        const isEdge = /Edg\//.test(ua);
+        const isChrome = /Chrome\//.test(ua) && !isEdge && !isOpera;
+        if (isFirefox) return "firefox";
+        if (isOpera) return "opera";
+        if (isSafari) return "safari";
+        if (isEdge) return "edge";
+        if (isChrome) return "chrome";
+        return "unknown";
+    }
+
+    _getUnsupportedSRMessage() {
+        // Build an i18n key by browser, then fallback to English if translation system isn't ready
+        let key = "sr_not_supported_generic";
+        if (this.browser === "firefox") key = "sr_not_supported_firefox";
+        else if (this.browser === "opera") key = "sr_not_supported_opera";
+        else if (this.browser === "safari") key = "sr_not_supported_safari";
+        const translated = typeof window.kimiI18nManager?.t === "function" ? window.kimiI18nManager.t(key) : undefined;
+        // Many i18n libs return the key itself if missing; detect that and fall back to English
+        if (!translated || translated === key) {
+            if (key === "sr_not_supported_firefox") {
+                return "Speech recognition is not supported on Firefox. Please use Chrome, Edge, or Brave.";
+            }
+            if (key === "sr_not_supported_opera") {
+                return "Speech recognition may not work on Opera. Please try Chrome, Edge, or Brave.";
+            }
+            if (key === "sr_not_supported_safari") {
+                return "Speech recognition support varies on Safari. Prefer Chrome or Edge for best results.";
+            }
+            return "Speech recognition is not available in this browser.";
+        }
+        return translated;
     }
 
     // ===== MICROPHONE PERMISSION MANAGEMENT =====
@@ -427,6 +468,7 @@ class KimiVoiceManager {
     // ===== SPEECH RECOGNITION =====
     setupSpeechRecognition() {
         if (!this.SpeechRecognition) {
+            // Do not show a UI message during initial load; only log.
             console.log("Your browser does not support speech recognition.");
             return;
         }
@@ -657,6 +699,18 @@ class KimiVoiceManager {
         this.handleMicClick = () => {
             if (!this.SpeechRecognition) {
                 console.warn("🎤 Speech recognition not available");
+                let key = "sr_not_supported_generic";
+                if (this.browser === "firefox") key = "sr_not_supported_firefox";
+                else if (this.browser === "opera") key = "sr_not_supported_opera";
+                else if (this.browser === "safari") key = "sr_not_supported_safari";
+                const message = window.kimiI18nManager?.t(key) || "Speech recognition is not available in this browser.";
+                if (this.transcriptText) {
+                    this.transcriptText.textContent = message;
+                    this.transcriptContainer?.classList.add("visible");
+                    setTimeout(() => {
+                        this.transcriptContainer?.classList.remove("visible");
+                    }, 4000);
+                }
                 return;
             }
 
@@ -675,6 +729,22 @@ class KimiVoiceManager {
     }
 
     async startListening() {
+        // Show helpful message if SR API is missing
+        if (!this.SpeechRecognition) {
+            let key = "sr_not_supported_generic";
+            if (this.browser === "firefox") key = "sr_not_supported_firefox";
+            else if (this.browser === "opera") key = "sr_not_supported_opera";
+            else if (this.browser === "safari") key = "sr_not_supported_safari";
+            const message = window.kimiI18nManager?.t(key) || "Speech recognition is not available in this browser.";
+            if (this.transcriptText) {
+                this.transcriptText.textContent = message;
+                this.transcriptContainer?.classList.add("visible");
+                setTimeout(() => {
+                    this.transcriptContainer?.classList.remove("visible");
+                }, 4000);
+            }
+            return;
+        }
         if (!this.recognition || this.isListening) return;
 
         // Check microphone API availability
