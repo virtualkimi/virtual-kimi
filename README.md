@@ -396,7 +396,7 @@ We welcome contributions! Please see our contributing guidelines:
 - [ ] Full support for local models (Ollama integration, offline mode)
 - [ ] Voice plugin system (custom voices, TTS engines)
 - [ ] Behavior plugin system (custom AI behaviors)
-- [ ] Advanced memory management UI (edit, delete, search memories)
+- [ ] Better advanced memory management UI
 - [ ] More character personalities and backgrounds
 - [ ] In-app onboarding and help system
 - [ ] Enhanced mobile experience (UI/UX)
@@ -430,6 +430,7 @@ See the [LICENSE](LICENSE) file for details.
 > _"Love is the most powerful code"_ 💕
 >
 > — 2025 Virtual Kimi - Created with 💜 by Jean & Kimi
+
 
 
 
