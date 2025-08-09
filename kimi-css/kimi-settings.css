@@ -92,6 +92,15 @@
     backdrop-filter: blur(10px);
 }
 
+.help-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    color: var(--modal-text);
+}
+
 .help-button:hover,
 .settings-close:hover {
     background-color: var(--modal-close-hover-bg);
@@ -226,6 +235,27 @@
     color: var(--settings-text);
     font-weight: 500;
     flex: 1;
+}
+
+.config-label-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
+.presence-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #9e9e9e;
+}
+
+.inline-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .config-control {
