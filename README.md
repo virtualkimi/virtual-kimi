@@ -9,7 +9,7 @@
 
 # Virtual Kimi - AI Companion Application 💖
 
-A web-based AI companion featuring adaptive personalities, intelligent memory systems, and immersive conversational experiences.
+A sophisticated web-based AI companion featuring adaptive personalities, intelligent memory systems, and immersive conversational experiences.
 
 ## Overview
 
@@ -44,13 +44,16 @@ Built with vanilla JavaScript and modern web APIs, it offers a rich, responsive 
 ### 🤖 **Advanced AI Integration**
 
 - Support for affordable, less-censored LLM models via OpenRouter (see below for available models)
+- Support for some LLMs providers 
 
 **Available models and pricing (per 1M tokens):**
 
 - **Mistral-small-3.2**: 0.05$ input, 0.1$ output (128k context)
 - **Nous Hermes Llama 3.1 70B**: 0.1$ input, 0.28$ output (131k context)
+- **Cohere Command-R-08-2024**: 0.15$ input, 0.6$ output (131k context)
 - **Qwen3-235b-a22b-think**: 0.13$ input, 0.6$ output (262k context)
 - **Nous Hermes Llama 3.1 405B**: 0.7$ input, 0.8$ output (131k context)
+- **1nthropic Claude 3 Haiku**: 0.25$ input, 1.25$ output (131k context)
 - **Local Model (Ollama)**: 0$ input, 0$ output (4k context, runs offline — _experimental, not fully functional yet_)
 
 ### 👥 **Multiple AI Personalities**
@@ -142,7 +145,7 @@ This project was originally inspired by the [JackyWine GitHub repository](https:
 The four main characters are visually based on images from four creators on X (Twitter):
 
 - @JulyFox33 (Kimi)
-- @belisaria1991 (Bella)
+- @belisaria1991 (Bella) BelisariaNew
 - @JuliAIkiko (Rosa)
 - @JuliAIkiko (Stella)
 
@@ -427,7 +430,6 @@ See the [LICENSE](LICENSE) file for details.
 > _"Love is the most powerful code"_ 💕
 >
 > — 2025 Virtual Kimi - Created with 💜 by Jean & Kimi
-
 
 
 

@@ -1,5 +1,19 @@
 # Virtual Kimi Changelog
 
+## [1.0.3] - 2025-08-09 - "LLM multi-provider"
+
+### Added
+
+- LLM multi-provider UX enhancements:
+    - Dynamic API key label per provider (OpenRouter, OpenAI, Groq, Together, DeepSeek, Custom, Ollama)
+    - Visual "Saved" badge when a key is stored or after a successful test
+    - Localized tooltip explaining Saved vs connection test
+
+### Changed
+
+- OpenAI-compatible flow now reads llmBaseUrl/llmModelId and the correct provider key from KimiDB
+- Clears connection status message when provider/Base URL/Model ID/key changes for clearer feedback
+
 ## [1.0.2] - 2025-08-09 - "Smoother Video"
 
 ### Changed
