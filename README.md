@@ -9,7 +9,7 @@
 
 # Virtual Kimi - AI Companion Application 💖
 
-A sophisticated web-based AI companion featuring adaptive personalities, intelligent memory systems, and immersive conversational experiences.
+A web-based AI companion featuring adaptive personalities, intelligent memory systems, and immersive conversational experiences.
 
 ## Overview
 
@@ -53,7 +53,7 @@ Built with vanilla JavaScript and modern web APIs, it offers a rich, responsive 
 - **Cohere Command-R-08-2024**: 0.15$ input, 0.6$ output (131k context)
 - **Qwen3-235b-a22b-think**: 0.13$ input, 0.6$ output (262k context)
 - **Nous Hermes Llama 3.1 405B**: 0.7$ input, 0.8$ output (131k context)
-- **1nthropic Claude 3 Haiku**: 0.25$ input, 1.25$ output (131k context)
+- **Anthropic Claude 3 Haiku**: 0.25$ input, 1.25$ output (131k context)
 - **Local Model (Ollama)**: 0$ input, 0$ output (4k context, runs offline — _experimental, not fully functional yet_)
 
 ### 👥 **Multiple AI Personalities**
@@ -430,6 +430,7 @@ See the [LICENSE](LICENSE) file for details.
 > _"Love is the most powerful code"_ 💕
 >
 > — 2025 Virtual Kimi - Created with 💜 by Jean & Kimi
+
 
 
 
