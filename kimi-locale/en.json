@@ -45,7 +45,7 @@
     "advanced_settings": "Advanced Settings",
     "temperature": "Temperature (Creativity)",
     "max_tokens": "Max Tokens",
-    "available_models": "Available Models",
+    "available_models": "Available Openrouter Models",
     "refresh_list": "Refresh List",
     "refresh": "Refresh",
     "visual_theme": "Visual Theme",
@@ -129,6 +129,8 @@
     "save-system-prompt": "Save System Prompt",
     "reset-system-prompt": "Reset System Prompt",
     "saved": "Saved!",
+    "saved_short": "Saved",
+    "api_key_help_title": "Saved = your API key is stored for this provider. Use Test API Key to verify the connection.",
     "reset_done": "Reset!",
     "category_listening": "Listening",
     "category_dancing": "Dancing",
@@ -193,5 +195,7 @@
     "view_memories": "View & Manage",
     "add_memory": "Add Manual Memory",
     "memory_management": "Memory Management",
-    "add": "Add"
+    "add": "Add",
+    "help_providers": "You can use multiple AI providers: OpenRouter, OpenAI, Groq, Together, DeepSeek, Custom OpenAI-compatible, or Local (Ollama). Enter the Base URL and Model ID when required, save your API key per provider, then use ‘Test API Key’.",
+    "api_key_presence_hint": "Green = API key saved for current provider. Grey = no key saved."
 }

@@ -45,7 +45,7 @@
     "advanced_settings": "Paramètres avancés",
     "temperature": "Température (Créativité)",
     "max_tokens": "Nombre maximal de tokens",
-    "available_models": "Modèles disponibles",
+    "available_models": "Modèles Openrouter disponibles",
     "refresh_list": "Rafraîchir la liste",
     "refresh": "Rafraîchir",
     "visual_theme": "Thème visuel",
@@ -129,6 +129,8 @@
     "save-system-prompt": "Sauvegarder le prompt système",
     "reset-system-prompt": "Réinitialiser le prompt système",
     "saved": "Sauvegardé !",
+    "saved_short": "Sauvegardé",
+    "api_key_help_title": "Sauvegardé = votre clé API est stockée pour ce provider. Utilisez ‘Test API Key’ pour vérifier la connexion.",
     "reset_done": "Réinitialisé !",
     "category_listening": "À l'écoute",
     "category_dancing": "En train de danser",
@@ -193,5 +195,7 @@
     "view_memories": "Voir & Gérer",
     "add_memory": "Ajouter une Mémoire Manuelle",
     "memory_management": "Gestion de la Mémoire",
-    "add": "Ajouter"
+    "add": "Ajouter",
+    "help_providers": "Vous pouvez utiliser plusieurs fournisseurs d’IA : OpenRouter, OpenAI, Groq, Together, DeepSeek, un service OpenAI‑compatible personnalisé, ou Local (Ollama). Renseignez la Base URL et le Model ID si nécessaire, enregistrez votre clé API par fournisseur, puis utilisez ‘Test API Key’.",
+    "api_key_presence_hint": "Vert = clé API enregistrée pour le fournisseur courant. Gris = aucune clé enregistrée."
 }

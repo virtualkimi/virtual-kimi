@@ -42,6 +42,10 @@ class KimiI18nManager {
             }
             el.textContent = this.t(key, params);
         });
+        document.querySelectorAll("[data-i18n-title]").forEach(el => {
+            const key = el.getAttribute("data-i18n-title");
+            el.setAttribute("title", this.t(key));
+        });
         document.querySelectorAll("[data-i18n-placeholder]").forEach(el => {
             const key = el.getAttribute("data-i18n-placeholder");
             el.setAttribute("placeholder", this.t(key));
