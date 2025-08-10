@@ -145,7 +145,7 @@ This project was originally inspired by the [JackyWine GitHub repository](https:
 The four main characters are visually based on images from four creators on X (Twitter):
 
 - @JulyFox33 (Kimi)
-- @belisaria1991 (Bella) BelisariaNew
+- @BelisariaNew (Bella)
 - @JuliAIkiko (Rosa)
 - @JuliAIkiko (Stella)
 
@@ -430,6 +430,7 @@ See the [LICENSE](LICENSE) file for details.
 > _"Love is the most powerful code"_ 💕
 >
 > — 2025 Virtual Kimi - Created with 💜 by Jean & Kimi
+
 
 
 
