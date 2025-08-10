@@ -1580,7 +1580,7 @@ body {
 
 @media (max-width: 600px) {
     .content-overlay {
-        padding: 20px;
+        padding: 10px;
     }
 
     .chat-container {

@@ -47,7 +47,7 @@ class KimiDatabase {
             { key: "voiceVolume", value: 0.8 },
             { key: "selectedCharacter", value: "kimi" },
             { key: "colorTheme", value: "purple" },
-            { key: "interfaceOpacity", value: 0.7 },
+            { key: "interfaceOpacity", value: 0.8 },
             { key: "animationsEnabled", value: true },
             { key: "showTranscript", value: true },
             { key: "llmProvider", value: "openrouter" },
@@ -202,18 +202,16 @@ class KimiDatabase {
             if (!isValid && value.length > 0) {
                 throw new Error("Invalid API key format");
             }
-            if (window.KimiSecurityUtils) {
-                const encryptedValue = value ? window.KimiSecurityUtils.encryptApiKey(value) : "";
-                if (window.KimiCacheManager && typeof window.KimiCacheManager.set === "function") {
-                    window.KimiCacheManager.set(`pref_${key}`, value, 60000);
-                }
-                return this.db.preferences.put({
-                    key: key,
-                    value: encryptedValue,
-                    encrypted: true,
-                    updated: new Date().toISOString()
-                });
+            // Store keys in plain text (no encryption) per request
+            if (window.KimiCacheManager && typeof window.KimiCacheManager.set === "function") {
+                window.KimiCacheManager.set(`pref_${key}`, value, 60000);
             }
+            return this.db.preferences.put({
+                key: key,
+                value: value,
+                // do not set encrypted flag anymore
+                updated: new Date().toISOString()
+            });
         }
 
         // Update cache for regular preferences
@@ -249,10 +247,19 @@ class KimiDatabase {
                 return defaultValue;
             }
 
-            // Special handling for encrypted data
+            // Backward compatibility: decrypt legacy encrypted values
             let value = record.value;
             if (record.encrypted && window.KimiSecurityUtils) {
-                value = window.KimiSecurityUtils.decryptApiKey(record.value);
+                try {
+                    value = window.KimiSecurityUtils.decryptApiKey(record.value);
+                    // One-time migration: store back as plain text without encrypted flag
+                    try {
+                        await this.db.preferences.put({ key: key, value, updated: new Date().toISOString() });
+                    } catch (mErr) {}
+                } catch (e) {
+                    // If decryption fails, fallback to raw value
+                    console.warn("Failed to decrypt legacy API key; returning raw value", e);
+                }
             }
 
             // Cache the result
@@ -380,6 +387,15 @@ class KimiDatabase {
 
     async savePersonality(personalityObj, character = null) {
         if (!character) character = await this.getSelectedCharacter();
+        // Invalidate caches for all affected traits and the aggregate cache for this character
+        if (window.KimiCacheManager && typeof window.KimiCacheManager.delete === "function") {
+            try {
+                Object.keys(personalityObj).forEach(trait => {
+                    window.KimiCacheManager.delete(`trait_${character}_${trait}`);
+                });
+                window.KimiCacheManager.delete(`all_traits_${character}`);
+            } catch (e) {}
+        }
         const entries = Object.entries(personalityObj).map(([trait, value]) =>
             this.db.personality.put({
                 trait: trait,
@@ -498,6 +514,16 @@ class KimiDatabase {
     }
     async setPersonalityBatch(traitsObj, character = null) {
         if (!character) character = await this.getSelectedCharacter();
+        // Invalidate caches for all affected traits and the aggregate cache for this character
+        if (window.KimiCacheManager && typeof window.KimiCacheManager.delete === "function") {
+            try {
+                Object.keys(traitsObj).forEach(trait => {
+                    window.KimiCacheManager.delete(`trait_${character}_${trait}`);
+                });
+                window.KimiCacheManager.delete(`all_traits_${character}`);
+            } catch (e) {}
+        }
+
         const batch = Object.entries(traitsObj).map(([trait, value]) => ({
             trait,
             character,
@@ -517,9 +543,21 @@ class KimiDatabase {
     async getPreferencesBatch(keys) {
         const results = await this.db.preferences.where("key").anyOf(keys).toArray();
         const out = {};
-        results.forEach(item => {
-            out[item.key] = item.value;
-        });
+        for (const item of results) {
+            let val = item.value;
+            if (item.encrypted && window.KimiSecurityUtils) {
+                try {
+                    val = window.KimiSecurityUtils.decryptApiKey(item.value);
+                    // Migrate back as plain
+                    try {
+                        await this.db.preferences.put({ key: item.key, value: val, updated: new Date().toISOString() });
+                    } catch (mErr) {}
+                } catch (e) {
+                    console.warn("Failed to decrypt legacy pref in batch:", item.key, e);
+                }
+            }
+            out[item.key] = val;
+        }
         return out;
     }
     async getPersonalityTraitsBatch(traits, character = null) {

@@ -46,7 +46,7 @@ window.KimiValidationUtils = {
             llmTopP: { min: 0, max: 1, default: 0.9 },
             llmFrequencyPenalty: { min: 0, max: 2, default: 0.3 },
             llmPresencePenalty: { min: 0, max: 2, default: 0.3 },
-            interfaceOpacity: { min: 0.1, max: 1, default: 0.7 }
+            interfaceOpacity: { min: 0.1, max: 1, default: 0.8 }
         };
 
         const range = ranges[type];
@@ -405,6 +405,93 @@ class KimiVideoManager {
         this._loadingInProgress = false;
         this._currentLoadHandler = null;
         this._currentErrorHandler = null;
+        this._stickyContext = null;
+        this._stickyUntil = 0;
+        this._pendingSwitches = [];
+        this._debug = false;
+    }
+
+    setDebug(enabled) {
+        this._debug = !!enabled;
+    }
+
+    _logDebug(message, payload = null) {
+        if (!this._debug) return;
+        if (payload) console.log("🎬 VideoManager:", message, payload);
+        else console.log("🎬 VideoManager:", message);
+    }
+
+    _logSelection(category, selectedSrc, candidates = []) {
+        if (!this._debug) return;
+        const recent = (this.playHistory && this.playHistory[category]) || [];
+        const adaptive = typeof this.getAdaptiveHistorySize === "function" ? this.getAdaptiveHistorySize(category) : null;
+        console.log("🎬 VideoManager: selection", {
+            category,
+            selected: selectedSrc,
+            candidatesCount: Array.isArray(candidates) ? candidates.length : 0,
+            adaptiveHistorySize: adaptive,
+            recentHistory: recent
+        });
+    }
+
+    debugPrintHistory(category = null) {
+        if (!this._debug) return;
+        if (!this.playHistory) {
+            console.log("🎬 VideoManager: no play history yet");
+            return;
+        }
+        if (category) {
+            const recent = this.playHistory[category] || [];
+            console.log("🎬 VideoManager: history", { category, recent });
+            return;
+        }
+        const summary = Object.keys(this.playHistory).reduce((acc, key) => {
+            acc[key] = this.playHistory[key];
+            return acc;
+        }, {});
+        console.log("🎬 VideoManager: history summary", summary);
+    }
+
+    _priorityWeight(context) {
+        if (context === "speaking" || context === "speakingPositive" || context === "speakingNegative") return 3;
+        if (context === "dancing" || context === "listening") return 2;
+        return 1;
+    }
+
+    _enqueuePendingSwitch(req) {
+        // Keep small bounded list; prefer newest higher-priority
+        const maxSize = 5;
+        this._pendingSwitches.push(req);
+        if (this._pendingSwitches.length > maxSize) {
+            this._pendingSwitches = this._pendingSwitches.slice(-maxSize);
+        }
+    }
+
+    _takeNextPendingSwitch() {
+        if (!this._pendingSwitches.length) return null;
+        let bestIdx = 0;
+        let best = this._pendingSwitches[0];
+        for (let i = 1; i < this._pendingSwitches.length; i++) {
+            const cand = this._pendingSwitches[i];
+            if (cand.priorityWeight > best.priorityWeight) {
+                best = cand;
+                bestIdx = i;
+            } else if (cand.priorityWeight === best.priorityWeight && cand.requestedAt > best.requestedAt) {
+                best = cand;
+                bestIdx = i;
+            }
+        }
+        this._pendingSwitches.splice(bestIdx, 1);
+        return best;
+    }
+
+    _processPendingSwitches() {
+        if (this._stickyContext === "dancing") return false;
+        const next = this._takeNextPendingSwitch();
+        if (!next) return false;
+        this._logDebug("Processing pending switch", next);
+        this.switchToContext(next.context, next.emotion, next.specificVideo, next.traits, next.affection);
+        return true;
     }
 
     setCharacter(characterName) {
@@ -473,11 +560,101 @@ class KimiVideoManager {
     }
 
     async init(database = null) {
-        // Removed preloader initialization - simplified video management
+        // Attach lightweight visibility guard
+        if (!this._visibilityHandler) {
+            this._visibilityHandler = this.onVisibilityChange.bind(this);
+            document.addEventListener("visibilitychange", this._visibilityHandler);
+        }
+    }
+
+    onVisibilityChange() {
+        if (document.visibilityState !== "visible") return;
+        const v = this.activeVideo;
+        if (!v) return;
+        try {
+            if (v.ended) {
+                if (typeof this.returnToNeutral === "function") this.returnToNeutral();
+            } else if (v.paused) {
+                v.play().catch(() => {
+                    if (typeof this.returnToNeutral === "function") this.returnToNeutral();
+                });
+            }
+        } catch {}
     }
 
     // Intelligent contextual management
     switchToContext(context, emotion = "neutral", specificVideo = null, traits = null, affection = null) {
+        // Respect sticky context (avoid overrides while dancing is requested/playing)
+        if (this._stickyContext === "dancing" && context !== "dancing") {
+            const categoryForPriority = this.determineCategory(context, emotion, traits);
+            const priorityWeight = this._priorityWeight(
+                categoryForPriority === "speakingPositive" || categoryForPriority === "speakingNegative" ? "speaking" : context
+            );
+            if (Date.now() < (this._stickyUntil || 0)) {
+                this._enqueuePendingSwitch({
+                    context,
+                    emotion,
+                    specificVideo,
+                    traits,
+                    affection,
+                    requestedAt: Date.now(),
+                    priorityWeight
+                });
+                this._logDebug("Queued during dancing (sticky)", { context, emotion, priorityWeight });
+                return;
+            }
+            this._stickyContext = null;
+            this._stickyUntil = 0;
+        }
+        // While an emotion video is playing (speaking), block non-speaking context switches
+        if (
+            this.isEmotionVideoPlaying &&
+            (this.currentContext === "speaking" ||
+                this.currentContext === "speakingPositive" ||
+                this.currentContext === "speakingNegative") &&
+            !(context === "speaking" || context === "speakingPositive" || context === "speakingNegative")
+        ) {
+            // Queue the request with appropriate priority to be processed after current clip
+            const categoryForPriority = this.determineCategory(context, emotion, traits);
+            const priorityWeight = this._priorityWeight(
+                categoryForPriority === "speakingPositive" || categoryForPriority === "speakingNegative" ? "speaking" : context
+            );
+            this._enqueuePendingSwitch({
+                context,
+                emotion,
+                specificVideo,
+                traits,
+                affection,
+                requestedAt: Date.now(),
+                priorityWeight
+            });
+            this._logDebug("Queued non-speaking during speaking emotion", { context, emotion, priorityWeight });
+            return;
+        }
+
+        // While speaking emotion video is playing, also queue speaking→speaking changes (avoid mid-clip replacement)
+        if (
+            this.isEmotionVideoPlaying &&
+            (this.currentContext === "speaking" ||
+                this.currentContext === "speakingPositive" ||
+                this.currentContext === "speakingNegative") &&
+            (context === "speaking" || context === "speakingPositive" || context === "speakingNegative") &&
+            this.currentEmotionContext &&
+            this.currentEmotionContext !== emotion
+        ) {
+            const priorityWeight = this._priorityWeight("speaking");
+            this._enqueuePendingSwitch({
+                context,
+                emotion,
+                specificVideo,
+                traits,
+                affection,
+                requestedAt: Date.now(),
+                priorityWeight
+            });
+            this._logDebug("Queued speaking→speaking during active emotion", { from: this.currentEmotionContext, to: emotion });
+            return;
+        }
         if (context === "neutral" && this._neutralLock) return;
         if (
             (context === "speaking" || context === "speakingPositive" || context === "speakingNegative") &&
@@ -498,7 +675,9 @@ class KimiVideoManager {
                         ? this._pickScoredVideo(category, differentVideos, traits)
                         : differentVideos[Math.floor(Math.random() * differentVideos.length)];
                 this.loadAndSwitchVideo(nextVideo, "normal");
-                if (typeof this._rememberPlayed === "function") this._rememberPlayed(category, nextVideo);
+                // Track play history to avoid immediate repeats
+                if (typeof this.updatePlayHistory === "function") this.updatePlayHistory(category, nextVideo);
+                this._logSelection(category, nextVideo, differentVideos);
                 this.lastSwitchTime = Date.now();
             }
             return;
@@ -515,13 +694,20 @@ class KimiVideoManager {
             priority = "high";
         }
 
+        // Set sticky lock for dancing to avoid being interrupted by emotion/neutral updates
+        if (context === "dancing") {
+            this._stickyContext = "dancing";
+            // Lock roughly for one clip duration; will also be cleared on end/neutral
+            this._stickyUntil = Date.now() + 9500;
+        }
+
         // Chemin optimisé lorsque TTS parle/écoute (évite clignotements)
         if (
             window.voiceManager &&
             window.voiceManager.isSpeaking &&
             (context === "speaking" || context === "speakingPositive" || context === "speakingNegative")
         ) {
-            const speakingPath = this.selectOptimalVideo(category, specificVideo, traits, affection);
+            const speakingPath = this.selectOptimalVideo(category, specificVideo, traits, affection, emotion);
             const speakingCurrent = this.activeVideo.querySelector("source").getAttribute("src");
             if (speakingCurrent !== speakingPath || this.activeVideo.ended) {
                 this.loadAndSwitchVideo(speakingPath, priority);
@@ -532,7 +718,7 @@ class KimiVideoManager {
             return;
         }
         if (window.voiceManager && window.voiceManager.isListening && context === "listening") {
-            const listeningPath = this.selectOptimalVideo(category, specificVideo, traits, affection);
+            const listeningPath = this.selectOptimalVideo(category, specificVideo, traits, affection, emotion);
             const listeningCurrent = this.activeVideo.querySelector("source").getAttribute("src");
             if (listeningCurrent !== listeningPath || this.activeVideo.ended) {
                 this.loadAndSwitchVideo(listeningPath, priority);
@@ -544,7 +730,7 @@ class KimiVideoManager {
         }
 
         // Sélection standard
-        let videoPath = this.selectOptimalVideo(category, specificVideo, traits, affection);
+        let videoPath = this.selectOptimalVideo(category, specificVideo, traits, affection, emotion);
         const currentVideoSrc = this.activeVideo.querySelector("source").getAttribute("src");
 
         // Anti-répétition si plusieurs vidéos disponibles
@@ -609,7 +795,13 @@ class KimiVideoManager {
 
         // For dancing: auto-return to neutral after video ends to avoid freeze
         if (context === "dancing") {
-            this._globalEndedHandler = () => this.returnToNeutral();
+            this._globalEndedHandler = () => {
+                this._stickyContext = null;
+                this._stickyUntil = 0;
+                if (!this._processPendingSwitches()) {
+                    this.returnToNeutral();
+                }
+            };
             this.activeVideo.addEventListener("ended", this._globalEndedHandler, { once: true });
             // Safety timer
             if (typeof this.scheduleAutoTransition === "function") {
@@ -623,7 +815,10 @@ class KimiVideoManager {
                 this.isEmotionVideoPlaying = false;
                 this.currentEmotionContext = null;
                 this._neutralLock = false;
-                this.returnToNeutral();
+                // Process any pending high-priority switch first; otherwise return to neutral
+                if (!this._processPendingSwitches()) {
+                    this.returnToNeutral();
+                }
             };
             this.activeVideo.addEventListener("ended", this._globalEndedHandler, { once: true });
             return;
@@ -646,11 +841,12 @@ class KimiVideoManager {
 
     // keep only the augmented determineCategory above (with traits)
 
-    selectOptimalVideo(category, specificVideo = null, traits = null, affection = null) {
+    selectOptimalVideo(category, specificVideo = null, traits = null, affection = null, emotion = null) {
         const availableVideos = this.videoCategories[category] || this.videoCategories.neutral;
 
         if (specificVideo && availableVideos.includes(specificVideo)) {
-            this.updatePlayHistory(category, specificVideo);
+            if (typeof this.updatePlayHistory === "function") this.updatePlayHistory(category, specificVideo);
+            this._logSelection(category, specificVideo, availableVideos);
             return specificVideo;
         }
 
@@ -680,15 +876,23 @@ class KimiVideoManager {
             let weights = candidateVideos.map(video => {
                 if (category === "speakingPositive") {
                     // More positive videos when affection is high, but not extreme
-                    return 1 + (affection / 100) * 0.3;
+                    // Also bias within positive towards romance/humor contexts when emotion suggests it
+                    const base = 1 + (affection / 100) * 0.3;
+                    let bonus = 0;
+                    const rom = typeof traits.romance === "number" ? traits.romance : 50;
+                    const hum = typeof traits.humor === "number" ? traits.humor : 50;
+                    if (emotion === "romantic") bonus += (rom / 100) * 0.2;
+                    if (emotion === "laughing") bonus += (hum / 100) * 0.2;
+                    return base + bonus;
                 }
                 if (category === "speakingNegative") {
                     // More negative/shy videos when affection is low
                     return 1 + ((100 - affection) / 100) * 0.4;
                 }
                 if (category === "neutral") {
-                    // Neutral videos when affection is moderate
-                    return 1 + (Math.abs(50 - affection) / 100) * 0.2;
+                    // Neutral videos when affection is moderate (peak at ~50, lower at extremes)
+                    const distance = Math.abs(50 - affection) / 50; // 0 at 50, 1 at 0 or 100
+                    return 1 + (1 - Math.min(1, distance)) * 0.2;
                 }
                 if (category === "dancing") {
                     // Dancing strongly influenced by playfulness but capped
@@ -697,7 +901,8 @@ class KimiVideoManager {
                 if (category === "listening") {
                     // Listening influenced by empathy and attention
                     const empathyWeight = (traits.empathy || 50) / 100;
-                    return 1 + empathyWeight * 0.2;
+                    // Slightly consider affection too (more patient listening at higher affection)
+                    return 1 + empathyWeight * 0.2 + (affection / 100) * 0.05;
                 }
                 return 1;
             });
@@ -706,17 +911,26 @@ class KimiVideoManager {
             let r = Math.random() * total;
             for (let i = 0; i < candidateVideos.length; i++) {
                 if (r < weights[i]) {
-                    return candidateVideos[i];
+                    const chosen = candidateVideos[i];
+                    if (typeof this.updatePlayHistory === "function") this.updatePlayHistory(category, chosen);
+                    this._logSelection(category, chosen, candidateVideos);
+                    return chosen;
                 }
                 r -= weights[i];
             }
             const selectedVideo = candidateVideos[0];
-            this.updatePlayHistory(category, selectedVideo);
+            if (typeof this.updatePlayHistory === "function") this.updatePlayHistory(category, selectedVideo);
+            this._logSelection(category, selectedVideo, candidateVideos);
             return selectedVideo;
         }
 
+        // No traits weighting: random pick
+        if (candidateVideos.length === 0) {
+            return availableVideos && availableVideos[0] ? availableVideos[0] : null;
+        }
         const selectedVideo = candidateVideos[Math.floor(Math.random() * candidateVideos.length)];
-        this.updatePlayHistory(category, selectedVideo);
+        if (typeof this.updatePlayHistory === "function") this.updatePlayHistory(category, selectedVideo);
+        this._logSelection(category, selectedVideo, candidateVideos);
         return selectedVideo;
     }
 
@@ -767,18 +981,49 @@ class KimiVideoManager {
     }
 
     // SPECIALIZED METHODS FOR EACH CONTEXT
-    startListening() {
+    async startListening(traits = null, affection = null) {
+        // If already listening and playing, avoid redundant switch
         if (this.currentContext === "listening" && !this.activeVideo.paused && !this.activeVideo.ended) {
             return;
         }
+        // Immediate switch to keep UI responsive
         this.switchToContext("listening");
+
+        // If caller did not provide traits, try to fetch and refine selection
+        try {
+            if (!traits && window.kimiDB && typeof window.kimiDB.getAllPersonalityTraits === "function") {
+                const selectedCharacter = await window.kimiDB.getSelectedCharacter();
+                const allTraits = await window.kimiDB.getAllPersonalityTraits(selectedCharacter);
+                if (allTraits && typeof allTraits === "object") {
+                    const aff = typeof allTraits.affection === "number" ? allTraits.affection : undefined;
+                    // Re-issue context switch with weighting parameters to better pick listening videos
+                    this.switchToContext("listening", "listening", null, allTraits, aff);
+                }
+            } else if (traits) {
+                this.switchToContext("listening", "listening", null, traits, affection);
+            }
+        } catch (e) {
+            // Non-fatal: keep basic listening behavior
+            console.warn("Listening refinement skipped due to error:", e);
+        }
     }
 
     respondWithEmotion(emotion, traits = null, affection = null) {
+        // Ignore neutral emotion to avoid unintended overrides (use returnToNeutral when appropriate)
+        if (emotion === "neutral") {
+            if (this._stickyContext === "dancing" || this.currentContext === "dancing") return;
+            this.returnToNeutral();
+            return;
+        }
+        // Do not override dancing while sticky
+        if (this._stickyContext === "dancing" || this.currentContext === "dancing") return;
+        // If we are already playing the same emotion video, do nothing
         if (this.isEmotionVideoPlaying && this.currentEmotionContext === emotion) return;
+        // First switch context (so internal guards don't see the new flags yet)
+        this.switchToContext("speaking", emotion, null, traits, affection);
+        // Then mark the emotion video as playing for override protection
         this.isEmotionVideoPlaying = true;
         this.currentEmotionContext = emotion;
-        this.switchToContext("speaking", emotion, null, traits, affection);
     }
 
     returnToNeutral() {
@@ -788,6 +1033,8 @@ class KimiVideoManager {
         setTimeout(() => {
             this._neutralLock = false;
         }, 1000);
+        this._stickyContext = null;
+        this._stickyUntil = 0;
         this.isEmotionVideoPlaying = false;
         this.currentEmotionContext = null;
 
@@ -805,7 +1052,7 @@ class KimiVideoManager {
         }
         if (nextSrc) {
             this.loadAndSwitchVideo(nextSrc, "normal");
-            if (typeof this._rememberPlayed === "function") this._rememberPlayed(category, nextSrc);
+            if (typeof this.updatePlayHistory === "function") this.updatePlayHistory(category, nextSrc);
             this.currentContext = "neutral";
             this.currentEmotion = "neutral";
             this.lastSwitchTime = Date.now();
@@ -818,6 +1065,10 @@ class KimiVideoManager {
     // ADVANCED CONTEXTUAL ANALYSIS
     // ADVANCED CONTEXTUAL ANALYSIS - SIMPLIFIED
     async analyzeAndSelectVideo(userMessage, kimiResponse, emotionAnalysis, traits = null, affection = null, lang = null) {
+        // Do not analyze-switch away while dancing is sticky/playing
+        if (this._stickyContext === "dancing" || this.currentContext === "dancing") {
+            return; // let dancing finish
+        }
         // Auto-detect language if not specified
         let userLang = lang;
         if (!userLang && window.kimiDB && window.kimiDB.getPreference) {
@@ -907,7 +1158,15 @@ class KimiVideoManager {
             }
         }
 
-        // Default to neutral context
+        // Default to neutral context, with a very subtle positive bias at very high affection
+        if (traits && typeof traits.affection === "number" && traits.affection >= 95) {
+            const chance = Math.random();
+            if (chance < 0.25) {
+                this.switchToContext("speakingPositive", "positive", null, traits, affection);
+                return;
+            }
+        }
+        // Avoid neutral override if a transient state should persist (handled elsewhere)
         this.switchToContext("neutral", "neutral", null, traits, affection);
     }
 
@@ -947,7 +1206,9 @@ class KimiVideoManager {
         console.log(`Auto-transition scheduled in ${duration / 1000}s (${this.currentContext} → neutral)`);
         this.autoTransitionTimer = setTimeout(() => {
             if (this.currentContext !== "neutral" && this.currentContext !== "listening") {
-                this.returnToNeutral();
+                if (!this._processPendingSwitches()) {
+                    this.returnToNeutral();
+                }
             }
         }, duration);
     }
@@ -1207,12 +1468,22 @@ class KimiVideoManager {
     destroy() {
         clearTimeout(this.autoTransitionTimer);
         this.autoTransitionTimer = null;
+        if (this._visibilityHandler) {
+            document.removeEventListener("visibilitychange", this._visibilityHandler);
+            this._visibilityHandler = null;
+        }
     }
 
     // Utilitaire pour déterminer la catégorie vidéo selon la moyenne des traits
     setMoodByPersonality(traits) {
+        if (this._stickyContext === "dancing" || this.currentContext === "dancing") return;
         const category = getMoodCategoryFromPersonality(traits);
-        this.switchToContext(category, category, null, traits, traits.affection);
+        // Normalize emotion so validation uses base emotion labels
+        let emotion = category;
+        if (category === "speakingPositive") emotion = "positive";
+        else if (category === "speakingNegative") emotion = "negative";
+        // For other categories (neutral, listening, dancing) emotion can equal category
+        this.switchToContext(category, emotion, null, traits, traits.affection);
     }
 
     _cleanupLoadingHandlers() {
@@ -1423,6 +1694,20 @@ class KimiOverlayManager {
     close(name) {
         const el = this.overlays[name];
         if (el) el.classList.remove("visible");
+        // Ensure background video resumes after closing any overlay
+        const kv = window.kimiVideo;
+        if (kv && kv.activeVideo) {
+            try {
+                const v = kv.activeVideo;
+                if (v.ended) {
+                    if (typeof kv.returnToNeutral === "function") kv.returnToNeutral();
+                } else if (v.paused) {
+                    v.play().catch(() => {
+                        if (typeof kv.returnToNeutral === "function") kv.returnToNeutral();
+                    });
+                }
+            } catch {}
+        }
     }
     toggle(name) {
         const el = this.overlays[name];

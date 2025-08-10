@@ -62,25 +62,107 @@ document.addEventListener("DOMContentLoaded", async function () {
 
         isSystemReady = true;
         window.isSystemReady = true;
+        // Hydrate API config UI from DB after systems ready
+        initializeApiConfigUI();
     } catch (error) {
         console.error("Initialization error:", error);
     }
-    const presenceDotInit = document.getElementById("api-key-presence");
-    const presenceDotInitTest = document.getElementById("api-key-presence-test");
-    if (presenceDotInit || presenceDotInitTest) {
-        const currentVal = (document.getElementById("openrouter-api-key") || {}).value || "";
+    // Centralized helpers for API config UI
+    const ApiUi = {
+        presenceDot: () => document.getElementById("api-key-presence"),
+        presenceDotTest: () => document.getElementById("api-key-presence-test"),
+        apiKeyInput: () => document.getElementById("openrouter-api-key"),
+        toggleBtn: () => document.getElementById("toggle-api-key"),
+        providerSelect: () => document.getElementById("llm-provider"),
+        baseUrlInput: () => document.getElementById("llm-base-url"),
+        modelIdInput: () => document.getElementById("llm-model-id"),
+        savedBadge: () => document.getElementById("api-key-saved"),
+        statusSpan: () => document.getElementById("api-status"),
+        testBtn: () => document.getElementById("test-api"),
+        setPresence(color) {
+            const dot = this.presenceDot();
+            const dot2 = this.presenceDotTest();
+            if (dot) dot.style.backgroundColor = color;
+            if (dot2) dot2.style.backgroundColor = color;
+        },
+        clearStatus() {
+            const s = this.statusSpan();
+            if (s) {
+                s.textContent = "";
+                s.style.color = "";
+            }
+        },
+        setTestEnabled(enabled) {
+            const b = this.testBtn();
+            if (b) b.disabled = !enabled;
+        }
+    };
+
+    // Initial presence state based on current input value
+    {
+        const currentVal = (ApiUi.apiKeyInput() || {}).value || "";
         const colorInit = currentVal && currentVal.length > 0 ? "#4caf50" : "#9e9e9e";
-        if (presenceDotInit) presenceDotInit.style.backgroundColor = colorInit;
-        if (presenceDotInitTest) presenceDotInitTest.style.backgroundColor = colorInit;
+        ApiUi.setPresence(colorInit);
+    }
+
+    // Initialize API config UI from saved preferences
+    async function initializeApiConfigUI() {
+        try {
+            if (!window.kimiDB) return;
+            const provider = await window.kimiDB.getPreference("llmProvider", "openrouter");
+            const baseUrl = await window.kimiDB.getPreference(
+                "llmBaseUrl",
+                provider === "openrouter"
+                    ? "https://openrouter.ai/api/v1/chat/completions"
+                    : "https://api.openai.com/v1/chat/completions"
+            );
+            const modelId = await window.kimiDB.getPreference(
+                "llmModelId",
+                window.kimiLLM ? window.kimiLLM.currentModel : "model-id"
+            );
+            const providerSelect = ApiUi.providerSelect();
+            if (providerSelect) providerSelect.value = provider;
+            const baseUrlInput = ApiUi.baseUrlInput();
+            const modelIdInput = ApiUi.modelIdInput();
+            const apiKeyInput = ApiUi.apiKeyInput();
+            if (baseUrlInput) baseUrlInput.value = baseUrl || "";
+            if (modelIdInput && modelId && !modelIdInput.value) modelIdInput.value = modelId;
+            // Load the provider-specific key
+            const keyPrefMap = {
+                openrouter: "openrouterApiKey",
+                openai: "apiKey_openai",
+                groq: "apiKey_groq",
+                together: "apiKey_together",
+                deepseek: "apiKey_deepseek",
+                "openai-compatible": "apiKey_custom"
+            };
+            const keyPref = keyPrefMap[provider] || "llmApiKey";
+            const storedKey = await window.kimiDB.getPreference(keyPref, "");
+            if (apiKeyInput) apiKeyInput.value = storedKey || "";
+            ApiUi.setPresence(storedKey ? "#4caf50" : "#9e9e9e");
+            const savedBadge = ApiUi.savedBadge();
+            if (savedBadge) savedBadge.style.display = storedKey ? "inline" : "none";
+            ApiUi.clearStatus();
+            // Enable/disable Test button according to validation
+            const valid = !!(window.KIMI_VALIDATORS && window.KIMI_VALIDATORS.validateApiKey(storedKey || ""));
+            ApiUi.setTestEnabled(valid);
+            // Update dynamic label and placeholders using change handler logic
+            if (providerSelect && typeof providerSelect.dispatchEvent === "function") {
+                const ev = new Event("change");
+                providerSelect.dispatchEvent(ev);
+            }
+        } catch (e) {
+            console.warn("Failed to initialize API config UI:", e);
+        }
     }
 
     const providerSelectEl = document.getElementById("llm-provider");
     if (providerSelectEl) {
         providerSelectEl.addEventListener("change", async () => {
             const provider = providerSelectEl.value;
-            const baseUrlInput = document.getElementById("llm-base-url");
-            const apiKeyInput = document.getElementById("openrouter-api-key");
-            const modelIdInput = document.getElementById("llm-model-id");
+            const baseUrlInput = ApiUi.baseUrlInput();
+            const apiKeyInput = ApiUi.apiKeyInput();
+            const modelIdInput = ApiUi.modelIdInput();
             const placeholders = {
                 openrouter: {
                     url: "https://openrouter.ai/api/v1/chat/completions",
@@ -123,9 +205,7 @@ document.addEventListener("DOMContentLoaded", async function () {
                 baseUrlInput.placeholder = p.url;
                 baseUrlInput.value = provider === "openrouter" ? "https://openrouter.ai/api/v1/chat/completions" : p.url;
             }
-            if (apiKeyInput) {
-                apiKeyInput.placeholder = p.keyPh;
-            }
+            if (apiKeyInput) apiKeyInput.placeholder = p.keyPh;
             if (modelIdInput && !modelIdInput.value) {
                 modelIdInput.placeholder = p.model;
             }
@@ -136,8 +216,6 @@ document.addEventListener("DOMContentLoaded", async function () {
                     provider === "openrouter" ? "https://openrouter.ai/api/v1/chat/completions" : p.url
                 );
                 const apiKeyLabel = document.getElementById("api-key-label");
-                const savedBadge = document.getElementById("api-key-saved");
-                const statusSpan = document.getElementById("api-status");
                 // Load provider-specific key into the input for clarity
                 const keyPrefMap = {
                     openrouter: "openrouterApiKey",
@@ -150,11 +228,9 @@ document.addEventListener("DOMContentLoaded", async function () {
                 const keyPref = keyPrefMap[provider] || "llmApiKey";
                 const storedKey = await window.kimiDB.getPreference(keyPref, "");
                 if (apiKeyInput) apiKeyInput.value = storedKey || "";
-                const presenceDot = document.getElementById("api-key-presence");
-                const presenceDotTest = document.getElementById("api-key-presence-test");
                 const color = storedKey && storedKey.length > 0 ? "#4caf50" : "#9e9e9e";
-                if (presenceDot) presenceDot.style.backgroundColor = color;
-                if (presenceDotTest) presenceDotTest.style.backgroundColor = color;
+                ApiUi.setPresence(color);
+                ApiUi.setTestEnabled(!!(window.KIMI_VALIDATORS && window.KIMI_VALIDATORS.validateApiKey(storedKey || "")));
 
                 // Dynamic label per provider
                 if (apiKeyLabel) {
@@ -169,11 +245,9 @@ document.addEventListener("DOMContentLoaded", async function () {
                     };
                     apiKeyLabel.textContent = labelByProvider[provider] || "API Key";
                 }
+                const savedBadge = ApiUi.savedBadge();
                 if (savedBadge) savedBadge.style.display = "none";
-                if (statusSpan) {
-                    statusSpan.textContent = "";
-                    statusSpan.style.color = "";
-                }
+                ApiUi.clearStatus();
             }
         });
     }
@@ -278,66 +352,19 @@ document.addEventListener("DOMContentLoaded", async function () {
                     await window.voiceManager.updateSelectedCharacter();
                 }
                 if (window.kimiLLM && window.kimiLLM.setSystemPrompt) {
-                    // Save key as the user types and show the saved badge with debounce
-                    const apiKeyInputEl = document.getElementById("openrouter-api-key");
-                    if (apiKeyInputEl) {
-                        let t;
-                        apiKeyInputEl.addEventListener("input", () => {
-                            clearTimeout(t);
-                            t = setTimeout(async () => {
-                                const providerSelect = document.getElementById("llm-provider");
-                                const provider = providerSelect ? providerSelect.value : "openrouter";
-                                const keyPrefMap = {
-                                    openrouter: "openrouterApiKey",
-                                    openai: "apiKey_openai",
-                                    groq: "apiKey_groq",
-                                    together: "apiKey_together",
-                                    deepseek: "apiKey_deepseek",
-                                    "openai-compatible": "apiKey_custom"
-                                };
-                                const keyPref = keyPrefMap[provider] || "llmApiKey";
-                                if (window.kimiDB) {
-                                    await window.kimiDB.setPreference(keyPref, apiKeyInputEl.value.trim());
-                                }
-                                const savedBadge = document.getElementById("api-key-saved");
-                                if (savedBadge) {
-                                    savedBadge.textContent =
-                                        (window.kimiI18nManager && window.kimiI18nManager.t("saved_short")) || "Saved";
-                                    savedBadge.style.display = "inline";
-                                }
-                                const presenceDot = document.getElementById("api-key-presence");
-                                const presenceDotTest = document.getElementById("api-key-presence-test");
-                                const colorNow = apiKeyInputEl.value.trim().length > 0 ? "#4caf50" : "#9e9e9e";
-                                if (presenceDot) presenceDot.style.backgroundColor = colorNow;
-                                if (presenceDotTest) presenceDotTest.style.backgroundColor = colorNow;
-                                const statusSpan = document.getElementById("api-status");
-                                if (statusSpan) {
-                                    statusSpan.textContent = "";
-                                    statusSpan.style.color = "";
-                                }
-                            }, 500);
-                        });
-                    }
+                    // Only manage system prompt here. API key editing is handled globally to avoid duplicates.
 
                     // Clear API status when Base URL or Model ID change
-                    const baseUrlInputEl = document.getElementById("llm-base-url");
+                    const baseUrlInputEl = ApiUi.baseUrlInput();
                     if (baseUrlInputEl) {
                         baseUrlInputEl.addEventListener("input", () => {
-                            const statusSpan = document.getElementById("api-status");
-                            if (statusSpan) {
-                                statusSpan.textContent = "";
-                                statusSpan.style.color = "";
-                            }
+                            ApiUi.clearStatus();
                         });
                     }
-                    const modelIdInputEl = document.getElementById("llm-model-id");
+                    const modelIdInputEl = ApiUi.modelIdInput();
                     if (modelIdInputEl) {
                         modelIdInputEl.addEventListener("input", () => {
-                            const statusSpan = document.getElementById("api-status");
-                            if (statusSpan) {
-                                statusSpan.textContent = "";
-                                statusSpan.style.color = "";
-                            }
+                            ApiUi.clearStatus();
                         });
                     }
                     window.kimiLLM.setSystemPrompt(prompt);
@@ -518,6 +545,11 @@ document.addEventListener("DOMContentLoaded", async function () {
                 setTimeout(() => {
                     saveSystemPromptButton.setAttribute("data-i18n", "save");
                     applyTranslations();
+                    // Re-enable the button after the success feedback
+                    saveSystemPromptButton.disabled = false;
+                    saveSystemPromptButton.classList.remove("success");
+                    // Ensure text reflects i18n "save" state
+                    // (applyTranslations above will set the text from locale)
                 }, 1500);
             }
         });
@@ -539,7 +571,27 @@ document.addEventListener("DOMContentLoaded", async function () {
                     resetSystemPromptButton.setAttribute("data-i18n", "reset_to_default");
                     applyTranslations();
                 }, 1500);
+
+                // After a reset, allow saving again
+                if (saveSystemPromptButton) {
+                    saveSystemPromptButton.disabled = false;
+                    saveSystemPromptButton.classList.remove("success");
+                    saveSystemPromptButton.setAttribute("data-i18n", "save");
+                    applyTranslations();
+                }
             }
+        });
+    }
+
+    // Enable the Save button whenever the prompt content changes
+    if (systemPromptInput && saveSystemPromptButton) {
+        systemPromptInput.addEventListener("input", () => {
+            if (saveSystemPromptButton.disabled) {
+                saveSystemPromptButton.disabled = false;
+            }
+            saveSystemPromptButton.classList.remove("success");
+            saveSystemPromptButton.setAttribute("data-i18n", "save");
+            applyTranslations();
         });
     }
 
@@ -576,12 +628,12 @@ document.addEventListener("DOMContentLoaded", async function () {
     const testApiButton = document.getElementById("test-api");
     if (testApiButton) {
         testApiButton.addEventListener("click", async () => {
-            const statusSpan = document.getElementById("api-status");
-            const apiKeyInput = document.getElementById("openrouter-api-key");
+            const statusSpan = ApiUi.statusSpan();
+            const apiKeyInput = ApiUi.apiKeyInput();
             const apiKey = apiKeyInput ? apiKeyInput.value.trim() : "";
-            const providerSelect = document.getElementById("llm-provider");
-            const baseUrlInput = document.getElementById("llm-base-url");
-            const modelIdInput = document.getElementById("llm-model-id");
+            const providerSelect = ApiUi.providerSelect();
+            const baseUrlInput = ApiUi.baseUrlInput();
+            const modelIdInput = ApiUi.modelIdInput();
             const provider = providerSelect ? providerSelect.value : "openrouter";
             const baseUrl = baseUrlInput ? baseUrlInput.value.trim() : "";
             const modelId = modelIdInput ? modelIdInput.value.trim() : "";
@@ -590,6 +642,15 @@ document.addEventListener("DOMContentLoaded", async function () {
 
             if (!apiKey) {
                 statusSpan.textContent = window.kimiI18nManager?.t("api_key_missing") || "API key missing";
+                statusSpan.style.color = "#ff6b6b";
+                return;
+            }
+
+            // Validate API key format before saving/testing
+            const isValid = (window.KIMI_VALIDATORS && window.KIMI_VALIDATORS.validateApiKey(apiKey)) || false;
+            if (!isValid) {
+                statusSpan.textContent =
+                    window.kimiI18nManager?.t("api_key_invalid_format") || "Invalid API key format (must start with sk-or-v1-)";
                 statusSpan.style.color = "#ff6b6b";
                 return;
             }
@@ -623,7 +684,7 @@ document.addEventListener("DOMContentLoaded", async function () {
                     if (result.success) {
                         statusSpan.textContent = "Connection successful!";
                         statusSpan.style.color = "#4caf50";
-                        const savedBadge = document.getElementById("api-key-saved");
+                        const savedBadge = ApiUi.savedBadge();
                         if (savedBadge) {
                             savedBadge.textContent =
                                 (window.kimiI18nManager && window.kimiI18nManager.t("saved_short")) || "Saved";
@@ -635,6 +696,7 @@ document.addEventListener("DOMContentLoaded", async function () {
                                 statusSpan.textContent = `Test response: \"${result.response.substring(0, 50)}...\"`;
                             }, 1000);
                         }
+                        ApiUi.setPresence("#4caf50");
                     } else {
                         statusSpan.textContent = `${result.error}`;
                         statusSpan.style.color = "#ff6b6b";
@@ -658,6 +720,72 @@ document.addEventListener("DOMContentLoaded", async function () {
             }
         });
     }
+
+    // Global, single handler for API key input to save and update presence in real-time
+    (function setupApiKeyInputHandler() {
+        const input = ApiUi.apiKeyInput();
+        if (!input) return;
+        let t;
+        input.addEventListener("input", () => {
+            clearTimeout(t);
+            t = setTimeout(async () => {
+                const providerEl = ApiUi.providerSelect();
+                const provider = providerEl ? providerEl.value : "openrouter";
+                const keyPrefMap = {
+                    openrouter: "openrouterApiKey",
+                    openai: "apiKey_openai",
+                    groq: "apiKey_groq",
+                    together: "apiKey_together",
+                    deepseek: "apiKey_deepseek",
+                    "openai-compatible": "apiKey_custom"
+                };
+                const keyPref = keyPrefMap[provider] || "llmApiKey";
+                const value = input.value.trim();
+                // Update Test button state immediately
+                const validNow = !!(window.KIMI_VALIDATORS && window.KIMI_VALIDATORS.validateApiKey(value));
+                ApiUi.setTestEnabled(validNow);
+                if (window.kimiDB) {
+                    try {
+                        await window.kimiDB.setPreference(keyPref, value);
+                        const savedBadge = ApiUi.savedBadge();
+                        if (savedBadge) {
+                            savedBadge.textContent =
+                                (window.kimiI18nManager && window.kimiI18nManager.t("saved_short")) || "Saved";
+                            savedBadge.style.display = value ? "inline" : "none";
+                        }
+                        ApiUi.setPresence(value ? "#4caf50" : "#9e9e9e");
+                        ApiUi.clearStatus();
+                    } catch (e) {
+                        // Validation error from DB
+                        const s = ApiUi.statusSpan();
+                        if (s) {
+                            s.textContent = e?.message || "Invalid API key";
+                            s.style.color = "#ff6b6b";
+                        }
+                        ApiUi.setTestEnabled(false);
+                    }
+                }
+            }, window.KIMI_SECURITY_CONFIG?.DEBOUNCE_DELAY || 300);
+        });
+    })();
+
+    // Toggle show/hide for API key
+    (function setupToggleEye() {
+        const btn = ApiUi.toggleBtn();
+        const input = ApiUi.apiKeyInput();
+        if (!btn || !input) return;
+        btn.addEventListener("click", () => {
+            const showing = input.type === "text";
+            input.type = showing ? "password" : "text";
+            btn.setAttribute("aria-pressed", String(!showing));
+            const icon = btn.querySelector("i");
+            if (icon) {
+                icon.classList.toggle("fa-eye");
+                icon.classList.toggle("fa-eye-slash");
+            }
+            btn.setAttribute("aria-label", showing ? "Show API key" : "Hide API key");
+        });
+    })();
 
     kimiInit.register(
         "appearanceManager",

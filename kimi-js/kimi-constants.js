@@ -2,15 +2,16 @@
 
 window.KIMI_CONTEXT_KEYWORDS = {
     en: {
-        surprise: ["wow", "oh", "surprise", "incredible", "amazing", "wahou"],
-        laughing: ["haha", "lol", "laugh", "funny", "hilarious", "mdr"],
+        surprise: ["wow", "oh", "surprise", "incredible", "amazing"],
+        laughing: ["haha", "lol", "laugh", "funny", "hilarious"],
         shy: ["shy", "embarrassed", "blush", "bashful", "intimidated"],
         confident: ["confidence", "proud", "confident", "strong", "determined"],
         romantic: ["love", "romantic", "tender", "hug", "kiss", "dear"],
         flirtatious: ["flirty", "teasing", "seduce", "charm", "flirt"],
-        goodbye: ["goodbye", "bye", "see you soon", "ciao", "hi"],
+        goodbye: ["goodbye", "bye", "see you", "see you soon", "ciao"],
         kiss: ["kiss", "kisses", "embrace", "bise"],
-        dancing: ["dance", "dancing", "move", "groove", "step"]
+        dancing: ["dance", "dancing", "move", "groove", "step"],
+        listening: ["listen", "listening", "hear", "talk", "speak", "question", "ask", "tell me"]
     },
     fr: {
         surprise: ["oh", "surprise", "incroyable", "wahou", "étonnant"],
@@ -21,7 +22,8 @@ window.KIMI_CONTEXT_KEYWORDS = {
         flirtatious: ["flirt", "taquin", "séduire", "charme", "aguiche"],
         goodbye: ["au revoir", "bye", "à bientôt", "ciao", "salut"],
         kiss: ["bisou", "baiser", "embrasser", "câlin"],
-        dancing: ["danse", "bouge", "remue", "tourne", "spin"]
+        dancing: ["danse", "bouge", "remue", "tourne", "spin"],
+        listening: ["écoute", "ecoute", "écouter", "parle", "parler", "question", "demande", "dis-moi"]
     },
     es: {
         surprise: ["wow", "oh", "sorpresa", "increíble", "asombroso"],
@@ -30,9 +32,10 @@ window.KIMI_CONTEXT_KEYWORDS = {
         confident: ["confianza", "orgulloso", "seguro", "fuerte", "determinado"],
         romantic: ["amor", "romántico", "tierno", "abrazo", "beso", "querido"],
         flirtatious: ["coqueto", "provocar", "seducir", "encanto", "flirtear"],
-        goodbye: ["adiós", "bye", "hasta pronto", "ciao", "hola"],
-        kiss: ["beso", "besos", "abrazar", "beso"],
-        dancing: ["bailar", "baile", "mover", "ritmo", "paso"]
+        goodbye: ["adiós", "bye", "hasta pronto", "ciao", "hasta luego"],
+        kiss: ["beso", "besos", "abrazar"],
+        dancing: ["bailar", "baile", "mover", "ritmo", "paso"],
+        listening: ["escucha", "escuchar", "oír", "habla", "hablar", "pregunta", "preguntar", "dime"]
     },
     de: {
         surprise: ["wow", "oh", "überraschung", "unglaublich", "erstaunlich"],
@@ -41,9 +44,10 @@ window.KIMI_CONTEXT_KEYWORDS = {
         confident: ["vertrauen", "stolz", "sicher", "stark", "entschlossen"],
         romantic: ["liebe", "romantisch", "zärtlich", "umarmung", "kuss", "lieber"],
         flirtatious: ["flirten", "necken", "verführen", "charme", "flirt"],
-        goodbye: ["auf wiedersehen", "bye", "bis bald", "ciao", "hallo"],
+        goodbye: ["auf wiedersehen", "bye", "bis bald", "ciao", "bis später"],
         kiss: ["kuss", "küsse", "umarmen", "küsschen"],
-        dancing: ["tanzen", "tanz", "bewegen", "groove", "schritt"]
+        dancing: ["tanzen", "tanz", "bewegen", "groove", "schritt"],
+        listening: ["hör", "hören", "zuhören", "sprich", "sprechen", "frage", "fragen", "sag mir"]
     },
     it: {
         surprise: ["wow", "oh", "sorpresa", "incredibile", "stupefacente"],
@@ -52,9 +56,10 @@ window.KIMI_CONTEXT_KEYWORDS = {
         confident: ["fiducia", "orgoglioso", "sicuro", "forte", "determinato"],
         romantic: ["amore", "romantico", "tenero", "abbraccio", "bacio", "caro"],
         flirtatious: ["civettare", "provocare", "sedurre", "fascino", "flirtare"],
-        goodbye: ["arrivederci", "bye", "a presto", "ciao", "ciao"],
+        goodbye: ["arrivederci", "bye", "a presto", "ciao"],
         kiss: ["bacio", "baci", "abbracciare", "bacetto"],
-        dancing: ["ballare", "ballo", "muovere", "ritmo", "passo"]
+        dancing: ["ballare", "ballo", "muovere", "ritmo", "passo"],
+        listening: ["ascolta", "ascoltare", "senti", "parla", "parlare", "domanda", "chiedere", "dimmi"]
     },
     ja: {
         surprise: ["わお", "おお", "驚き", "信じられない", "すごい"],
@@ -63,9 +68,10 @@ window.KIMI_CONTEXT_KEYWORDS = {
         confident: ["自信", "誇り", "確信", "強い", "決意"],
         romantic: ["愛", "ロマンチック", "優しい", "抱擁", "キス", "愛しい"],
         flirtatious: ["いちゃつく", "からかう", "誘惑", "魅力", "フリート"],
-        goodbye: ["さようなら", "バイバイ", "また今度", "チャオ", "こんにちは"],
-        kiss: ["キス", "キス", "抱擁", "チュー"],
-        dancing: ["踊る", "ダンス", "動く", "グルーブ", "ステップ"]
+        goodbye: ["さようなら", "バイバイ", "また今度", "チャオ", "またね"],
+        kiss: ["キス", "抱擁", "チュー"],
+        dancing: ["踊る", "ダンス", "動く", "グルーブ", "ステップ"],
+        listening: ["聞いて", "聞く", "聞いてください", "話して", "話す", "質問", "尋ねる", "教えて"]
     },
     zh: {
         surprise: ["哇", "哦", "惊喜", "难以置信", "惊人"],
@@ -74,30 +80,31 @@ window.KIMI_CONTEXT_KEYWORDS = {
         confident: ["自信", "骄傲", "确信", "强壮", "坚定"],
         romantic: ["爱", "浪漫", "温柔", "拥抱", "吻", "亲爱的"],
         flirtatious: ["调情", "挑逗", "诱惑", "魅力", "撒娇"],
-        goodbye: ["再见", "拜拜", "回头见", "拜", "你好"],
+        goodbye: ["再见", "拜拜", "回头见", "拜", "下次见"],
         kiss: ["吻", "亲吻", "拥抱", "亲"],
-        dancing: ["跳舞", "舞蹈", "移动", "律动", "步伐"]
+        dancing: ["跳舞", "舞蹈", "移动", "律动", "步伐"],
+        listening: ["听", "听听", "倾听", "说", "说话", "问题", "提问", "告诉我"]
     }
 };
 
 window.KIMI_CONTEXT_POSITIVE = {
-    en: ["happy", "joy", "great", "awesome", "perfect", "excellent", "magnificent"],
-    fr: ["heureux", "joie", "génial", "parfait", "excellent", "magnifique"],
-    es: ["feliz", "alegría", "genial", "perfecto", "excelente", "magnífico"],
-    de: ["glücklich", "freude", "toll", "perfekt", "ausgezeichnet", "großartig"],
-    it: ["felice", "gioia", "fantastico", "perfetto", "eccellente", "magnifico"],
-    ja: ["幸せ", "喜び", "素晴らしい", "完璧", "優秀", "壮大"],
-    zh: ["快乐", "喜悦", "很棒", "完美", "优秀", "壮丽"]
+    en: ["happy", "joy", "great", "awesome", "perfect", "excellent", "magnificent", "lovely", "nice"],
+    fr: ["heureux", "joie", "génial", "parfait", "excellent", "magnifique", "super", "chouette"],
+    es: ["feliz", "alegría", "genial", "perfecto", "excelente", "magnífico", "estupendo", "maravilloso"],
+    de: ["glücklich", "freude", "toll", "perfekt", "ausgezeichnet", "großartig", "wunderbar", "herrlich"],
+    it: ["felice", "gioia", "fantastico", "perfetto", "eccellente", "magnifico", "meraviglioso", "ottimo"],
+    ja: ["幸せ", "喜び", "素晴らしい", "完璧", "優秀", "壮大", "最高", "嬉しい"],
+    zh: ["快乐", "喜悦", "很棒", "完美", "优秀", "壮丽", "太好了", "开心"]
 };
 
 window.KIMI_CONTEXT_NEGATIVE = {
-    en: ["sad", "angry", "anger", "disappointed", "problem", "bad", "frustrated", "worried"],
-    fr: ["triste", "colère", "fâché", "déçu", "problème", "mauvais", "frustré", "inquiet"],
-    es: ["triste", "enojado", "decepcionado", "problema", "malo", "frustrado", "preocupado"],
-    de: ["traurig", "wütend", "enttäuscht", "problem", "schlecht", "frustriert", "besorgt"],
-    it: ["triste", "arrabbiato", "deluso", "problema", "cattivo", "frustrato", "preoccupato"],
-    ja: ["悲しい", "怒り", "失望", "問題", "悪い", "イライラ", "心配"],
-    zh: ["悲伤", "愤怒", "失望", "问题", "坏", "沮丧", "担心"]
+    en: ["sad", "angry", "anger", "disappointed", "problem", "bad", "frustrated", "worried", "upset", "annoyed"],
+    fr: ["triste", "colère", "fâché", "déçu", "problème", "mauvais", "frustré", "inquiet", "énervé"],
+    es: ["triste", "enojado", "decepcionado", "problema", "malo", "frustrado", "preocupado", "molesto"],
+    de: ["traurig", "wütend", "enttäuscht", "problem", "schlecht", "frustriert", "besorgt", "genervt"],
+    it: ["triste", "arrabbiato", "deluso", "problema", "cattivo", "frustrato", "preoccupato", "infastidito"],
+    ja: ["悲しい", "怒り", "失望", "問題", "悪い", "イライラ", "心配", "不満"],
+    zh: ["悲伤", "愤怒", "失望", "问题", "坏", "沮丧", "担心", "烦"]
 };
 
 // Note: KIMI_CONTEXT_EMOTIONS was a redundant alias - now integrated directly into emotion system
@@ -288,6 +295,69 @@ window.KIMI_COMMON_WORDS = {
 window.isCommonWord = function (word, language = "en") {
     const commonWords = window.KIMI_COMMON_WORDS[language] || window.KIMI_COMMON_WORDS.en;
     return commonWords.includes(word.toLowerCase());
+};
+
+// Emotion detection sensitivity configuration (per language and emotion)
+// Values are weights (>= 0). Higher = more priority/sensitivity for that emotion in that language.
+// 'default' applies when a language-specific override is not defined.
+window.KIMI_EMOTION_SENSITIVITY = {
+    default: {
+        listening: 1.0,
+        dancing: 1.0,
+        romantic: 1.0,
+        laughing: 1.0,
+        surprise: 1.0,
+        confident: 1.0,
+        shy: 1.0,
+        flirtatious: 1.0,
+        kiss: 1.0,
+        goodbye: 1.0,
+        positive: 1.0,
+        negative: 1.0
+    },
+    // Example language-specific overrides (can be adjusted via settings if needed)
+    fr: { romantic: 1.1, laughing: 0.95 },
+    es: { romantic: 1.05 },
+    en: {},
+    de: {},
+    it: {},
+    ja: {},
+    zh: {}
+};
+
+// Personality trait adjustment multipliers
+// Allows fine-tuning how fast traits evolve globally and per emotion/trait.
+window.KIMI_TRAIT_ADJUSTMENT = {
+    globalGain: 1.0,
+    globalLoss: 1.0,
+    // Per-emotion gain scaling (keys must match KimiEmotionSystem.EMOTIONS values)
+    emotionGain: {
+        positive: 1.0,
+        negative: 1.0,
+        romantic: 1.0,
+        laughing: 1.0,
+        dancing: 1.0,
+        shy: 1.0,
+        confident: 1.0,
+        flirtatious: 1.0
+    },
+    // Per-trait scaling
+    traitGain: {
+        affection: 1.0,
+        romance: 1.0,
+        empathy: 1.0,
+        playfulness: 1.0,
+        humor: 1.0,
+        intelligence: 1.0
+    },
+    traitLoss: {
+        affection: 1.0,
+        romance: 1.0,
+        empathy: 1.0,
+        playfulness: 1.0,
+        humor: 1.0,
+        intelligence: 1.0
+    }
 };
 
 // Helper function to get emotion keywords with fallback

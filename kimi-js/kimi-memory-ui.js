@@ -131,6 +131,20 @@ class KimiMemoryUI {
         const overlay = document.getElementById("memory-overlay");
         if (overlay) {
             overlay.style.display = "none";
+            // Ensure background video resumes after closing memory modal
+            const kv = window.kimiVideo;
+            if (kv && kv.activeVideo) {
+                try {
+                    const v = kv.activeVideo;
+                    if (v.ended) {
+                        if (typeof kv.returnToNeutral === "function") kv.returnToNeutral();
+                    } else if (v.paused) {
+                        v.play().catch(() => {
+                            if (typeof kv.returnToNeutral === "function") kv.returnToNeutral();
+                        });
+                    }
+                } catch {}
+            }
         }
     }
 

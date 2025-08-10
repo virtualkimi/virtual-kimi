@@ -4,7 +4,7 @@ class KimiAppearanceManager extends KimiBaseManager {
         super();
         this.db = database;
         this.currentTheme = "purple";
-        this.interfaceOpacity = 0.7;
+        this.interfaceOpacity = 0.8;
         this.animationsEnabled = true;
     }
 
@@ -34,7 +34,7 @@ class KimiAppearanceManager extends KimiBaseManager {
 
         try {
             this.currentTheme = await this.db.getPreference("colorTheme", "purple");
-            this.interfaceOpacity = await this.db.getPreference("interfaceOpacity", 0.7);
+            this.interfaceOpacity = await this.db.getPreference("interfaceOpacity", 0.8);
             this.animationsEnabled = await this.db.getPreference("animationsEnabled", true);
         } catch (error) {
             console.error("Error loading appearance settings:", error);

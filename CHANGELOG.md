@@ -1,5 +1,28 @@
 # Virtual Kimi Changelog
 
+## [1.0.4] - 2025-08-09 - "Emotion & Context Logic Upgrade"
+
+### Added
+
+- Major improvements to emotion, context, and personality logic:
+    - Enhanced emotion detection and mapping for more nuanced responses
+    - Contextual keyword analysis for better understanding of user intent
+    - Refined personality trait system with dynamic adaptation
+    - Video selection logic now adapts to both emotion and conversational context
+    - Improved handling of multi-layered context (emotion, keywords, personality, situation)
+
+### Changed
+
+- Video playback and character reactions are now more tightly coupled to detected context and personality traits
+- Emotion and context logic refactored for clarity and maintainability
+- Keyword extraction and context matching algorithms improved for accuracy
+
+### Technical
+
+- Refactored core logic in `kimi-emotion-system.js`, `kimi-logic.js`, and `kimi-memory-system.js`
+- Updated video selection and playback logic in `kimi-memory.js` and `kimi-memory-ui.js`
+- Improved context propagation between modules
+
 ## [1.0.3] - 2025-08-09 - "LLM multi-provider"
 
 ### Added

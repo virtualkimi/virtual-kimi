@@ -4,7 +4,7 @@ window.KIMI_CONFIG = {
     DEFAULTS: {
         LANGUAGE: "en",
         THEME: "purple",
-        INTERFACE_OPACITY: 0.7,
+        INTERFACE_OPACITY: 0.8,
         ANIMATIONS_ENABLED: true,
         VOICE_RATE: 1.1,
         VOICE_PITCH: 1.1,

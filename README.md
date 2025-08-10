@@ -44,7 +44,7 @@ Built with vanilla JavaScript and modern web APIs, it offers a rich, responsive 
 ### 🤖 **Advanced AI Integration**
 
 - Support for affordable, less-censored LLM models via OpenRouter (see below for available models)
-- Support for some LLMs providers 
+- Version 1.0.4 added support for some LLMs providers  
 
 **Available models and pricing (per 1M tokens):**
 
@@ -430,8 +430,6 @@ See the [LICENSE](LICENSE) file for details.
 > _"Love is the most powerful code"_ 💕
 >
 > — 2025 Virtual Kimi - Created with 💜 by Jean & Kimi
-
-
 
 
 

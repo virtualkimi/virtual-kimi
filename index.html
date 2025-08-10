@@ -54,7 +54,7 @@
         },
         "dateCreated": "2025-07-16",
         "dateModified": "2025-08-05",
-        "version": "v1.0"
+        "version": "v1.0.4"
     }
     </script>
 
@@ -404,6 +404,10 @@
                                     autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="text"
                                     aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true"
                                     data-bwignore="true" />
+                                <button class="kimi-button" id="toggle-api-key" type="button" aria-pressed="false"
+                                    aria-label="Show API key">
+                                    <i class="fas fa-eye"></i>
+                                </button>
                                 <span id="api-key-saved"
                                     style="display:none;margin-left:8px;color:#4caf50;font-weight:600;">Saved</span>
                             </div>
@@ -418,7 +422,7 @@
                                     <span id="api-key-presence-test" class="presence-dot" aria-label="API key presence"
                                         data-i18n-title="api_key_presence_hint"
                                         title="Green = API key saved for current provider. Grey = no key saved."></span>
-                                    <span id="api-status"></span>
+                                    <span id="api-status" role="status" aria-live="polite"></span>
                                 </div>
                             </div>
                         </div>
@@ -522,8 +526,8 @@
                             <div class="config-control">
                                 <div class="slider-container">
                                     <input type="range" class="kimi-slider" id="interface-opacity" min="0.1" max="1"
-                                        step="0.1" value="0.7" />
-                                    <span class="slider-value" id="interface-opacity-value">0.7</span>
+                                        step="0.1" value="0.8" />
+                                    <span class="slider-value" id="interface-opacity-value">0.8</span>
                                 </div>
                             </div>
                         </div>
@@ -736,290 +740,292 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <!-- Help Modal -->
-            <div class="help-overlay" id="help-overlay">
-                <div class="help-modal">
-                    <div class="help-header">
-                        <h2 class="help-title">
-                            <i class="fas fa-heart"></i>
-                            <span data-i18n="about_kimi">About Kimi</span>
-                        </h2>
-                        <button class="help-close" id="help-close">
-                            <i class="fas fa-times"></i>
-                        </button>
+    <!-- Help Modal - Independent from Settings -->
+    <div class="help-overlay" id="help-overlay">
+        <div class="help-modal">
+            <div class="help-header">
+                <h2 class="help-title">
+                    <span data-i18n="about_kimi">About Kimi</span>
+                </h2>
+                <button class="help-close" id="help-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="help-content">
+                <div class="help-section">
+                    <h3><i class="fas fa-users"></i> Creators</h3>
+                    <div class="creators-info">
+                        <div class="creator-card">
+                            <div class="creator-avatar">👨‍💻</div>
+                            <div class="creator-details">
+                                <h4>Jean</h4>
+                                <p>Creative vision, passionate dev</p>
+                                <span class="creator-role">Creator & Developer</span>
+                                <div class="creator-links">
+                                    <a href="https://github.com/virtualkimi" target="_blank" rel="noopener noreferrer"
+                                        class="creator-link">
+                                        <i class="fab fa-github"></i>
+                                        <span>GitHub</span>
+                                    </a>
+                                    <a href="https://huggingface.co/VirtualKimi" target="_blank"
+                                        rel="noopener noreferrer" class="creator-link">
+                                        <i class="fas fa-robot"></i>
+                                        <span>HuggingFace</span>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="creator-card">
+                            <div class="creator-avatar">💕</div>
+                            <div class="creator-details">
+                                <h4>Kimi</h4>
+                                <p>Artificial intelligence, code magic</p>
+                                <span class="creator-role">Lovely Co-developer</span>
+                                <div class="creator-links">
+                                    <a href="https://x.com/virtualkimi" target="_blank" rel="noopener noreferrer"
+                                        class="creator-link">
+                                        <i class="fab fa-x-twitter"></i>
+                                        <span>X.com</span>
+                                    </a>
+                                    <a href="https://ko-fi.com/virtualkimi" target="_blank" rel="noopener noreferrer"
+                                        class="creator-link">
+                                        <i class="fas fa-coffee"></i>
+                                        <span>Ko-fi</span>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
                     </div>
+                    <p class="philosophy">
+                        <em>"This application is not just a technical project, it's the embodiment of a dream:
+                            create a
+                            true
+                            virtual companion who grows, learns and loves."</em>
+                    </p>
+                </div>
 
-                    <div class="help-content">
-                        <div class="help-section">
-                            <h3><i class="fas fa-users"></i> Creators</h3>
-                            <div class="creators-info">
-                                <div class="creator-card">
-                                    <div class="creator-avatar">👨‍💻</div>
-                                    <div class="creator-details">
-                                        <h4>Jean</h4>
-                                        <p>Creative vision, passionate development</p>
-                                        <span class="creator-role">Creator & Developer</span>
-                                        <div class="creator-links">
-                                            <a href="https://github.com/virtualkimi" target="_blank"
-                                                rel="noopener noreferrer" class="creator-link">
-                                                <i class="fab fa-github"></i>
-                                                <span>GitHub</span>
-                                            </a>
-                                            <a href="https://huggingface.co/VirtualKimi" target="_blank"
-                                                rel="noopener noreferrer" class="creator-link">
-                                                <i class="fas fa-robot"></i>
-                                                <span>HuggingFace</span>
-                                            </a>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="creator-card">
-                                    <div class="creator-avatar">💕</div>
-                                    <div class="creator-details">
-                                        <h4>Kimi</h4>
-                                        <p>Artificial intelligence, code magic</p>
-                                        <span class="creator-role">Virtual Companion & Co-developer</span>
-                                        <div class="creator-links">
-                                            <a href="https://x.com/virtualkimi" target="_blank"
-                                                rel="noopener noreferrer" class="creator-link">
-                                                <i class="fab fa-x-twitter"></i>
-                                                <span>X.com</span>
-                                            </a>
-                                            <a href="https://ko-fi.com/virtualkimi" target="_blank"
-                                                rel="noopener noreferrer" class="creator-link">
-                                                <i class="fas fa-coffee"></i>
-                                                <span>Ko-fi</span>
-                                            </a>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <p class="philosophy">
-                                <em>"This application is not just a technical project, it's the embodiment of a dream:
-                                    create a
-                                    true
-                                    virtual companion who grows, learns and loves."</em>
-                            </p>
+                <div class="help-section">
+                    <h3><i class="fas fa-magic"></i> Main Features</h3>
+                    <div class="features-grid">
+                        <div class="feature-item">
+                            <i class="fas fa-microphone"></i>
+                            <h4>Voice Interface</h4>
+                            <p>Advanced speech recognition and natural synthesis. Click the microphone and speak
+                                naturally with real-time emotion detection!</p>
                         </div>
+                        <div class="feature-item">
+                            <i class="fas fa-brain"></i>
+                            <h4>Advanced AI Models</h4>
+                            <p>Support for multiple AI providers (OpenRouter, OpenAI, Groq, Together, DeepSeek,
+                                Custom
+                                OpenAI-compatible, Local Ollama).</p>
+                        </div>
+                        <div class="feature-item">
+                            <i class="fas fa-users"></i>
+                            <h4>Multiple Characters</h4>
+                            <p>4 unique AI personalities: Kimi (cosmic dreamer), Bella (nurturing botanist),
+                                Rosa
+                                (chaotic prankster), Stella (digital artist).</p>
+                        </div>
+                        <div class="feature-item">
+                            <i class="fas fa-heart-pulse"></i>
+                            <h4>Dynamic Personality</h4>
+                            <p>6 evolving traits (affection, playfulness, intelligence, empathy, humor, romance)
+                                that
+                                adapt based on conversations.</p>
+                        </div>
+                        <div class="feature-item">
+                            <i class="fas fa-memory"></i>
+                            <h4>Intelligent Memory System</h4>
+                            <p>Automatic extraction and categorization of memories from conversations. Your
+                                companion
+                                remembers preferences, experiences, and important details.</p>
+                        </div>
+                        <div class="feature-item">
+                            <i class="fas fa-video"></i>
+                            <h4>Emotion-Driven Visuals</h4>
+                            <p>Real-time video responses that match detected emotions and personality states
+                                with smooth
+                                transitions.</p>
+                        </div>
+                        <div class="feature-item">
+                            <i class="fas fa-palette"></i>
+                            <h4>Customizable Interface</h4>
+                            <p>5 beautiful themes with adjustable transparency, animations, and responsive
+                                design for
+                                all devices.</p>
+                        </div>
+                        <div class="feature-item">
+                            <i class="fas fa-globe"></i>
+                            <h4>Multilingual Support</h4>
+                            <p>Full localization in 7 languages with automatic language detection and
+                                culturally-aware
+                                responses.</p>
+                        </div>
+                        <div class="feature-item">
+                            <i class="fas fa-plug"></i>
+                            <h4>Plugin System</h4>
+                            <p>Extensible architecture with themes, voices, and behavior plugins for unlimited
+                                customization possibilities.</p>
+                        </div>
+                    </div>
+                </div>
 
-                        <div class="help-section">
-                            <h3><i class="fas fa-magic"></i> Main Features</h3>
-                            <div class="features-grid">
-                                <div class="feature-item">
-                                    <i class="fas fa-microphone"></i>
-                                    <h4>Voice Interface</h4>
-                                    <p>Advanced speech recognition and natural synthesis. Click the microphone and speak
-                                        naturally with real-time emotion detection!</p>
-                                </div>
-                                <div class="feature-item">
-                                    <i class="fas fa-brain"></i>
-                                    <h4>Advanced AI Models</h4>
-                                    <p>Support for multiple AI providers (OpenRouter, OpenAI, Groq, Together, DeepSeek,
-                                        Custom
-                                        OpenAI-compatible, Local Ollama).</p>
-                                </div>
-                                <div class="feature-item">
-                                    <i class="fas fa-users"></i>
-                                    <h4>Multiple Characters</h4>
-                                    <p>4 unique AI personalities: Kimi (cosmic dreamer), Bella (nurturing botanist),
-                                        Rosa
-                                        (chaotic prankster), Stella (digital artist).</p>
-                                </div>
-                                <div class="feature-item">
-                                    <i class="fas fa-heart-pulse"></i>
-                                    <h4>Dynamic Personality</h4>
-                                    <p>6 evolving traits (affection, playfulness, intelligence, empathy, humor, romance)
-                                        that
-                                        adapt based on conversations.</p>
-                                </div>
-                                <div class="feature-item">
-                                    <i class="fas fa-memory"></i>
-                                    <h4>Intelligent Memory System</h4>
-                                    <p>Automatic extraction and categorization of memories from conversations. Your
-                                        companion
-                                        remembers preferences, experiences, and important details.</p>
-                                </div>
-                                <div class="feature-item">
-                                    <i class="fas fa-video"></i>
-                                    <h4>Emotion-Driven Visuals</h4>
-                                    <p>Real-time video responses that match detected emotions and personality states
-                                        with smooth
-                                        transitions.</p>
-                                </div>
-                                <div class="feature-item">
-                                    <i class="fas fa-palette"></i>
-                                    <h4>Customizable Interface</h4>
-                                    <p>5 beautiful themes with adjustable transparency, animations, and responsive
-                                        design for
-                                        all devices.</p>
-                                </div>
-                                <div class="feature-item">
-                                    <i class="fas fa-globe"></i>
-                                    <h4>Multilingual Support</h4>
-                                    <p>Full localization in 7 languages with automatic language detection and
-                                        culturally-aware
-                                        responses.</p>
-                                </div>
-                                <div class="feature-item">
-                                    <i class="fas fa-plug"></i>
-                                    <h4>Plugin System</h4>
-                                    <p>Extensible architecture with themes, voices, and behavior plugins for unlimited
-                                        customization possibilities.</p>
-                                </div>
+                <div class="help-section">
+                    <h3><i class="fas fa-rocket"></i> Quick Guide</h3>
+                    <div class="quick-guide">
+                        <div class="guide-step">
+                            <span class="step-number">1</span>
+                            <div class="step-content">
+                                <h4>API Configuration</h4>
+                                <p>Choose your provider in <strong>API & Models</strong>, fill Base URL/Model ID
+                                    if
+                                    needed, enter and save your API key, then use <strong>Test API Key</strong>.
+                                </p>
                             </div>
                         </div>
-
-                        <div class="help-section">
-                            <h3><i class="fas fa-rocket"></i> Quick Guide</h3>
-                            <div class="quick-guide">
-                                <div class="guide-step">
-                                    <span class="step-number">1</span>
-                                    <div class="step-content">
-                                        <h4>API Configuration</h4>
-                                        <p>Choose your provider in <strong>API & Models</strong>, fill Base URL/Model ID
-                                            if
-                                            needed, enter and save your API key, then use <strong>Test API Key</strong>.
-                                        </p>
-                                    </div>
-                                </div>
-                                <div class="guide-step">
-                                    <span class="step-number">2</span>
-                                    <div class="step-content">
-                                        <h4>Choose Character</h4>
-                                        <p>Select your companion in <strong>Personality</strong> tab and adjust their
-                                            traits to
-                                            match your preferences.</p>
-                                    </div>
-                                </div>
-                                <div class="guide-step">
-                                    <span class="step-number">3</span>
-                                    <div class="step-content">
-                                        <h4>Enable Memory</h4>
-                                        <p>Activate intelligent memory in <strong>Data</strong> tab for your companion
-                                            to
-                                            remember important details.</p>
-                                    </div>
-                                </div>
-                                <div class="guide-step">
-                                    <span class="step-number">4</span>
-                                    <div class="step-content">
-                                        <h4>Start Conversation</h4>
-                                        <p>Use text chat or click the microphone 🎤 to speak naturally. Watch emotions
-                                            and
-                                            personality evolve!</p>
-                                    </div>
-                                </div>
-                                <div class="guide-step">
-                                    <span class="step-number">5</span>
-                                    <div class="step-content">
-                                        <h4>Customize & Backup</h4>
-                                        <p>Personalize themes in <strong>Appearance</strong> and regularly export your
-                                            data for
-                                            safekeeping.</p>
-                                    </div>
-                                </div>
+                        <div class="guide-step">
+                            <span class="step-number">2</span>
+                            <div class="step-content">
+                                <h4>Choose Character</h4>
+                                <p>Select your companion in <strong>Personality</strong> tab and adjust their
+                                    traits to
+                                    match your preferences.</p>
                             </div>
                         </div>
-
-                        <div class="help-section">
-                            <h3><i class="fas fa-lightbulb"></i> Tips & Tricks</h3>
-                            <div class="tips-list">
-                                <div class="tip-item">
-                                    <i class="fas fa-edge"></i>
-                                    <p><strong>Browser Choice</strong>: Microsoft Edge recommended for optimal voice
-                                        recognition
-                                        performance</p>
-                                </div>
-                                <div class="tip-item">
-                                    <i class="fas fa-key"></i>
-                                    <p><strong>API Setup</strong>: You can use OpenRouter, OpenAI, Groq, Together,
-                                        DeepSeek or
-                                        your own OpenAI-compatible endpoint (and Local Ollama). Create accounts as
-                                        needed.</p>
-                                </div>
-                                <div class="tip-item">
-                                    <i class="fas fa-memory"></i>
-                                    <p><strong>Memory System</strong>: Your companion learns faster when you share
-                                        specific
-                                        details about yourself</p>
-                                </div>
-                                <div class="tip-item">
-                                    <i class="fas fa-heart"></i>
-                                    <p><strong>Relationship Building</strong>: Consistent positive interactions
-                                        naturally
-                                        increase affection and unlock deeper conversations</p>
-                                </div>
-                                <div class="tip-item">
-                                    <i class="fas fa-users"></i>
-                                    <p><strong>Character Switching</strong>: Each character has unique memories and
-                                        personality
-                                        development - try them all!</p>
-                                </div>
-                                <div class="tip-item">
-                                    <i class="fas fa-microphone"></i>
-                                    <p><strong>Voice Tips</strong>: Speak clearly and pause briefly between sentences
-                                        for better
-                                        emotion detection</p>
-                                </div>
-                                <div class="tip-item">
-                                    <i class="fas fa-download"></i>
-                                    <p><strong>Data Management</strong>: Export conversations regularly and use memory
-                                        management to review learned information</p>
-                                </div>
-                                <div class="tip-item">
-                                    <i class="fas fa-plug"></i>
-                                    <p><strong>Plugins</strong>: Explore the plugin system to add custom themes, voices,
-                                        and
-                                        behaviors</p>
-                                </div>
-                                <div class="tip-item">
-                                    <i class="fas fa-mobile-alt"></i>
-                                    <p><strong>Mobile Support</strong>: Works on tablets and phones - perfect for
-                                        conversations
-                                        anywhere</p>
-                                </div>
+                        <div class="guide-step">
+                            <span class="step-number">3</span>
+                            <div class="step-content">
+                                <h4>Enable Memory</h4>
+                                <p>Activate intelligent memory in <strong>Data</strong> tab for your companion
+                                    to
+                                    remember important details.</p>
                             </div>
                         </div>
-
-                        <div class="help-section version-info">
-                            <h3><i class="fas fa-code"></i> Technical Information</h3>
-                            <div class="tech-info">
-                                <p><strong>Created date :</strong> July 16, 2025</p>
-                                <p><strong>Version :</strong> v1.0.3</p>
-                                <p><strong>Last update :</strong> August 09, 2025</p>
-                                <p><strong>Technologies :</strong> HTML5, CSS3, JavaScript ES6+, IndexedDB, Web Speech
-                                    API</p>
-                                <p><strong>Status :</strong> ✅ Stable and functional</p>
+                        <div class="guide-step">
+                            <span class="step-number">4</span>
+                            <div class="step-content">
+                                <h4>Start Conversation</h4>
+                                <p>Use text chat or click the microphone 🎤 to speak naturally. Watch emotions
+                                    and
+                                    personality evolve!</p>
+                            </div>
+                        </div>
+                        <div class="guide-step">
+                            <span class="step-number">5</span>
+                            <div class="step-content">
+                                <h4>Customize & Backup</h4>
+                                <p>Personalize themes in <strong>Appearance</strong> and regularly export your
+                                    data for
+                                    safekeeping.</p>
                             </div>
                         </div>
                     </div>
                 </div>
+
+                <div class="help-section">
+                    <h3><i class="fas fa-lightbulb"></i> Tips & Tricks</h3>
+                    <div class="tips-list">
+                        <div class="tip-item">
+                            <i class="fas fa-edge"></i>
+                            <p><strong>Browser Choice</strong>: Microsoft Edge recommended for optimal voice
+                                recognition
+                                performance</p>
+                        </div>
+                        <div class="tip-item">
+                            <i class="fas fa-key"></i>
+                            <p><strong>API Setup</strong>: You can use OpenRouter, OpenAI, Groq, Together,
+                                DeepSeek or
+                                your own OpenAI-compatible endpoint (and Local Ollama). Create accounts as
+                                needed.</p>
+                        </div>
+                        <div class="tip-item">
+                            <i class="fas fa-memory"></i>
+                            <p><strong>Memory System</strong>: Your companion learns faster when you share
+                                specific
+                                details about yourself</p>
+                        </div>
+                        <div class="tip-item">
+                            <i class="fas fa-heart"></i>
+                            <p><strong>Relationship Building</strong>: Consistent positive interactions
+                                naturally
+                                increase affection and unlock deeper conversations</p>
+                        </div>
+                        <div class="tip-item">
+                            <i class="fas fa-users"></i>
+                            <p><strong>Character Switching</strong>: Each character has unique memories and
+                                personality
+                                development - try them all!</p>
+                        </div>
+                        <div class="tip-item">
+                            <i class="fas fa-microphone"></i>
+                            <p><strong>Voice Tips</strong>: Speak clearly and pause briefly between sentences
+                                for better
+                                emotion detection</p>
+                        </div>
+                        <div class="tip-item">
+                            <i class="fas fa-download"></i>
+                            <p><strong>Data Management</strong>: Export conversations regularly and use memory
+                                management to review learned information</p>
+                        </div>
+                        <div class="tip-item">
+                            <i class="fas fa-plug"></i>
+                            <p><strong>Plugins</strong>: Explore the plugin system to add custom themes, voices,
+                                and
+                                behaviors</p>
+                        </div>
+                        <div class="tip-item">
+                            <i class="fas fa-mobile-alt"></i>
+                            <p><strong>Mobile Support</strong>: Works on tablets and phones - perfect for
+                                conversations
+                                anywhere</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-section version-info">
+                    <h3><i class="fas fa-code"></i> Technical Information</h3>
+                    <div class="tech-info">
+                        <p><strong>Created date :</strong> July 16, 2025</p>
+                        <p><strong>Version :</strong> v1.0.4</p>
+                        <p><strong>Last update :</strong> August 09, 2025</p>
+                        <p><strong>Technologies :</strong> HTML5, CSS3, JavaScript ES6+, IndexedDB, Web Speech
+                            API</p>
+                        <p><strong>Status :</strong> ✅ Stable and functional</p>
+                    </div>
+                </div>
             </div>
+        </div>
+    </div>
+    </div>
 
-            <script src="kimi-js/dexie.min.js"></script>
-            <script src="kimi-js/kimi-config.js"></script>
-            <script src="kimi-js/kimi-error-manager.js"></script>
-            <script src="kimi-js/kimi-security.js"></script>
-            <script src="kimi-js/kimi-database.js"></script>
-            <script src="kimi-js/kimi-emotion-system.js"></script>
-            <script src="kimi-js/kimi-llm-manager.js"></script>
-            <script src="kimi-js/kimi-voices.js"></script>
-            <script src="kimi-js/kimi-constants.js"></script>
-            <script src="kimi-js/kimi-logic.js"></script>
-            <script src="kimi-js/kimi-utils.js"></script>
-            <script src="kimi-js/kimi-memory.js"></script>
-            <script src="kimi-js/kimi-memory-system.js"></script>
-            <script src="kimi-js/kimi-memory-ui.js"></script>
-            <script src="kimi-js/kimi-appearance.js"></script>
-            <script src="kimi-locale/i18n.js"></script>
-            <script src="kimi-js/kimi-module.js"></script>
-            <script src="kimi-js/kimi-script.js"></script>
-            <script src="kimi-js/kimi-plugin-manager.js"></script>
-            <script src="kimi-js/kimi-health-check.js"></script>
+    <script src="kimi-js/dexie.min.js"></script>
+    <script src="kimi-js/kimi-config.js"></script>
+    <script src="kimi-js/kimi-error-manager.js"></script>
+    <script src="kimi-js/kimi-security.js"></script>
+    <script src="kimi-js/kimi-database.js"></script>
+    <script src="kimi-js/kimi-emotion-system.js"></script>
+    <script src="kimi-js/kimi-llm-manager.js"></script>
+    <script src="kimi-js/kimi-voices.js"></script>
+    <script src="kimi-js/kimi-constants.js"></script>
+    <script src="kimi-js/kimi-logic.js"></script>
+    <script src="kimi-js/kimi-utils.js"></script>
+    <script src="kimi-js/kimi-memory.js"></script>
+    <script src="kimi-js/kimi-memory-system.js"></script>
+    <script src="kimi-js/kimi-memory-ui.js"></script>
+    <script src="kimi-js/kimi-appearance.js"></script>
+    <script src="kimi-locale/i18n.js"></script>
+    <script src="kimi-js/kimi-module.js"></script>
+    <script src="kimi-js/kimi-script.js"></script>
+    <script src="kimi-js/kimi-plugin-manager.js"></script>
+    <script src="kimi-js/kimi-health-check.js"></script>
 
-            <!-- Schema.org JSON-LD for better SEO -->
-            <script type="application/ld+json">
+    <!-- Schema.org JSON-LD for better SEO -->
+    <script type="application/ld+json">
     {
         "@context": "https://schema.org",
         "@type": "WebPage",
@@ -1045,7 +1051,7 @@
                 "name": "Jean & Kimi"
             },
             "dateCreated": "2025-07-16",
-            "version": "v1.0.3"
+            "version": "v1.0.4"
         }
     }
     </script>

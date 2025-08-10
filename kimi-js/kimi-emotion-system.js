@@ -72,6 +72,22 @@ class KimiEmotionSystem {
 
         // Priority order for emotion detection
         const emotionChecks = [
+            // Listening intent (user asks to talk or indicates speaking/listening)
+            {
+                emotion: this.EMOTIONS.LISTENING,
+                keywords: emotionKeywords.listening || [
+                    "listen",
+                    "listening",
+                    "écoute",
+                    "ecoute",
+                    "écouter",
+                    "parle",
+                    "speak",
+                    "talk",
+                    "question",
+                    "ask"
+                ]
+            },
             { emotion: this.EMOTIONS.DANCING, keywords: emotionKeywords.dancing || ["dance", "dancing"] },
             { emotion: this.EMOTIONS.ROMANTIC, keywords: emotionKeywords.romantic || ["love", "romantic"] },
             { emotion: this.EMOTIONS.LAUGHING, keywords: emotionKeywords.laughing || ["laugh", "funny"] },
@@ -83,18 +99,53 @@ class KimiEmotionSystem {
             { emotion: this.EMOTIONS.GOODBYE, keywords: emotionKeywords.goodbye || ["goodbye", "bye"] }
         ];
 
-        // Check for specific emotions first
+        // Check for specific emotions first, applying sensitivity weights per language
+        const sensitivity = (window.KIMI_EMOTION_SENSITIVITY &&
+            (window.KIMI_EMOTION_SENSITIVITY[detectedLang] || window.KIMI_EMOTION_SENSITIVITY.default)) || {
+            listening: 1,
+            dancing: 1,
+            romantic: 1,
+            laughing: 1,
+            surprise: 1,
+            confident: 1,
+            shy: 1,
+            flirtatious: 1,
+            kiss: 1,
+            goodbye: 1,
+            positive: 1,
+            negative: 1
+        };
+
+        let bestEmotion = null;
+        let bestScore = 0;
         for (const check of emotionChecks) {
-            const hasKeywords = check.keywords.some(word => lowerText.includes(word.toLowerCase()));
-            if (hasKeywords) return check.emotion;
+            const hits = check.keywords.reduce((acc, word) => acc + (lowerText.includes(word.toLowerCase()) ? 1 : 0), 0);
+            if (hits > 0) {
+                const key = check.emotion;
+                const weight = sensitivity[key] != null ? sensitivity[key] : 1;
+                const score = hits * weight;
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestEmotion = check.emotion;
+                }
+            }
         }
+        if (bestEmotion) return bestEmotion;
 
         // Fall back to positive/negative analysis
         const hasPositive = positiveWords.some(word => lowerText.includes(word.toLowerCase()));
         const hasNegative = negativeWords.some(word => lowerText.includes(word.toLowerCase()));
 
-        if (hasPositive && !hasNegative) return this.EMOTIONS.POSITIVE;
-        if (hasNegative && !hasPositive) return this.EMOTIONS.NEGATIVE;
+        if (hasPositive && !hasNegative) {
+            // Apply sensitivity for base polarity
+            if ((sensitivity.positive || 1) >= (sensitivity.negative || 1)) return this.EMOTIONS.POSITIVE;
+            // If negative is favored, still fall back to positive since no negative hit
+            return this.EMOTIONS.POSITIVE;
+        }
+        if (hasNegative && !hasPositive) {
+            if ((sensitivity.negative || 1) >= (sensitivity.positive || 1)) return this.EMOTIONS.NEGATIVE;
+            return this.EMOTIONS.NEGATIVE;
+        }
         return this.EMOTIONS.NEUTRAL;
     }
 
@@ -135,43 +186,64 @@ class KimiEmotionSystem {
         };
 
         // Unified emotion-based adjustments - More balanced and realistic progression
+        const gainCfg = window.KIMI_TRAIT_ADJUSTMENT || {
+            globalGain: 1,
+            globalLoss: 1,
+            emotionGain: {},
+            traitGain: {},
+            traitLoss: {}
+        };
+        const emoGain = emotion && gainCfg.emotionGain ? gainCfg.emotionGain[emotion] || 1 : 1;
+        const GGAIN = (gainCfg.globalGain || 1) * emoGain;
+        const GLOSS = gainCfg.globalLoss || 1;
+
+        // Helpers to apply trait-specific scaling
+        const scaleGain = (traitName, baseDelta) => {
+            const t = gainCfg.traitGain && (gainCfg.traitGain[traitName] || 1);
+            return baseDelta * GGAIN * t;
+        };
+        const scaleLoss = (traitName, baseDelta) => {
+            const t = gainCfg.traitLoss && (gainCfg.traitLoss[traitName] || 1);
+            return baseDelta * GLOSS * t;
+        };
+
         switch (emotion) {
             case this.EMOTIONS.POSITIVE:
-                affection = Math.min(100, adjustUp(affection, 0.4)); // Slightly more affection gain
-                empathy = Math.min(100, adjustUp(empathy, 0.2));
-                playfulness = Math.min(100, adjustUp(playfulness, 0.2));
-                humor = Math.min(100, adjustUp(humor, 0.2));
-                romance = Math.min(100, adjustUp(romance, 0.1)); // Romance grows very slowly
+                affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.4))); // Slightly more affection gain
+                empathy = Math.min(100, adjustUp(empathy, scaleGain("empathy", 0.2)));
+                playfulness = Math.min(100, adjustUp(playfulness, scaleGain("playfulness", 0.2)));
+                humor = Math.min(100, adjustUp(humor, scaleGain("humor", 0.2)));
+                romance = Math.min(100, adjustUp(romance, scaleGain("romance", 0.1))); // Romance grows very slowly
                 break;
             case this.EMOTIONS.NEGATIVE:
-                affection = Math.max(0, adjustDown(affection, 0.6)); // Affection drops faster on negative
-                empathy = Math.min(100, adjustUp(empathy, 0.3)); // Empathy still grows (understanding pain)
+                affection = Math.max(0, adjustDown(affection, scaleLoss("affection", 0.6))); // Affection drops faster on negative
+                empathy = Math.min(100, adjustUp(empathy, scaleGain("empathy", 0.3))); // Empathy still grows (understanding pain)
                 break;
             case this.EMOTIONS.ROMANTIC:
-                romance = Math.min(100, adjustUp(romance, 0.6)); // Reduced from 0.8 - romance should be earned
-                affection = Math.min(100, adjustUp(affection, 0.3)); // Reduced from 0.4
+                romance = Math.min(100, adjustUp(romance, scaleGain("romance", 0.6))); // Reduced from 0.8 - romance should be earned
+                affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.3))); // Reduced from 0.4
                 break;
             case this.EMOTIONS.LAUGHING:
-                humor = Math.min(100, adjustUp(humor, 0.8)); // Humor grows with laughter
-                playfulness = Math.min(100, adjustUp(playfulness, 0.4)); // Increased playfulness connection
-                affection = Math.min(100, adjustUp(affection, 0.2)); // Small affection boost from shared laughter
+                humor = Math.min(100, adjustUp(humor, scaleGain("humor", 0.8))); // Humor grows with laughter
+                playfulness = Math.min(100, adjustUp(playfulness, scaleGain("playfulness", 0.4))); // Increased playfulness connection
+                affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.2))); // Small affection boost from shared laughter
                 break;
             case this.EMOTIONS.DANCING:
-                playfulness = Math.min(100, adjustUp(playfulness, 1.2)); // Dancing = maximum playfulness boost
-                affection = Math.min(100, adjustUp(affection, 0.3)); // Affection from shared activity
+                playfulness = Math.min(100, adjustUp(playfulness, scaleGain("playfulness", 1.2))); // Dancing = maximum playfulness boost
+                affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.3))); // Affection from shared activity
                 break;
             case this.EMOTIONS.SHY:
-                affection = Math.max(0, adjustDown(affection, 0.1)); // Small affection loss
-                romance = Math.max(0, adjustDown(romance, 0.2)); // Shyness reduces romance more
+                affection = Math.max(0, adjustDown(affection, scaleLoss("affection", 0.1))); // Small affection loss
+                romance = Math.max(0, adjustDown(romance, scaleLoss("romance", 0.2))); // Shyness reduces romance more
                 break;
             case this.EMOTIONS.CONFIDENT:
-                affection = Math.min(100, adjustUp(affection, 0.3)); // Reduced from 0.4
-                intelligence = Math.min(100, adjustUp(intelligence, 0.1)); // Slight intelligence boost
+                affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.3))); // Reduced from 0.4
+                intelligence = Math.min(100, adjustUp(intelligence, scaleGain("intelligence", 0.1))); // Slight intelligence boost
                 break;
             case this.EMOTIONS.FLIRTATIOUS:
-                romance = Math.min(100, adjustUp(romance, 0.5)); // Reduced from 0.6
-                playfulness = Math.min(100, adjustUp(playfulness, 0.3)); // Reduced from 0.4
-                affection = Math.min(100, adjustUp(affection, 0.2)); // Small affection boost
+                romance = Math.min(100, adjustUp(romance, scaleGain("romance", 0.5))); // Reduced from 0.6
+                playfulness = Math.min(100, adjustUp(playfulness, scaleGain("playfulness", 0.3))); // Reduced from 0.4
+                affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.2))); // Small affection boost
                 break;
         }
 

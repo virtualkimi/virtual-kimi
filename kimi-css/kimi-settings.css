@@ -8,10 +8,13 @@
     height: 100%;
     background: var(--modal-overlay-bg);
     backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     z-index: 50;
     display: none;
     opacity: 0;
-    transition: opacity 0.3s ease;
+    transition:
+        opacity 0.3s ease,
+        backdrop-filter 0.3s ease;
 }
 
 .settings-overlay.visible {
@@ -32,7 +35,7 @@
         0 20px 60px rgba(0, 0, 0, 0.5),
         0 0 30px var(--primary-color, rgba(255, 107, 157, 0.3));
     width: 100%;
-    max-width: 800px;
+    max-width: 900px;
     max-height: 90vh;
     overflow: hidden;
     display: flex;
@@ -827,11 +830,14 @@
     width: 100%;
     height: 100%;
     background: var(--modal-overlay-bg);
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
     z-index: 60;
     display: none;
     opacity: 0;
-    transition: opacity 0.3s ease;
+    transition:
+        opacity 0.3s ease,
+        backdrop-filter 0.3s ease;
 }
 
 .help-overlay.visible {
@@ -839,7 +845,7 @@
     opacity: 1;
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    padding: 10px;
 }
 
 .help-modal {
@@ -851,12 +857,13 @@
         0 20px 60px rgba(0, 0, 0, 0.5),
         0 0 30px var(--primary-color, rgba(255, 107, 157, 0.3));
     width: 100%;
-    max-width: 900px;
-    max-height: 90vh;
+    max-width: 850px;
+    max-height: 85vh;
     overflow: hidden;
     display: flex;
     flex-direction: column;
     animation: slideInUp 0.4s ease-out;
+    margin: 20px;
 }
 
 .help-header {
@@ -1172,9 +1179,27 @@
 
 /* Responsive for help modal */
 @media (max-width: 768px) {
+    .help-overlay {
+        padding: 5px;
+    }
+
     .help-modal {
-        margin: 10px;
+        margin: 5px;
         max-height: 95vh;
+        border-radius: 15px;
+        width: calc(100% - 10px);
+    }
+
+    .help-header {
+        padding: 20px;
+    }
+
+    .help-title {
+        font-size: 1.3rem;
+    }
+
+    .help-content {
+        padding: 20px;
     }
 
     .creators-info {

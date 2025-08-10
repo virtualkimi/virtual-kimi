@@ -403,9 +403,24 @@ class KimiVoiceManager {
             }
             this.transcriptHideTimeout = null;
             if (window.kimiVideo) {
-                requestAnimationFrame(() => {
-                    window.kimiVideo.returnToNeutral();
-                });
+                // Do not force neutral if an emotion clip is still playing (speaking/dancing)
+                try {
+                    const info = window.kimiVideo.getCurrentVideoInfo ? window.kimiVideo.getCurrentVideoInfo() : null;
+                    const isEmotionClip =
+                        info &&
+                        (info.context === "speakingPositive" ||
+                            info.context === "speakingNegative" ||
+                            info.context === "dancing");
+                    if (!isEmotionClip) {
+                        requestAnimationFrame(() => {
+                            window.kimiVideo.returnToNeutral();
+                        });
+                    }
+                } catch (_) {
+                    requestAnimationFrame(() => {
+                        window.kimiVideo.returnToNeutral();
+                    });
+                }
             }
         };
 

@@ -561,7 +561,8 @@ async function analyzeAndReact(text, useAdvancedLLM = true) {
         const affection = typeof traits.affection === "number" ? traits.affection : 80;
         const characterTraits = window.KIMI_CHARACTERS[selectedCharacter]?.traits || "";
 
-        if (window.voiceManager && window.voiceManager.isListening) {
+        // Always reflect user's input phase with a listening video (voice or chat)
+        if (kimiVideo && typeof kimiVideo.startListening === "function") {
             kimiVideo.startListening();
         }
 
@@ -593,16 +594,26 @@ async function analyzeAndReact(text, useAdvancedLLM = true) {
                     }
 
                     const updatedTraits = await kimiDB.getAllPersonalityTraits(selectedCharacter);
-                    kimiVideo.analyzeAndSelectVideo(
-                        sanitizedText,
-                        response,
-                        {
-                            reaction: reaction,
-                            intensity: emotionIntensity
-                        },
-                        updatedTraits,
-                        updatedTraits.affection
-                    );
+                    // If user explicitly requested dancing, show dancing during Kimi's response
+                    const lang = await kimiDB.getPreference("selectedLanguage", "en");
+                    const keywords =
+                        (window.KIMI_CONTEXT_KEYWORDS &&
+                            (window.KIMI_CONTEXT_KEYWORDS[lang] || window.KIMI_CONTEXT_KEYWORDS.en)) ||
+                        {};
+                    const dancingWords = keywords.dancing || ["dance", "dancing"];
+                    const userAskedDance = dancingWords.some(w => sanitizedText.toLowerCase().includes(w.toLowerCase()));
+
+                    if (userAskedDance) {
+                        kimiVideo.switchToContext("dancing", "dancing", null, updatedTraits, updatedTraits.affection);
+                    } else {
+                        kimiVideo.analyzeAndSelectVideo(
+                            sanitizedText,
+                            response,
+                            { reaction: reaction, intensity: emotionIntensity },
+                            updatedTraits,
+                            updatedTraits.affection
+                        );
+                    }
 
                     if (kimiLLM.updatePersonalityFromResponse) {
                         await kimiLLM.updatePersonalityFromResponse(sanitizedText, response);
@@ -640,7 +651,17 @@ async function analyzeAndReact(text, useAdvancedLLM = true) {
                     response = await getBasicResponse(reaction);
                 }
                 const updatedTraits = await kimiDB.getAllPersonalityTraits(selectedCharacter);
-                kimiVideo.respondWithEmotion("neutral", updatedTraits, updatedTraits.affection);
+                const lang = await kimiDB.getPreference("selectedLanguage", "en");
+                const keywords =
+                    (window.KIMI_CONTEXT_KEYWORDS && (window.KIMI_CONTEXT_KEYWORDS[lang] || window.KIMI_CONTEXT_KEYWORDS.en)) ||
+                    {};
+                const dancingWords = keywords.dancing || ["dance", "dancing"];
+                const userAskedDance = dancingWords.some(w => sanitizedText.toLowerCase().includes(w.toLowerCase()));
+                if (userAskedDance) {
+                    kimiVideo.switchToContext("dancing", "dancing", null, updatedTraits, updatedTraits.affection);
+                } else {
+                    kimiVideo.respondWithEmotion("neutral", updatedTraits, updatedTraits.affection);
+                }
             }
         } else {
             // System not ready - check if it's because of missing API key
@@ -656,7 +677,16 @@ async function analyzeAndReact(text, useAdvancedLLM = true) {
                 response = await getBasicResponse(reaction);
             }
             const updatedTraits = await kimiDB.getAllPersonalityTraits(selectedCharacter);
-            kimiVideo.respondWithEmotion("neutral", updatedTraits, updatedTraits.affection);
+            const lang = await kimiDB.getPreference("selectedLanguage", "en");
+            const keywords =
+                (window.KIMI_CONTEXT_KEYWORDS && (window.KIMI_CONTEXT_KEYWORDS[lang] || window.KIMI_CONTEXT_KEYWORDS.en)) || {};
+            const dancingWords = keywords.dancing || ["dance", "dancing"];
+            const userAskedDance = dancingWords.some(w => sanitizedText.toLowerCase().includes(w.toLowerCase()));
+            if (userAskedDance) {
+                kimiVideo.switchToContext("dancing", "dancing", null, updatedTraits, updatedTraits.affection);
+            } else {
+                kimiVideo.respondWithEmotion("neutral", updatedTraits, updatedTraits.affection);
+            }
         }
 
         await kimiMemory.saveConversation(sanitizedText, response);
@@ -1683,7 +1713,7 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     if (interfaceOpacitySlider) {
         const listener = e => {
             const validation = window.KimiValidationUtils?.validateRange(e.target.value, "interfaceOpacity");
-            const value = validation?.value || parseFloat(e.target.value) || 0.7;
+            const value = validation?.value || parseFloat(e.target.value) || 0.8;
 
             document.getElementById("interface-opacity-value").textContent = value;
             e.target.value = value;
@@ -1871,9 +1901,11 @@ async function syncPersonalityTraits(characterName = null) {
 
 // Function to validate emotion and context consistency
 function validateEmotionContext(emotion) {
+    // Normalize video categories to base emotions before validation
+    const normalized = emotion === "speakingPositive" ? "positive" : emotion === "speakingNegative" ? "negative" : emotion;
     // Use unified emotion system for validation
     if (window.kimiEmotionSystem) {
-        return window.kimiEmotionSystem.validateEmotion(emotion);
+        return window.kimiEmotionSystem.validateEmotion(normalized);
     }
 
     // Fallback validation
@@ -1896,12 +1928,12 @@ function validateEmotionContext(emotion) {
         "speaking"
     ];
 
-    if (!validEmotions.includes(emotion)) {
-        console.warn(`Invalid emotion detected: ${emotion}, falling back to neutral`);
+    if (!validEmotions.includes(normalized)) {
+        console.warn(`Invalid emotion detected: ${normalized}, falling back to neutral`);
         return "neutral";
     }
 
-    return emotion;
+    return normalized;
 }
 
 // Function to ensure video context consistency
