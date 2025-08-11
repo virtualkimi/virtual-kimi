@@ -269,7 +269,7 @@ class KimiMemoryUI {
                                           window.KimiValidationUtils && window.KimiValidationUtils.escapeHtml
                                               ? window.KimiValidationUtils.escapeHtml(memory.sourceText)
                                               : memory.sourceText
-                                      }">� Extrait de conversation</span>`
+                                      }">📝 Extrait de conversation</span>`
                                     : `<span>📝 Ajouté manuellement</span>`
                             }
                         </div>
