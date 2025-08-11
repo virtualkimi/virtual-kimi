@@ -7,7 +7,7 @@ class KimiLLMManager {
         this.maxContextLength = 30;
         this.systemPrompt = "";
 
-        // Recommended models on OpenRouter (IDs updated July 2025)
+        // Recommended models on OpenRouter (IDs updated August 2025)
         this.availableModels = {
             "mistralai/mistral-small-3.2-24b-instruct": {
                 name: "Mistral-small-3.2",
@@ -47,7 +47,7 @@ class KimiLLMManager {
                 type: "openrouter",
                 contextWindow: 262000,
                 pricing: { input: 0.13, output: 0.6 },
-                strengths: ["Fast", "Economical", "Efficient", "Versatile"]
+                strengths: ["Multilingual", "Economical", "Efficient", "Versatile"]
             },
             "nousresearch/hermes-3-llama-3.1-405b": {
                 name: "Nous Hermes Llama 3.1 405B",
