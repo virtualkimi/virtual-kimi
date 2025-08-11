@@ -194,6 +194,7 @@
     "api_connection_failed": "❌ Connessione API fallita",
     "voice_test_message": "Ciao amore mio! Ecco la mia nuova voce configurata con tutte le impostazioni! Ti piace?",
     "api_key_presence_hint": "Verde = chiave API salvata per il provider corrente. Grigio = nessuna chiave salvata.",
+    "api_key_test_hint": "Verde = connettività API verificata. Grigio = non testata o fallita.",
     "memory_system": "Sistema di Memoria",
     "enable_memory": "Abilita Memoria Intelligente",
     "memory_stats": "Statistiche della Memoria",

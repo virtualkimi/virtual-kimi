@@ -898,14 +898,32 @@ async function loadSettingsData() {
 
         // Update API key input
         const apiKeyInput = document.getElementById("openrouter-api-key");
-        if (apiKeyInput) apiKeyInput.value = apiKey;
+        if (apiKeyInput) {
+            const keyPrefMap = {
+                openrouter: "openrouterApiKey",
+                openai: "apiKey_openai",
+                groq: "apiKey_groq",
+                together: "apiKey_together",
+                deepseek: "apiKey_deepseek",
+                "openai-compatible": "apiKey_custom"
+            };
+            const keyPref = keyPrefMap[provider];
+            const providerKey = keyPref && preferences[keyPref] ? preferences[keyPref] : genericKey;
+            apiKeyInput.value = providerKey || "";
+        }
         const providerSelect = document.getElementById("llm-provider");
         if (providerSelect) providerSelect.value = provider;
         const baseUrlInput = document.getElementById("llm-base-url");
         if (baseUrlInput) baseUrlInput.value = baseUrl;
         const modelIdInput = document.getElementById("llm-model-id");
-        if (modelIdInput) modelIdInput.value = modelId;
-        if (provider !== "openrouter" && apiKeyInput) apiKeyInput.value = genericKey;
+        if (modelIdInput) {
+            if (provider === "openrouter") {
+                modelIdInput.value = modelId;
+            } else {
+                modelIdInput.value = ""; // only placeholder for non-OpenRouter providers
+            }
+        }
+        // For non-OpenRouter providers we keep placeholder per provider; the value is already set above.
         const apiKeyLabel = document.getElementById("api-key-label");
         if (apiKeyLabel) {
             const labelByProvider = {

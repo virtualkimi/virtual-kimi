@@ -194,6 +194,7 @@
     "api_connection_failed": "❌ API接続失敗",
     "voice_test_message": "こんにちは、私の愛する人！これがすべての設定で構成された私の新しい声です！気に入りましたか？",
     "api_key_presence_hint": "緑 = 現在のプロバイダー用のAPIキーが保存されています。灰色 = 保存されたキーがありません。",
+    "api_key_test_hint": "緑 = API接続が確認されました。灰色 = 未テストまたは失敗。",
     "memory_system": "メモリシステム",
     "enable_memory": "インテリジェントメモリを有効にする",
     "memory_stats": "メモリ統計",

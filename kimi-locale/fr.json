@@ -201,5 +201,6 @@
     "memory_management": "Gestion de la Mémoire",
     "add": "Ajouter",
     "help_providers": "Vous pouvez utiliser plusieurs fournisseurs d’IA : OpenRouter, OpenAI, Groq, Together, DeepSeek, un service OpenAI‑compatible personnalisé, ou Local (Ollama). Renseignez la Base URL et le Model ID si nécessaire, enregistrez votre clé API par fournisseur, puis utilisez ‘Test API Key’.",
-    "api_key_presence_hint": "Vert = clé API enregistrée pour le fournisseur courant. Gris = aucune clé enregistrée."
+    "api_key_presence_hint": "Vert = clé API enregistrée pour le fournisseur courant. Gris = aucune clé enregistrée.",
+    "api_key_test_hint": "Vert = connectivité API vérifiée. Gris = non testé ou échec."
 }

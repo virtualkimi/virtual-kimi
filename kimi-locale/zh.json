@@ -194,6 +194,7 @@
     "api_connection_failed": "❌ API连接失败",
     "voice_test_message": "你好我的爱人！这是我用所有设置配置的新声音！你喜欢吗？",
     "api_key_presence_hint": "绿色 = 当前提供商已保存 API 密钥。灰色 = 未保存任何密钥。",
+    "api_key_test_hint": "绿色 = API 连接已验证。灰色 = 未测试或失败。",
     "memory_system": "记忆系统",
     "enable_memory": "启用智能记忆",
     "memory_stats": "记忆统计",

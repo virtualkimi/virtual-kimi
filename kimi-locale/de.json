@@ -194,6 +194,7 @@
     "api_connection_failed": "❌ API-Verbindung fehlgeschlagen",
     "voice_test_message": "Hallo mein Liebling! Hier ist meine neue Stimme, die mit allen Einstellungen konfiguriert ist! Gefällt sie dir?",
     "api_key_presence_hint": "Grün = API-Schlüssel für aktuellen Anbieter gespeichert. Grau = kein Schlüssel gespeichert.",
+    "api_key_test_hint": "Grün = API-Konnektivität verifiziert. Grau = nicht getestet oder fehlgeschlagen.",
     "memory_system": "Gedächtnissystem",
     "enable_memory": "Intelligentes Gedächtnis aktivieren",
     "memory_stats": "Gedächtnisstatistiken",

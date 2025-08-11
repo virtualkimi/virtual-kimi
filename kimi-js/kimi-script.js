@@ -79,10 +79,14 @@ document.addEventListener("DOMContentLoaded", async function () {
         savedBadge: () => document.getElementById("api-key-saved"),
         statusSpan: () => document.getElementById("api-status"),
         testBtn: () => document.getElementById("test-api"),
+        // Saved key indicator (left dot)
         setPresence(color) {
             const dot = this.presenceDot();
-            const dot2 = this.presenceDotTest();
             if (dot) dot.style.backgroundColor = color;
+        },
+        // Test result indicator (right dot)
+        setTestPresence(color) {
+            const dot2 = this.presenceDotTest();
             if (dot2) dot2.style.backgroundColor = color;
         },
         clearStatus() {
@@ -103,6 +107,8 @@ document.addEventListener("DOMContentLoaded", async function () {
         const currentVal = (ApiUi.apiKeyInput() || {}).value || "";
         const colorInit = currentVal && currentVal.length > 0 ? "#4caf50" : "#9e9e9e";
         ApiUi.setPresence(colorInit);
+        // On load, test status is unknown
+        ApiUi.setTestPresence("#9e9e9e");
     }
 
     // Initialize API config UI from saved preferences
@@ -126,7 +132,14 @@ document.addEventListener("DOMContentLoaded", async function () {
             const modelIdInput = ApiUi.modelIdInput();
             const apiKeyInput = ApiUi.apiKeyInput();
             if (baseUrlInput) baseUrlInput.value = baseUrl || "";
-            if (modelIdInput && modelId && !modelIdInput.value) modelIdInput.value = modelId;
+            // Only prefill model for OpenRouter, others should show placeholder only
+            if (modelIdInput) {
+                if (provider === "openrouter") {
+                    if (!modelIdInput.value) modelIdInput.value = modelId;
+                } else {
+                    modelIdInput.value = "";
+                }
+            }
             // Load the provider-specific key
             const keyPrefMap = {
                 openrouter: "openrouterApiKey",
@@ -140,6 +153,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             const storedKey = await window.kimiDB.getPreference(keyPref, "");
             if (apiKeyInput) apiKeyInput.value = storedKey || "";
             ApiUi.setPresence(storedKey ? "#4caf50" : "#9e9e9e");
+            ApiUi.setTestPresence("#9e9e9e");
             const savedBadge = ApiUi.savedBadge();
             if (savedBadge) savedBadge.style.display = storedKey ? "inline" : "none";
             ApiUi.clearStatus();
@@ -206,8 +220,10 @@ document.addEventListener("DOMContentLoaded", async function () {
                 baseUrlInput.value = provider === "openrouter" ? "https://openrouter.ai/api/v1/chat/completions" : p.url;
             }
             if (apiKeyInput) apiKeyInput.placeholder = p.keyPh;
-            if (modelIdInput && !modelIdInput.value) {
+            if (modelIdInput) {
                 modelIdInput.placeholder = p.model;
+                // Value only for OpenRouter; others cleared to encourage provider-specific model naming
+                modelIdInput.value = provider === "openrouter" && window.kimiLLM ? window.kimiLLM.currentModel : "";
             }
             if (window.kimiDB) {
                 await window.kimiDB.setPreference("llmProvider", provider);
@@ -230,6 +246,8 @@ document.addEventListener("DOMContentLoaded", async function () {
                 if (apiKeyInput) apiKeyInput.value = storedKey || "";
                 const color = storedKey && storedKey.length > 0 ? "#4caf50" : "#9e9e9e";
                 ApiUi.setPresence(color);
+                // Changing provider invalidates previous test state
+                ApiUi.setTestPresence("#9e9e9e");
                 ApiUi.setTestEnabled(!!(window.KIMI_VALIDATORS && window.KIMI_VALIDATORS.validateApiKey(storedKey || "")));
 
                 // Dynamic label per provider
@@ -656,11 +674,17 @@ document.addEventListener("DOMContentLoaded", async function () {
             }
 
             if (window.kimiDB) {
-                if (provider === "openrouter") {
-                    await window.kimiDB.setPreference("openrouterApiKey", apiKey);
-                } else {
-                    await window.kimiDB.setPreference("llmApiKey", apiKey);
-                }
+                // Save API key under provider-specific preference key
+                const keyPrefMap = {
+                    openrouter: "openrouterApiKey",
+                    openai: "apiKey_openai",
+                    groq: "apiKey_groq",
+                    together: "apiKey_together",
+                    deepseek: "apiKey_deepseek",
+                    "openai-compatible": "apiKey_custom"
+                };
+                const keyPref = keyPrefMap[provider] || "llmApiKey";
+                await window.kimiDB.setPreference(keyPref, apiKey);
                 await window.kimiDB.setPreference("llmProvider", provider);
                 if (baseUrl) await window.kimiDB.setPreference("llmBaseUrl", baseUrl);
                 if (modelId) await window.kimiDB.setPreference("llmModelId", modelId);
@@ -696,11 +720,12 @@ document.addEventListener("DOMContentLoaded", async function () {
                                 statusSpan.textContent = `Test response: \"${result.response.substring(0, 50)}...\"`;
                             }, 1000);
                         }
-                        ApiUi.setPresence("#4caf50");
+                        // Mark test success explicitly
+                        ApiUi.setTestPresence("#4caf50");
                     } else {
                         statusSpan.textContent = `${result.error}`;
                         statusSpan.style.color = "#ff6b6b";
-
+                        ApiUi.setTestPresence("#9e9e9e");
                         if (result.error.includes("similaires disponibles")) {
                             setTimeout(() => {}, 1000);
                         }
@@ -708,11 +733,13 @@ document.addEventListener("DOMContentLoaded", async function () {
                 } else {
                     statusSpan.textContent = "LLM manager not initialized";
                     statusSpan.style.color = "#ff6b6b";
+                    ApiUi.setTestPresence("#9e9e9e");
                 }
             } catch (error) {
                 console.error("Error while testing API:", error);
                 statusSpan.textContent = `Error: ${error.message}`;
                 statusSpan.style.color = "#ff6b6b";
+                ApiUi.setTestPresence("#9e9e9e");
 
                 if (error.message.includes("non disponible")) {
                     setTimeout(() => {}, 1000);
@@ -754,6 +781,8 @@ document.addEventListener("DOMContentLoaded", async function () {
                             savedBadge.style.display = value ? "inline" : "none";
                         }
                         ApiUi.setPresence(value ? "#4caf50" : "#9e9e9e");
+                        // Any key change invalidates previous test state
+                        ApiUi.setTestPresence("#9e9e9e");
                         ApiUi.clearStatus();
                     } catch (e) {
                         // Validation error from DB
@@ -763,6 +792,7 @@ document.addEventListener("DOMContentLoaded", async function () {
                             s.style.color = "#ff6b6b";
                         }
                         ApiUi.setTestEnabled(false);
+                        ApiUi.setTestPresence("#9e9e9e");
                     }
                 }
             }, window.KIMI_SECURITY_CONFIG?.DEBOUNCE_DELAY || 300);
