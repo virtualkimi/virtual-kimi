@@ -157,9 +157,9 @@ document.addEventListener("DOMContentLoaded", async function () {
             const savedBadge = ApiUi.savedBadge();
             if (savedBadge) savedBadge.style.display = storedKey ? "inline" : "none";
             ApiUi.clearStatus();
-            // Enable/disable Test button according to validation
+            // Enable/disable Test button according to validation (Ollama does not require API key)
             const valid = !!(window.KIMI_VALIDATORS && window.KIMI_VALIDATORS.validateApiKey(storedKey || ""));
-            ApiUi.setTestEnabled(valid);
+            ApiUi.setTestEnabled(provider === "ollama" ? true : valid);
             // Update dynamic label and placeholders using change handler logic
             if (providerSelect && typeof providerSelect.dispatchEvent === "function") {
                 const ev = new Event("change");
@@ -244,11 +244,15 @@ document.addEventListener("DOMContentLoaded", async function () {
                 const keyPref = keyPrefMap[provider] || "llmApiKey";
                 const storedKey = await window.kimiDB.getPreference(keyPref, "");
                 if (apiKeyInput) apiKeyInput.value = storedKey || "";
-                const color = storedKey && storedKey.length > 0 ? "#4caf50" : "#9e9e9e";
+                const color = provider === "ollama" ? "#9e9e9e" : storedKey && storedKey.length > 0 ? "#4caf50" : "#9e9e9e";
                 ApiUi.setPresence(color);
                 // Changing provider invalidates previous test state
                 ApiUi.setTestPresence("#9e9e9e");
-                ApiUi.setTestEnabled(!!(window.KIMI_VALIDATORS && window.KIMI_VALIDATORS.validateApiKey(storedKey || "")));
+                ApiUi.setTestEnabled(
+                    provider === "ollama"
+                        ? true
+                        : !!(window.KIMI_VALIDATORS && window.KIMI_VALIDATORS.validateApiKey(storedKey || ""))
+                );
 
                 // Dynamic label per provider
                 if (apiKeyLabel) {
@@ -658,33 +662,38 @@ document.addEventListener("DOMContentLoaded", async function () {
 
             if (!statusSpan) return;
 
-            if (!apiKey) {
+            if (provider !== "ollama" && !apiKey) {
                 statusSpan.textContent = window.kimiI18nManager?.t("api_key_missing") || "API key missing";
                 statusSpan.style.color = "#ff6b6b";
                 return;
             }
 
             // Validate API key format before saving/testing
-            const isValid = (window.KIMI_VALIDATORS && window.KIMI_VALIDATORS.validateApiKey(apiKey)) || false;
-            if (!isValid) {
-                statusSpan.textContent =
-                    window.kimiI18nManager?.t("api_key_invalid_format") || "Invalid API key format (must start with sk-or-v1-)";
-                statusSpan.style.color = "#ff6b6b";
-                return;
+            if (provider !== "ollama") {
+                const isValid = (window.KIMI_VALIDATORS && window.KIMI_VALIDATORS.validateApiKey(apiKey)) || false;
+                if (!isValid) {
+                    statusSpan.textContent =
+                        window.kimiI18nManager?.t("api_key_invalid_format") ||
+                        "Invalid API key format (must start with sk-or-v1-)";
+                    statusSpan.style.color = "#ff6b6b";
+                    return;
+                }
             }
 
             if (window.kimiDB) {
-                // Save API key under provider-specific preference key
-                const keyPrefMap = {
-                    openrouter: "openrouterApiKey",
-                    openai: "apiKey_openai",
-                    groq: "apiKey_groq",
-                    together: "apiKey_together",
-                    deepseek: "apiKey_deepseek",
-                    "openai-compatible": "apiKey_custom"
-                };
-                const keyPref = keyPrefMap[provider] || "llmApiKey";
-                await window.kimiDB.setPreference(keyPref, apiKey);
+                // Save API key under provider-specific preference key (skip for Ollama)
+                if (provider !== "ollama") {
+                    const keyPrefMap = {
+                        openrouter: "openrouterApiKey",
+                        openai: "apiKey_openai",
+                        groq: "apiKey_groq",
+                        together: "apiKey_together",
+                        deepseek: "apiKey_deepseek",
+                        "openai-compatible": "apiKey_custom"
+                    };
+                    const keyPref = keyPrefMap[provider] || "llmApiKey";
+                    await window.kimiDB.setPreference(keyPref, apiKey);
+                }
                 await window.kimiDB.setPreference("llmProvider", provider);
                 if (baseUrl) await window.kimiDB.setPreference("llmBaseUrl", baseUrl);
                 if (modelId) await window.kimiDB.setPreference("llmModelId", modelId);
@@ -770,7 +779,7 @@ document.addEventListener("DOMContentLoaded", async function () {
                 const value = input.value.trim();
                 // Update Test button state immediately
                 const validNow = !!(window.KIMI_VALIDATORS && window.KIMI_VALIDATORS.validateApiKey(value));
-                ApiUi.setTestEnabled(validNow);
+                ApiUi.setTestEnabled(provider === "ollama" ? true : validNow);
                 if (window.kimiDB) {
                     try {
                         await window.kimiDB.setPreference(keyPref, value);

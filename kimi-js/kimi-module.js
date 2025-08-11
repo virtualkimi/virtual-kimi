@@ -571,9 +571,24 @@ async function analyzeAndReact(text, useAdvancedLLM = true) {
         if (useAdvancedLLM && isSystemReady && kimiLLM) {
             try {
                 const providerPref = kimiDB ? await kimiDB.getPreference("llmProvider", "openrouter") : "openrouter";
-                const apiKey = kimiDB
-                    ? await kimiDB.getPreference(providerPref === "openrouter" ? "openrouterApiKey" : "llmApiKey")
-                    : null;
+                let apiKey = null;
+                if (kimiDB) {
+                    if (providerPref === "ollama") {
+                        apiKey = "__local__"; // no key required
+                    } else if (providerPref === "openrouter") {
+                        apiKey = await kimiDB.getPreference("openrouterApiKey");
+                    } else {
+                        const keyPrefMap = {
+                            openai: "apiKey_openai",
+                            groq: "apiKey_groq",
+                            together: "apiKey_together",
+                            deepseek: "apiKey_deepseek",
+                            "openai-compatible": "apiKey_custom"
+                        };
+                        const keyPref = keyPrefMap[providerPref] || "llmApiKey";
+                        apiKey = await kimiDB.getPreference(keyPref);
+                    }
+                }
 
                 if (apiKey && apiKey.trim() !== "") {
                     try {
@@ -640,9 +655,24 @@ async function analyzeAndReact(text, useAdvancedLLM = true) {
                 } catch (e) {}
                 // Still show API key message if no key is configured
                 const providerPref2 = kimiDB ? await kimiDB.getPreference("llmProvider", "openrouter") : "openrouter";
-                const apiKey = kimiDB
-                    ? await kimiDB.getPreference(providerPref2 === "openrouter" ? "openrouterApiKey" : "llmApiKey")
-                    : null;
+                let apiKey = null;
+                if (kimiDB) {
+                    if (providerPref2 === "ollama") {
+                        apiKey = "__local__";
+                    } else if (providerPref2 === "openrouter") {
+                        apiKey = await kimiDB.getPreference("openrouterApiKey");
+                    } else {
+                        const keyPrefMap = {
+                            openai: "apiKey_openai",
+                            groq: "apiKey_groq",
+                            together: "apiKey_together",
+                            deepseek: "apiKey_deepseek",
+                            "openai-compatible": "apiKey_custom"
+                        };
+                        const keyPref = keyPrefMap[providerPref2] || "llmApiKey";
+                        apiKey = await kimiDB.getPreference(keyPref);
+                    }
+                }
                 if (!apiKey || apiKey.trim() === "") {
                     response = window.KimiFallbackManager
                         ? window.KimiFallbackManager.getFallbackMessage("api_missing")
@@ -666,9 +696,24 @@ async function analyzeAndReact(text, useAdvancedLLM = true) {
         } else {
             // System not ready - check if it's because of missing API key
             const providerPref3 = kimiDB ? await kimiDB.getPreference("llmProvider", "openrouter") : "openrouter";
-            const apiKey = kimiDB
-                ? await kimiDB.getPreference(providerPref3 === "openrouter" ? "openrouterApiKey" : "llmApiKey")
-                : null;
+            let apiKey = null;
+            if (kimiDB) {
+                if (providerPref3 === "ollama") {
+                    apiKey = "__local__";
+                } else if (providerPref3 === "openrouter") {
+                    apiKey = await kimiDB.getPreference("openrouterApiKey");
+                } else {
+                    const keyPrefMap = {
+                        openai: "apiKey_openai",
+                        groq: "apiKey_groq",
+                        together: "apiKey_together",
+                        deepseek: "apiKey_deepseek",
+                        "openai-compatible": "apiKey_custom"
+                    };
+                    const keyPref = keyPrefMap[providerPref3] || "llmApiKey";
+                    apiKey = await kimiDB.getPreference(keyPref);
+                }
+            }
             if (!apiKey || apiKey.trim() === "") {
                 response = window.KimiFallbackManager
                     ? window.KimiFallbackManager.getFallbackMessage("api_missing")
