@@ -25,6 +25,14 @@ class KimiLLMManager {
                 pricing: { input: 0.1, output: 0.28 },
                 strengths: ["Open Source", "Balanced", "Fast", "Economical"]
             },
+            "x-ai/grok-3-mini": {
+                name: "Grok 3 mini",
+                provider: "xAI",
+                type: "openrouter",
+                contextWindow: 131000,
+                pricing: { input: 0.3, output: 0.50 },
+                strengths: ["Multilingual", "Balanced", "Fast", "Economical"]
+            },
             "cohere/command-r-08-2024": {
                 name: "Command-R-08-2024",
                 provider: "Cohere",
@@ -69,6 +77,7 @@ class KimiLLMManager {
         this.recommendedModelIds = [
             "mistralai/mistral-small-3.2-24b-instruct",
             "nousresearch/hermes-3-llama-3.1-70b",
+            "x-ai/grok-3-mini",
             "cohere/command-r-08-2024",
             "qwen/qwen3-235b-a22b-thinking-2507",
             "nousresearch/hermes-3-llama-3.1-405b",
