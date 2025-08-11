@@ -30,7 +30,7 @@ Built with vanilla JavaScript and modern web APIs, it offers a rich, responsive 
 - **X (Twitter)**: [x.com/virtualkimi](https://x.com/virtualkimi)
 - **GitHub**: [github.com/virtualkimi](https://github.com/virtualkimi)
 - **HuggingFace**: [huggingface.co/VirtualKimi](https://huggingface.co/VirtualKimi)
-- **YouTube**: [YouTube Channel](https://www.youtube.com/channel/UCitpEAj4kTjrmjhw5qsDFqA)
+- **YouTube**: [YouTube Channel](https://www.youtube.com/@VirtualKimi)
 
 - **Support the project**: [ko-fi.com/virtualkimi](https://ko-fi.com/virtualkimi)
   _If you like this project or want to help me (I'm currently without a permanent job), you can buy me a coffee or make a donation. Every bit helps keep Virtual Kimi alive and evolving!_
@@ -146,8 +146,7 @@ The four main characters are visually based on images from four creators on X (T
 
 - @JulyFox33 (Kimi)
 - @BelisariaNew (Bella)
-- @JuliAIkiko (Rosa)
-- @JuliAIkiko (Stella)
+- @JuliAIkiko (Rosa and Stella)
 
 All character videos were generated using the image-to-video AI from Kling.ai, specifically with the Kling v2.1 model.
 
@@ -430,7 +429,6 @@ See the [LICENSE](LICENSE) file for details.
 > _"Love is the most powerful code"_ 💕
 >
 > — 2025 Virtual Kimi - Created with 💜 by Jean & Kimi
-
 
 
 
