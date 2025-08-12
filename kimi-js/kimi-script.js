@@ -104,11 +104,19 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     // Initial presence state based on current input value
     {
-        const currentVal = (ApiUi.apiKeyInput() || {}).value || "";
+        const apiInputInit = ApiUi.apiKeyInput();
+        const currentVal = (apiInputInit || {}).value || "";
         const colorInit = currentVal && currentVal.length > 0 ? "#4caf50" : "#9e9e9e";
         ApiUi.setPresence(colorInit);
         // On load, test status is unknown
         ApiUi.setTestPresence("#9e9e9e");
+        // Enforce initial masking style to avoid UA text-security glitches
+        if (apiInputInit && apiInputInit.classList.contains("masked")) {
+            try {
+                apiInputInit.style.webkitTextSecurity = "disc";
+            } catch (_) {}
+            apiInputInit.style.filter = "blur(6px)";
+        }
     }
 
     // Initialize API config UI from saved preferences
@@ -131,13 +139,71 @@ document.addEventListener("DOMContentLoaded", async function () {
             const baseUrlInput = ApiUi.baseUrlInput();
             const modelIdInput = ApiUi.modelIdInput();
             const apiKeyInput = ApiUi.apiKeyInput();
-            if (baseUrlInput) baseUrlInput.value = baseUrl || "";
+            if (baseUrlInput) {
+                baseUrlInput.value = baseUrl || "";
+                const isFixed = ["openrouter", "openai", "groq", "together", "deepseek"].includes(provider);
+                baseUrlInput.readOnly = !!isFixed;
+                baseUrlInput.setAttribute("aria-readonly", isFixed ? "true" : "false");
+                // Anti-autofill & soft-readonly flags
+                baseUrlInput.autocomplete = "new-password";
+                baseUrlInput.removeAttribute("name");
+                baseUrlInput.setAttribute("data-lpignore", "true");
+                baseUrlInput.setAttribute("data-1p-ignore", "true");
+                baseUrlInput.setAttribute("data-bwignore", "true");
+                baseUrlInput.setAttribute("data-form-type", "other");
+                baseUrlInput.setAttribute("autocapitalize", "none");
+                baseUrlInput.setAttribute("autocorrect", "off");
+                // For editable providers, use a soft-readonly until focus to deter autofill prompts
+                if (!isFixed) {
+                    baseUrlInput.setAttribute("data-soft-readonly", "true");
+                    baseUrlInput.setAttribute("readonly", "true");
+                    baseUrlInput.addEventListener(
+                        "focus",
+                        () => {
+                            if (baseUrlInput.hasAttribute("data-soft-readonly")) {
+                                baseUrlInput.removeAttribute("readonly");
+                            }
+                        },
+                        { once: true }
+                    );
+                } else {
+                    baseUrlInput.removeAttribute("data-soft-readonly");
+                }
+            }
             // Only prefill model for OpenRouter, others should show placeholder only
             if (modelIdInput) {
                 if (provider === "openrouter") {
-                    if (!modelIdInput.value) modelIdInput.value = modelId;
+                    modelIdInput.value = modelId || (window.kimiLLM ? window.kimiLLM.currentModel : "");
+                    modelIdInput.readOnly = true;
+                    modelIdInput.setAttribute("aria-readonly", "true");
                 } else {
                     modelIdInput.value = "";
+                    modelIdInput.readOnly = false;
+                    modelIdInput.setAttribute("aria-readonly", "false");
+                }
+                // Anti-autofill & soft-readonly flags for model id when editable
+                modelIdInput.autocomplete = "new-password";
+                modelIdInput.removeAttribute("name");
+                modelIdInput.setAttribute("data-lpignore", "true");
+                modelIdInput.setAttribute("data-1p-ignore", "true");
+                modelIdInput.setAttribute("data-bwignore", "true");
+                modelIdInput.setAttribute("data-form-type", "other");
+                modelIdInput.setAttribute("autocapitalize", "none");
+                modelIdInput.setAttribute("autocorrect", "off");
+                if (!modelIdInput.readOnly) {
+                    modelIdInput.setAttribute("data-soft-readonly", "true");
+                    modelIdInput.setAttribute("readonly", "true");
+                    modelIdInput.addEventListener(
+                        "focus",
+                        () => {
+                            if (modelIdInput.hasAttribute("data-soft-readonly")) {
+                                modelIdInput.removeAttribute("readonly");
+                            }
+                        },
+                        { once: true }
+                    );
+                } else {
+                    modelIdInput.removeAttribute("data-soft-readonly");
                 }
             }
             // Load the provider-specific key
@@ -151,7 +217,21 @@ document.addEventListener("DOMContentLoaded", async function () {
             };
             const keyPref = keyPrefMap[provider] || "llmApiKey";
             const storedKey = await window.kimiDB.getPreference(keyPref, "");
-            if (apiKeyInput) apiKeyInput.value = storedKey || "";
+            if (apiKeyInput) {
+                apiKeyInput.value = storedKey || "";
+                // Keep masking visuals consistent after programmatic value changes
+                if (apiKeyInput.classList.contains("masked")) {
+                    try {
+                        apiKeyInput.style.webkitTextSecurity = "disc";
+                    } catch (_) {}
+                    apiKeyInput.style.filter = "blur(6px)";
+                } else {
+                    try {
+                        apiKeyInput.style.webkitTextSecurity = "";
+                    } catch (_) {}
+                    apiKeyInput.style.filter = "none";
+                }
+            }
             ApiUi.setPresence(storedKey ? "#4caf50" : "#9e9e9e");
             ApiUi.setTestPresence("#9e9e9e");
             const savedBadge = ApiUi.savedBadge();
@@ -217,20 +297,90 @@ document.addEventListener("DOMContentLoaded", async function () {
             const p = placeholders[provider] || placeholders.openai;
             if (baseUrlInput) {
                 baseUrlInput.placeholder = p.url;
-                baseUrlInput.value = provider === "openrouter" ? "https://openrouter.ai/api/v1/chat/completions" : p.url;
+                // Providers fixes: URL canonique, champ en lecture seule
+                const isFixed = ["openrouter", "openai", "groq", "together", "deepseek"].includes(provider);
+                if (isFixed) {
+                    baseUrlInput.value = provider === "openrouter" ? "https://openrouter.ai/api/v1/chat/completions" : p.url;
+                    baseUrlInput.readOnly = true;
+                    baseUrlInput.setAttribute("aria-readonly", "true");
+                    baseUrlInput.removeAttribute("data-soft-readonly");
+                } else {
+                    // Custom & Ollama: laisser éditable et ne pas écraser l’URL utilisateur si déjà définie
+                    let savedUrl = "";
+                    if (window.kimiDB) {
+                        savedUrl = await window.kimiDB.getPreference("llmBaseUrl", "");
+                    }
+                    baseUrlInput.value = savedUrl || p.url;
+                    baseUrlInput.readOnly = false;
+                    baseUrlInput.setAttribute("aria-readonly", "false");
+                    baseUrlInput.setAttribute("data-soft-readonly", "true");
+                    baseUrlInput.setAttribute("readonly", "true");
+                    baseUrlInput.addEventListener(
+                        "focus",
+                        () => {
+                            if (baseUrlInput.hasAttribute("data-soft-readonly")) {
+                                baseUrlInput.removeAttribute("readonly");
+                            }
+                        },
+                        { once: true }
+                    );
+                }
+                // Reassert anti-autofill attributes each switch
+                baseUrlInput.autocomplete = "new-password";
+                baseUrlInput.removeAttribute("name");
+                baseUrlInput.setAttribute("data-lpignore", "true");
+                baseUrlInput.setAttribute("data-1p-ignore", "true");
+                baseUrlInput.setAttribute("data-bwignore", "true");
+                baseUrlInput.setAttribute("data-form-type", "other");
+                baseUrlInput.setAttribute("autocapitalize", "none");
+                baseUrlInput.setAttribute("autocorrect", "off");
             }
             if (apiKeyInput) apiKeyInput.placeholder = p.keyPh;
             if (modelIdInput) {
                 modelIdInput.placeholder = p.model;
                 // Value only for OpenRouter; others cleared to encourage provider-specific model naming
-                modelIdInput.value = provider === "openrouter" && window.kimiLLM ? window.kimiLLM.currentModel : "";
+                if (provider === "openrouter") {
+                    const savedId = (window.kimiDB && (await window.kimiDB.getPreference("llmModelId", ""))) || "";
+                    modelIdInput.value = savedId || (window.kimiLLM ? window.kimiLLM.currentModel : "");
+                    modelIdInput.readOnly = true;
+                    modelIdInput.setAttribute("aria-readonly", "true");
+                    modelIdInput.removeAttribute("data-soft-readonly");
+                } else {
+                    modelIdInput.value = "";
+                    modelIdInput.readOnly = false;
+                    modelIdInput.setAttribute("aria-readonly", "false");
+                    modelIdInput.setAttribute("data-soft-readonly", "true");
+                    modelIdInput.setAttribute("readonly", "true");
+                    modelIdInput.addEventListener(
+                        "focus",
+                        () => {
+                            if (modelIdInput.hasAttribute("data-soft-readonly")) {
+                                modelIdInput.removeAttribute("readonly");
+                            }
+                        },
+                        { once: true }
+                    );
+                }
+                // Reassert anti-autofill attributes each switch
+                modelIdInput.autocomplete = "new-password";
+                modelIdInput.removeAttribute("name");
+                modelIdInput.setAttribute("data-lpignore", "true");
+                modelIdInput.setAttribute("data-1p-ignore", "true");
+                modelIdInput.setAttribute("data-bwignore", "true");
+                modelIdInput.setAttribute("data-form-type", "other");
+                modelIdInput.setAttribute("autocapitalize", "none");
+                modelIdInput.setAttribute("autocorrect", "off");
             }
             if (window.kimiDB) {
                 await window.kimiDB.setPreference("llmProvider", provider);
-                await window.kimiDB.setPreference(
-                    "llmBaseUrl",
-                    provider === "openrouter" ? "https://openrouter.ai/api/v1/chat/completions" : p.url
-                );
+                // Éviter d’écraser l’URL personnalisée pour custom/ollama
+                if (["openrouter", "openai", "groq", "together", "deepseek"].includes(provider)) {
+                    const canonical = provider === "openrouter" ? "https://openrouter.ai/api/v1/chat/completions" : p.url;
+                    await window.kimiDB.setPreference("llmBaseUrl", canonical);
+                } else {
+                    const existing = await window.kimiDB.getPreference("llmBaseUrl", "");
+                    await window.kimiDB.setPreference("llmBaseUrl", existing || p.url);
+                }
                 const apiKeyLabel = document.getElementById("api-key-label");
                 // Load provider-specific key into the input for clarity
                 const keyPrefMap = {
@@ -808,21 +958,71 @@ document.addEventListener("DOMContentLoaded", async function () {
         });
     })();
 
+    // Harden anti-autofill and masking on DOM ready
+    (function enforceApiInputSecurity() {
+        const input = ApiUi.apiKeyInput();
+        if (!input) return;
+        // Anti-autofill flags
+        input.autocomplete = "off";
+        input.removeAttribute("name");
+        input.setAttribute("data-lpignore", "true");
+        input.setAttribute("data-1p-ignore", "true");
+        input.setAttribute("data-bwignore", "true");
+        input.setAttribute("data-form-type", "other");
+        input.setAttribute("autocapitalize", "none");
+        input.setAttribute("autocorrect", "off");
+        // Keep masked by style as well
+        if (input.classList.contains("masked")) {
+            try {
+                input.style.webkitTextSecurity = "disc";
+            } catch (_) {}
+            input.style.filter = "blur(6px)";
+        }
+        // If the field gets focus, ensure it is editable (index.html sets readonly initially)
+        input.addEventListener(
+            "focus",
+            () => {
+                if (input.hasAttribute("readonly")) input.removeAttribute("readonly");
+            },
+            { once: false }
+        );
+    })();
+
     // Toggle show/hide for API key
     (function setupToggleEye() {
         const btn = ApiUi.toggleBtn();
         const input = ApiUi.apiKeyInput();
         if (!btn || !input) return;
         btn.addEventListener("click", () => {
-            const showing = input.type === "text";
-            input.type = showing ? "password" : "text";
-            btn.setAttribute("aria-pressed", String(!showing));
+            const wasMasked = input.classList.contains("masked");
+            // Toggle class first
+            if (wasMasked) {
+                input.classList.remove("masked");
+            } else {
+                input.classList.add("masked");
+            }
+            // Force style to avoid UA quirks where -webkit-text-security persists
+            const nowMasked = input.classList.contains("masked");
+            if (nowMasked) {
+                // Apply masking explicitly
+                try {
+                    input.style.webkitTextSecurity = "disc"; // Chromium/WebKit
+                } catch (_) {}
+                input.style.filter = "blur(6px)"; // Fallback
+            } else {
+                // Remove any residual masking
+                try {
+                    input.style.webkitTextSecurity = ""; // reset to CSS/default
+                } catch (_) {}
+                input.style.filter = "none";
+            }
+            btn.setAttribute("aria-pressed", String(!nowMasked));
             const icon = btn.querySelector("i");
             if (icon) {
                 icon.classList.toggle("fa-eye");
                 icon.classList.toggle("fa-eye-slash");
             }
-            btn.setAttribute("aria-label", showing ? "Show API key" : "Hide API key");
+            btn.setAttribute("aria-label", nowMasked ? "Show API key" : "Hide API key");
         });
     })();
 
@@ -877,6 +1077,57 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     // Setup unified event handlers to prevent duplicates
     setupUnifiedEventHandlers();
+
+    // Global hardening against browser/extension autofill on all text-like fields
+    (function hardenAgainstAutofill() {
+        const ATTRS = {
+            autocomplete: "off",
+            autocorrect: "off",
+            autocapitalize: "none",
+            spellcheck: "false",
+            "data-lpignore": "true",
+            "data-1p-ignore": "true",
+            "data-bwignore": "true",
+            "data-form-type": "other"
+        };
+        const block = el => {
+            if (!el || !(el instanceof HTMLElement)) return;
+            const tag = el.tagName.toLowerCase();
+            const type = (el.getAttribute("type") || "").toLowerCase();
+            if (tag === "input" && (type === "text" || type === "search" || type === "email" || type === "url")) {
+                Object.entries(ATTRS).forEach(([k, v]) => el.setAttribute(k, v));
+                // Never keep a sensitive name attribute
+                const name = el.getAttribute("name") || "";
+                if (name) el.removeAttribute("name");
+            }
+            if (tag === "textarea") {
+                Object.entries(ATTRS).forEach(([k, v]) => el.setAttribute(k, v));
+                const name = el.getAttribute("name") || "";
+                if (name) el.removeAttribute("name");
+            }
+        };
+        document.querySelectorAll("input, textarea").forEach(block);
+        const mo = new MutationObserver(muts => {
+            for (const m of muts) {
+                m.addedNodes &&
+                    m.addedNodes.forEach(n => {
+                        if (n instanceof HTMLElement) {
+                            if (n.matches && (n.matches("input") || n.matches("textarea"))) block(n);
+                            n.querySelectorAll && n.querySelectorAll("input, textarea").forEach(block);
+                        }
+                    });
+                if (m.type === "attributes" && m.target instanceof HTMLElement) {
+                    if (m.attributeName === "type" || m.attributeName === "name") block(m.target);
+                }
+            }
+        });
+        mo.observe(document.documentElement, {
+            subtree: true,
+            childList: true,
+            attributes: true,
+            attributeFilter: ["type", "name"]
+        });
+    })();
 
     // Initialize language and UI
     await initializeLanguageAndUI();

@@ -1284,6 +1284,20 @@ async function loadAvailableModels() {
                     modelDiv.classList.add("selected");
                     console.log(`🤖 Model switched to: ${model.name}`);
 
+                    // Sync the visible Model ID field and persist selection
+                    try {
+                        const provider = (await window.kimiDB.getPreference("llmProvider", "openrouter")) || "openrouter";
+                        const modelIdInput = document.getElementById("llm-model-id");
+                        if (provider === "openrouter" && modelIdInput) {
+                            modelIdInput.value = id;
+                            modelIdInput.readOnly = true;
+                            modelIdInput.setAttribute("aria-readonly", "true");
+                        }
+                        await window.kimiDB.setPreference("llmModelId", id);
+                    } catch (syncErr) {
+                        console.warn("Model ID UI sync failed:", syncErr);
+                    }
+
                     // Show brief feedback to user
                     const feedback = document.createElement("div");
                     feedback.textContent = `Model changed to ${model.name}`;
@@ -1853,21 +1867,44 @@ document.addEventListener("DOMContentLoaded", function () {
     // Refresh UI models list when the LLM model changes programmatically
     try {
         window.addEventListener("llmModelChanged", () => {
-            if (typeof window.loadAvailableModels === "function") {
-                window.loadAvailableModels();
-            }
+            try {
+                // Refresh models selection state
+                if (typeof window.loadAvailableModels === "function") {
+                    window.loadAvailableModels();
+                }
+                // Also update the Model ID input when on OpenRouter
+                setTimeout(async () => {
+                    try {
+                        const provider = (await window.kimiDB.getPreference("llmProvider", "openrouter")) || "openrouter";
+                        const modelIdInput = document.getElementById("llm-model-id");
+                        if (provider === "openrouter" && modelIdInput && window.kimiLLM) {
+                            modelIdInput.value = window.kimiLLM.currentModel || modelIdInput.value;
+                            modelIdInput.readOnly = true;
+                            modelIdInput.setAttribute("aria-readonly", "true");
+                            await window.kimiDB.setPreference("llmModelId", window.kimiLLM.currentModel || "");
+                        }
+                    } catch (e2) {
+                        console.warn("Failed to sync llm-model-id on event:", e2);
+                    }
+                }, 0);
+            } catch (e) {}
         });
     } catch (e) {}
 
     // Typing indicator wiring
     try {
-        // Soft tweak of API key input attributes shortly after load to reduce password manager prompts
+        // Ensure API key field never triggers password manager prompts
         setTimeout(() => {
             const apiInput = document.getElementById("openrouter-api-key");
             if (apiInput) {
                 apiInput.setAttribute("autocomplete", "new-password");
-                apiInput.setAttribute("name", "openrouter_api_key");
+                apiInput.removeAttribute("name");
                 apiInput.setAttribute("data-lpignore", "true");
+                apiInput.setAttribute("data-1p-ignore", "true");
+                apiInput.setAttribute("data-bwignore", "true");
+                apiInput.setAttribute("data-form-type", "other");
+                apiInput.setAttribute("autocapitalize", "none");
+                apiInput.setAttribute("autocorrect", "off");
             }
         }, 300);
 
