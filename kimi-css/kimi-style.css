@@ -1251,6 +1251,12 @@ body {
     box-sizing: border-box;
 }
 
+/* Mask sensitive values without using input type=password to avoid save prompts */
+.kimi-input.masked {
+    -webkit-text-security: disc; /* non-standard but widely supported in Chromium/WebKit */
+    filter: blur(6px); /* fallback for browsers without text-security (e.g., Firefox) */
+}
+
 .kimi-input:focus,
 .kimi-input-unified:focus {
     background: var(--input-focus-bg);
