@@ -111,7 +111,8 @@
             </div>
             <div class="chat-input-container">
                 <input type="text" id="chat-input" data-i18n-placeholder="write_something"
-                    placeholder="Write me something, my love..." />
+                    placeholder="Write me something, my love..." autocomplete="off" autocorrect="off"
+                    autocapitalize="none" spellcheck="false" data-form-type="other" />
                 <button id="send-button">
                     <i class="fas fa-paper-plane"></i>
                 </button>
@@ -374,7 +375,10 @@
                             <label class="config-label" for="llm-base-url">Base URL</label>
                             <div class="config-control">
                                 <input type="text" class="kimi-input" id="llm-base-url"
-                                    placeholder="https://api.openai.com/v1/chat/completions" autocomplete="off" />
+                                    placeholder="https://api.openai.com/v1/chat/completions" autocomplete="new-password"
+                                    aria-autocomplete="none" autocapitalize="none" autocorrect="off" spellcheck="false"
+                                    inputmode="url" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"
+                                    data-form-type="other" />
                             </div>
                         </div>
 
@@ -382,7 +386,10 @@
                             <label class="config-label" for="llm-model-id">Model ID</label>
                             <div class="config-control">
                                 <input type="text" class="kimi-input" id="llm-model-id"
-                                    placeholder="gpt-4o-mini | llama-3.1-8b-instruct | ..." autocomplete="off" />
+                                    placeholder="gpt-4o-mini | llama-3.1-8b-instruct | ..." autocomplete="new-password"
+                                    aria-autocomplete="none" autocapitalize="none" autocorrect="off" spellcheck="false"
+                                    inputmode="text" data-lpignore="true" data-1p-ignore="true" data-bwignore="true"
+                                    data-form-type="other" />
                             </div>
                         </div>
 
@@ -399,11 +406,12 @@
                                     title="Green = API key saved for current provider. Grey = no key saved."></span>
                             </div>
                             <div class="config-control">
-                                <input type="password" class="kimi-input" id="openrouter-api-key"
-                                    name="openrouter_api_key" placeholder="sk-or-v1-..." autocomplete="new-password"
-                                    autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="text"
-                                    aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true"
-                                    data-bwignore="true" />
+                                <input type="text" class="kimi-input masked" id="openrouter-api-key"
+                                    placeholder="sk-or-v1-..." autocomplete="new-password" autocapitalize="none"
+                                    autocorrect="off" spellcheck="false" inputmode="text" aria-autocomplete="none"
+                                    data-lpignore="true" data-1p-ignore="true" data-bwignore="true"
+                                    data-form-type="other" readonly
+                                    onfocus="this.removeAttribute('readonly'); this.setAttribute('autocomplete','new-password'); this.removeAttribute('name'); this.setAttribute('data-lpignore','true'); this.setAttribute('data-1p-ignore','true'); this.setAttribute('data-bwignore','true'); this.setAttribute('data-form-type','other');" />
                                 <button class="kimi-button" id="toggle-api-key" type="button" aria-pressed="false"
                                     aria-label="Show API key">
                                     <i class="fas fa-eye"></i>
@@ -617,7 +625,9 @@
                                         <option value="important">Important Events</option>
                                     </select>
                                     <input type="text" class="kimi-input" id="memory-content"
-                                        placeholder="e.g., I love classical music..." style="margin-bottom: 8px;" />
+                                        placeholder="e.g., I love classical music..." style="margin-bottom: 8px;"
+                                        autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"
+                                        data-form-type="other" />
                                     <button class="kimi-button" id="add-memory">
                                         <i class="fas fa-plus"></i> <span data-i18n="add">Add</span>
                                     </button>
@@ -716,7 +726,8 @@
                         <div class="memory-filters">
                             <div class="memory-search-container">
                                 <input type="text" class="kimi-input" id="memory-search"
-                                    placeholder="Search memories..." />
+                                    placeholder="Search memories..." autocomplete="off" autocorrect="off"
+                                    autocapitalize="none" spellcheck="false" data-form-type="other" />
                                 <i class="fas fa-search memory-search-icon"></i>
                             </div>
                             <select class="kimi-select" id="memory-filter-category">

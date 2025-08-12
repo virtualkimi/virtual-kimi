@@ -1,5 +1,27 @@
 # Virtual Kimi Changelog
 
+## [1.0.5] - 2025-08-12
+
+### Security & UX
+
+- Removed all browser/extension password save and autofill prompts for API key and all text fields (no type="password", no name, all autofill-blocking attributes, CSS masking only).
+- Global autofill prevention for all text/textarea fields, including dynamically added ones.
+- Provider selection: Base URL is readonly for OpenRouter, OpenAI, Groq, Together, DeepSeek; editable only for Custom and Ollama.
+- Model ID is auto-synced and readonly for OpenRouter; editable for others. Selection is persistent and always reflected in the UI.
+- Robust preference persistence and UI sync for provider, base URL, and model.
+
+### Provider & LLM Model Handling
+
+- Base URL is now readonly for OpenRouter, OpenAI, Groq, Together, DeepSeek (canonical, not user-editable). Editable only for Custom OpenAI-compatible and Ollama.
+- Model ID is auto-synced and readonly for OpenRouter; editable for others. Selection is persistent and always reflected in the UI.
+- Robust preference persistence and UI sync for provider, base URL, and model.
+- Fixed Model ID sync when changing OpenRouter model (immediate update, persistence, readonly).
+
+### Misc
+
+- No text field in the app can be autofilled or saved by browser or extension.
+- Improved UI robustness when switching provider or model.
+
 ## [1.0.4] - 2025-08-09 - "Emotion & Context Logic Upgrade"
 
 ### Added
