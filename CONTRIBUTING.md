@@ -331,13 +331,6 @@ Include the following information:
 
 ## Development Tips
 
-### Debugging
-
-- Use browser DevTools for JavaScript debugging
-- Check console for errors and warnings
-- Use the health check system: `window.KimiHealthCheck`
-- Enable debug mode: `window.KIMI_DEBUG = true`
-
 ### Performance Optimization
 
 - Minimize DOM manipulations
