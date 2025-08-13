@@ -4,6 +4,7 @@ class KimiI18nManager {
     constructor() {
         this.translations = {};
         this.currentLang = "en";
+        this._reloadAttempted = false;
     }
     async setLanguage(lang) {
         this.currentLang = lang;
@@ -31,6 +32,7 @@ class KimiI18nManager {
         return str;
     }
     applyTranslations() {
+        const missing = [];
         document.querySelectorAll("[data-i18n]").forEach(el => {
             const key = el.getAttribute("data-i18n");
             let params = undefined;
@@ -40,8 +42,20 @@ class KimiI18nManager {
                     params = JSON.parse(paramsAttr);
                 } catch {}
             }
-            el.textContent = this.t(key, params);
+            const val = this.t(key, params);
+            if (val === key && this.currentLang !== "en") {
+                missing.push(key);
+            }
+            el.textContent = val;
         });
+        // Auto-reload once if new keys were added after initial load
+        if (missing.length > 0 && !this._reloadAttempted) {
+            this._reloadAttempted = true;
+            this.loadTranslations(this.currentLang).then(() => {
+                // Re-apply with fresh file
+                requestAnimationFrame(() => this.applyTranslations());
+            });
+        }
         document.querySelectorAll("[data-i18n-title]").forEach(el => {
             const key = el.getAttribute("data-i18n-title");
             el.setAttribute("title", this.t(key));

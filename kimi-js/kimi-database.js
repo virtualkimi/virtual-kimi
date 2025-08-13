@@ -3,43 +3,90 @@ class KimiDatabase {
     constructor() {
         this.dbName = "KimiDB";
         this.db = new Dexie(this.dbName);
-        this.db.version(3).stores({
-            conversations: "++id,timestamp,favorability,character",
-            preferences: "key",
-            settings: "category",
-            personality: "[character+trait],character",
-            llmModels: "id",
-            memories: "++id,[character+category],character,timestamp,isActive"
-        });
+        this.db
+            .version(3)
+            .stores({
+                conversations: "++id,timestamp,favorability,character",
+                preferences: "key",
+                settings: "category",
+                personality: "[character+trait],character",
+                llmModels: "id",
+                memories: "++id,[character+category],character,timestamp,isActive"
+            })
+            .upgrade(async tx => {
+                try {
+                    const preferences = tx.table("preferences");
+                    const settings = tx.table("settings");
+                    const conversations = tx.table("conversations");
+                    const llmModels = tx.table("llmModels");
+
+                    await preferences.toCollection().modify(rec => {
+                        if (Object.prototype.hasOwnProperty.call(rec, "encrypted")) {
+                            delete rec.encrypted;
+                        }
+                    });
+
+                    const llmSetting = await settings.get("llm");
+                    if (!llmSetting) {
+                        await settings.put({
+                            category: "llm",
+                            settings: {
+                                temperature: 0.9,
+                                maxTokens: 100,
+                                top_p: 0.9,
+                                frequency_penalty: 0.3,
+                                presence_penalty: 0.3
+                            },
+                            updated: new Date().toISOString()
+                        });
+                    }
+
+                    await conversations.toCollection().modify(rec => {
+                        if (!rec.character) rec.character = "kimi";
+                    });
+
+                    const modelsCount = await llmModels.count();
+                    if (modelsCount === 0) {
+                        await llmModels.put({
+                            id: "mistralai/mistral-small-3.2-24b-instruct",
+                            name: "Mistral Small 3.2",
+                            provider: "openrouter",
+                            apiKey: "",
+                            config: { temperature: 0.9, maxTokens: 100 },
+                            added: new Date().toISOString(),
+                            lastUsed: null
+                        });
+                    }
+                } catch (e) {
+                    // Swallow upgrade errors to avoid blocking DB open; post-open migrations will attempt fixes
+                }
+            });
     }
 
     async init() {
         await this.db.open();
         await this.initializeDefaultsIfNeeded();
+        await this.runPostOpenMigrations();
         return this.db;
     }
 
-    async initializeDefaultsIfNeeded() {
-        // Use unified trait defaults from emotion system - CRITICAL FIX
-        const getUnifiedDefaults = () => {
-            if (window.KimiEmotionSystem) {
-                const emotionSystem = new window.KimiEmotionSystem(this);
-                return emotionSystem.TRAIT_DEFAULTS;
-            }
-            // Fallback to match KimiEmotionSystem exactly
-            return {
-                affection: 65,
-                playfulness: 55,
-                intelligence: 70,
-                empathy: 75,
-                humor: 60,
-                romance: 50
-            };
+    getUnifiedTraitDefaults() {
+        if (window.KimiEmotionSystem) {
+            const emotionSystem = new window.KimiEmotionSystem(this);
+            return emotionSystem.TRAIT_DEFAULTS;
+        }
+        return {
+            affection: 65,
+            playfulness: 55,
+            intelligence: 70,
+            empathy: 75,
+            humor: 60,
+            romance: 50
         };
+    }
 
-        const defaults = getUnifiedDefaults();
-
-        const defaultPreferences = [
+    getDefaultPreferences() {
+        return [
             { key: "selectedLanguage", value: "en" },
             { key: "selectedVoice", value: "Microsoft Eloise Online" },
             { key: "voiceRate", value: 1.1 },
@@ -60,7 +107,10 @@ class KimiDatabase {
             { key: "apiKey_deepseek", value: "" },
             { key: "apiKey_custom", value: "" }
         ];
-        const defaultSettings = [
+    }
+
+    getDefaultSettings() {
+        return [
             {
                 category: "llm",
                 settings: {
@@ -72,23 +122,22 @@ class KimiDatabase {
                 }
             }
         ];
+    }
 
-        const getCharacterDefaults = () => {
-            if (!window.KIMI_CHARACTERS) return {};
+    getCharacterTraitDefaults() {
+        if (!window.KIMI_CHARACTERS) return {};
+        const characterDefaults = {};
+        Object.keys(window.KIMI_CHARACTERS).forEach(characterKey => {
+            const character = window.KIMI_CHARACTERS[characterKey];
+            if (character && character.traits) {
+                characterDefaults[characterKey] = character.traits;
+            }
+        });
+        return characterDefaults;
+    }
 
-            const characterDefaults = {};
-            Object.keys(window.KIMI_CHARACTERS).forEach(characterKey => {
-                const character = window.KIMI_CHARACTERS[characterKey];
-                if (character && character.traits) {
-                    characterDefaults[characterKey] = character.traits;
-                }
-            });
-            return characterDefaults;
-        };
-
-        const personalityDefaults = getCharacterDefaults();
-
-        const defaultLLMModels = [
+    getDefaultLLMModels() {
+        return [
             {
                 id: "mistralai/mistral-small-3.2-24b-instruct",
                 name: "Mistral Small 3.2",
@@ -99,6 +148,15 @@ class KimiDatabase {
                 lastUsed: null
             }
         ];
+    }
+
+    async initializeDefaultsIfNeeded() {
+        const defaults = this.getUnifiedTraitDefaults();
+
+        const defaultPreferences = this.getDefaultPreferences();
+        const defaultSettings = this.getDefaultSettings();
+        const personalityDefaults = this.getCharacterTraitDefaults();
+        const defaultLLMModels = this.getDefaultLLMModels();
 
         const prefCount = await this.db.preferences.count();
         if (prefCount === 0) {
@@ -156,6 +214,88 @@ class KimiDatabase {
         if (convCount === 0) {
             // Ne rien faire : aucune conversation par défaut
         }
+    }
+
+    async runPostOpenMigrations() {
+        try {
+            const defaultPreferences = this.getDefaultPreferences();
+            for (const pref of defaultPreferences) {
+                const existing = await this.db.preferences.get(pref.key);
+                if (!existing) {
+                    await this.db.preferences.put({
+                        key: pref.key,
+                        value: pref.value,
+                        updated: new Date().toISOString()
+                    });
+                }
+            }
+
+            const characters = Object.keys(window.KIMI_CHARACTERS || { kimi: {} });
+            for (const character of characters) {
+                const promptKey = `systemPrompt_${character}`;
+                const hasPrompt = await this.db.preferences.get(promptKey);
+                if (!hasPrompt) {
+                    const prompt = window.KIMI_CHARACTERS[character]?.defaultPrompt || "";
+                    await this.db.preferences.put({ key: promptKey, value: prompt, updated: new Date().toISOString() });
+                }
+            }
+
+            const defaultSettings = this.getDefaultSettings();
+            for (const setting of defaultSettings) {
+                const existing = await this.db.settings.get(setting.category);
+                if (!existing) {
+                    await this.db.settings.put({ ...setting, updated: new Date().toISOString() });
+                } else {
+                    const merged = { ...setting.settings, ...existing.settings };
+                    await this.db.settings.put({
+                        category: setting.category,
+                        settings: merged,
+                        updated: new Date().toISOString()
+                    });
+                }
+            }
+
+            const defaults = this.getUnifiedTraitDefaults();
+            const personalityDefaults = this.getCharacterTraitDefaults();
+            for (const character of Object.keys(window.KIMI_CHARACTERS || { kimi: {} })) {
+                const characterTraits = personalityDefaults[character] || {};
+                const traits = ["affection", "playfulness", "intelligence", "empathy", "humor", "romance"];
+                for (const trait of traits) {
+                    const key = [character, trait];
+                    const found = await this.db.personality.get(key);
+                    if (!found) {
+                        const value = Number(characterTraits[trait] ?? defaults[trait] ?? 50);
+                        const v = isFinite(value) ? Math.max(0, Math.min(100, value)) : 50;
+                        await this.db.personality.put({ trait, character, value: v, updated: new Date().toISOString() });
+                    }
+                }
+            }
+
+            const llmCount = await this.db.llmModels.count();
+            if (llmCount === 0) {
+                for (const model of this.getDefaultLLMModels()) {
+                    await this.db.llmModels.put(model);
+                }
+            }
+
+            const allConvs = await this.db.conversations.toArray();
+            const toPatch = allConvs.filter(c => !c.character);
+            if (toPatch.length) {
+                for (const c of toPatch) {
+                    c.character = "kimi";
+                    await this.db.conversations.put(c);
+                }
+            }
+
+            const allPrefs = await this.db.preferences.toArray();
+            const legacy = allPrefs.filter(p => Object.prototype.hasOwnProperty.call(p, "encrypted"));
+            if (legacy.length) {
+                for (const p of legacy) {
+                    const { key, value } = p;
+                    await this.db.preferences.put({ key, value, updated: new Date().toISOString() });
+                }
+            }
+        } catch {}
     }
 
     async saveConversation(userText, kimiResponse, favorability, timestamp = new Date(), character = null) {
@@ -219,17 +359,24 @@ class KimiDatabase {
             window.KimiCacheManager.set(`pref_${key}`, value, 60000);
         }
 
-        return this.db.preferences.put({
+        const result = await this.db.preferences.put({
             key: key,
             value: value,
             updated: new Date().toISOString()
         });
+        if (window.dispatchEvent) {
+            try {
+                window.dispatchEvent(new CustomEvent("preferenceUpdated", { detail: { key, value } }));
+            } catch {}
+        }
+        return result;
     }
 
     async getPreference(key, defaultValue = null) {
         // Try cache first (use a singleton cache instance)
         const cacheKey = `pref_${key}`;
-        const cache = window.kimiCache instanceof KimiCacheManager ? window.kimiCache : null;
+        const cache =
+            window.KimiCacheManager && typeof window.KimiCacheManager.get === "function" ? window.KimiCacheManager : null;
         if (cache && typeof cache.get === "function") {
             const cached = cache.get(cacheKey);
             if (cached !== null) {
@@ -240,7 +387,8 @@ class KimiDatabase {
         try {
             const record = await this.db.preferences.get(key);
             if (!record) {
-                const cache = window.kimiCache instanceof KimiCacheManager ? window.kimiCache : null;
+                const cache =
+                    window.KimiCacheManager && typeof window.KimiCacheManager.set === "function" ? window.KimiCacheManager : null;
                 if (cache && typeof cache.set === "function") {
                     cache.set(cacheKey, defaultValue, 60000); // Cache for 1 minute
                 }
@@ -251,7 +399,7 @@ class KimiDatabase {
             let value = record.value;
             if (record.encrypted && window.KimiSecurityUtils) {
                 try {
-                    value = window.KimiSecurityUtils.decryptApiKey(record.value);
+                    value = record.value; // decrypt removed – stored as plain text
                     // One-time migration: store back as plain text without encrypted flag
                     try {
                         await this.db.preferences.put({ key: key, value, updated: new Date().toISOString() });
@@ -263,7 +411,8 @@ class KimiDatabase {
             }
 
             // Cache the result
-            const cache = window.kimiCache instanceof KimiCacheManager ? window.kimiCache : null;
+            const cache =
+                window.KimiCacheManager && typeof window.KimiCacheManager.set === "function" ? window.KimiCacheManager : null;
             if (cache && typeof cache.set === "function") {
                 cache.set(cacheKey, value, 60000); // Cache for 1 minute
             }
@@ -329,15 +478,19 @@ class KimiDatabase {
                 defaultValue = emotionSystem.TRAIT_DEFAULTS[trait] || 50;
             } else {
                 // Fallback defaults (must match KimiEmotionSystem.TRAIT_DEFAULTS exactly)
-                const fallbackDefaults = {
-                    affection: 65, // Fixed - matches KimiEmotionSystem
-                    playfulness: 55, // Fixed - matches KimiEmotionSystem
-                    intelligence: 70, // Fixed - matches KimiEmotionSystem
-                    empathy: 75, // Fixed - matches KimiEmotionSystem
-                    humor: 60, // Fixed - matches KimiEmotionSystem
-                    romance: 50 // Fixed - matches KimiEmotionSystem
-                };
-                defaultValue = fallbackDefaults[trait] || 50;
+                if (window.getTraitDefaults) {
+                    defaultValue = window.getTraitDefaults()[trait] || 50;
+                } else {
+                    defaultValue =
+                        {
+                            affection: 65,
+                            playfulness: 55,
+                            intelligence: 70,
+                            empathy: 75,
+                            humor: 60,
+                            romance: 50
+                        }[trait] || 50;
+                }
             }
         }
 
@@ -368,15 +521,40 @@ class KimiDatabase {
         if (window.KimiCacheManager && typeof window.KimiCacheManager.get === "function") {
             const cached = window.KimiCacheManager.get(cacheKey);
             if (cached !== null) {
-                return cached;
+                // Correction : valider les valeurs du cache
+                const safeTraits = {};
+                for (const [trait, value] of Object.entries(cached)) {
+                    let v = Number(value);
+                    if (!isFinite(v) || isNaN(v)) v = 50;
+                    v = Math.max(0, Math.min(100, v));
+                    safeTraits[trait] = v;
+                }
+                return safeTraits;
             }
         }
 
         const all = await this.db.personality.where("character").equals(character).toArray();
         const traits = {};
         all.forEach(item => {
-            traits[item.trait] = item.value;
+            let v = Number(item.value);
+            if (!isFinite(v) || isNaN(v)) v = 50;
+            v = Math.max(0, Math.min(100, v));
+            traits[item.trait] = v;
         });
+
+        // If no traits stored yet for this character, seed from character defaults (one-time)
+        if (Object.keys(traits).length === 0 && window.KIMI_CHARACTERS && window.KIMI_CHARACTERS[character]) {
+            const seed = window.KIMI_CHARACTERS[character].traits || {};
+            const safeSeed = {};
+            for (const [k, v] of Object.entries(seed)) {
+                const num = typeof v === "number" && isFinite(v) ? Math.max(0, Math.min(100, v)) : 50;
+                safeSeed[k] = num;
+                try {
+                    await this.setPersonalityTrait(k, num, character);
+                } catch {}
+            }
+            return safeSeed;
+        }
 
         // Cache the result
         if (window.KimiCacheManager && typeof window.KimiCacheManager.set === "function") {
@@ -524,12 +702,25 @@ class KimiDatabase {
             } catch (e) {}
         }
 
-        const batch = Object.entries(traitsObj).map(([trait, value]) => ({
-            trait,
-            character,
-            value,
-            updated: new Date().toISOString()
-        }));
+        // Validation stricte : empêcher NaN ou valeurs non numériques
+        const getDefault = trait => {
+            if (window.KimiEmotionSystem) {
+                return new window.KimiEmotionSystem(this).TRAIT_DEFAULTS[trait] || 50;
+            }
+            const fallback = { affection: 65, playfulness: 55, intelligence: 70, empathy: 75, humor: 60, romance: 50 };
+            return fallback[trait] || 50;
+        };
+        const batch = Object.entries(traitsObj).map(([trait, value]) => {
+            let v = Number(value);
+            if (!isFinite(v) || isNaN(v)) v = getDefault(trait);
+            v = Math.max(0, Math.min(100, v));
+            return {
+                trait,
+                character,
+                value: v,
+                updated: new Date().toISOString()
+            };
+        });
         return this.db.personality.bulkPut(batch);
     }
     async setSettingsBatch(settingsArray) {
@@ -547,7 +738,7 @@ class KimiDatabase {
             let val = item.value;
             if (item.encrypted && window.KimiSecurityUtils) {
                 try {
-                    val = window.KimiSecurityUtils.decryptApiKey(item.value);
+                    val = item.value; // decrypt removed – stored as plain text
                     // Migrate back as plain
                     try {
                         await this.db.preferences.put({ key: item.key, value: val, updated: new Date().toISOString() });
@@ -615,5 +806,6 @@ class KimiDatabase {
     }
 }
 
+export default KimiDatabase;
 // Export for usage
 window.KimiDatabase = KimiDatabase;

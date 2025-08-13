@@ -9,11 +9,11 @@
 
 # Virtual Kimi - AI Companion Application 💖
 
-A web-based AI companion featuring adaptive personalities, intelligent memory systems, and immersive conversational experiences.
+Web-based AI companion girlfriends featuring adaptive personalities, intelligent memory systems, and immersive conversational experiences.
 
 ## Overview
 
-Virtual Kimi is an advanced virtual companion application that combines modern web technologies with state-of-the-art AI models to create meaningful, evolving relationships between users and AI personalities.
+Virtual Kimi is an advanced virtual companion application that combines modern web technologies with state-of-the-art AI models to create meaningful, evolving relationships between users and AI girlfriend personalities.
 
 - **Lightweight:** ~600 KB of pure JavaScript, HTML, and CSS (no frameworks)
 - **Local-first:** All data is stored in your browser's IndexedDB (managed by Dexie.js)
@@ -43,15 +43,13 @@ Built with vanilla JavaScript and modern web APIs, it offers a rich, responsive 
 
 ### 🤖 **Advanced AI Integration**
 
-- Support for affordable, less-censored LLM models via OpenRouter (see below for available models)
-- Version 1.0.4 added support for some LLMs providers  
-
-**Available models and pricing (per 1M tokens):**
+**Available recommended models and pricing for Openrouter (per 1M tokens):**
 
 - **Mistral-small-3.2**: 0.05$ input, 0.1$ output (128k context)
 - **Nous Hermes Llama 3.1 70B**: 0.1$ input, 0.28$ output (131k context)
 - **Cohere Command-R-08-2024**: 0.15$ input, 0.6$ output (131k context)
 - **Qwen3-235b-a22b-think**: 0.13$ input, 0.6$ output (262k context)
+- **Grok 3 mini**: 0.3$ input, 0.5$ output (131k context)
 - **Nous Hermes Llama 3.1 405B**: 0.7$ input, 0.8$ output (131k context)
 - **Anthropic Claude 3 Haiku**: 0.25$ input, 1.25$ output (131k context)
 - **Local Model (Ollama)**: 0$ input, 0$ output (4k context, runs offline — _experimental, not fully functional yet_)
@@ -139,7 +137,7 @@ All personality traits operate on a 0-100 scale:
 
 ## ✨ Inspiration & Assets
 
-This project was originally inspired by the [JackyWine GitHub repository](https://github.com/Jackywine). 
+This project was originally inspired by the [JackyWine GitHub repository](https://github.com/Jackywine).
 @Jackywine on X (Twitter)
 
 The four main characters are visually based on images from four creators on X (Twitter):
@@ -366,14 +364,6 @@ console.log(report.status); // 'HEALTHY' or 'NEEDS_ATTENTION'
 - **Performance issues**: Clear browser cache, check available memory
 - **Memory system not learning**: Ensure system is enabled in Data tab
 
-### Debug Mode
-
-Enable debug logging in browser console:
-
-```javascript
-window.KIMI_DEBUG = true;
-```
-
 ## Contributing
 
 We welcome contributions! Please see our contributing guidelines:
@@ -429,6 +419,3 @@ See the [LICENSE](LICENSE) file for details.
 > _"Love is the most powerful code"_ 💕
 >
 > — 2025 Virtual Kimi - Created with 💜 by Jean & Kimi
-
-
-

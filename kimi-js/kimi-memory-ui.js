@@ -139,9 +139,12 @@ class KimiMemoryUI {
                     if (v.ended) {
                         if (typeof kv.returnToNeutral === "function") kv.returnToNeutral();
                     } else if (v.paused) {
-                        v.play().catch(() => {
-                            if (typeof kv.returnToNeutral === "function") kv.returnToNeutral();
-                        });
+                        // Use centralized video utility for play
+                        window.KimiVideoManager.getVideoElement(v)
+                            .play()
+                            .catch(() => {
+                                if (typeof kv.returnToNeutral === "function") kv.returnToNeutral();
+                            });
                     }
                 } catch {}
             }
@@ -234,6 +237,10 @@ class KimiMemoryUI {
                 const isLongContent = memory.content.length > previewLength;
                 const previewText = isLongContent ? memory.content.substring(0, previewLength) + "..." : memory.content;
                 const wordCount = memory.content.split(/\s+/).length;
+                const importance = typeof memory.importance === "number" ? memory.importance : 0.5;
+                const importanceLevel = this.getImportanceLevelFromValue(importance);
+                const importancePct = Math.round(importance * 100);
+                const tagsHtml = this.renderTags(memory.tags || []);
 
                 html += `
                     <div class="memory-item ${isAutomatic ? "memory-auto" : "memory-manual"}" data-memory-id="${memory.id}">
@@ -242,6 +249,7 @@ class KimiMemoryUI {
                                 <span class="memory-type ${memory.type}">${memory.type === "auto_extracted" ? "🤖 Auto" : "✋ Manual"}</span>
                                 <span class="memory-confidence confidence-${this.getConfidenceLevel(confidence)}">${confidence}%</span>
                                 ${isLongContent ? `<span class="memory-length">${wordCount} mots</span>` : ""}
+                <span class="memory-importance importance-${importanceLevel}" title="Importance: ${importancePct}% (${importanceLevel})">${importanceLevel.charAt(0).toUpperCase() + importanceLevel.slice(1)}</span>
                             </div>
                         </div>
                         <div class="memory-preview">
@@ -261,6 +269,7 @@ class KimiMemoryUI {
                                     : ""
                             }
                         </div>
+            ${tagsHtml}
                         <div class="memory-meta">
                             <span class="memory-date">${this.formatDate(memory.timestamp)}</span>
                             ${
@@ -292,6 +301,42 @@ class KimiMemoryUI {
         });
 
         memoryList.innerHTML = html;
+    }
+
+    // Map importance value [0..1] to level string
+    getImportanceLevelFromValue(value) {
+        if (value >= 0.8) return "high";
+        if (value >= 0.6) return "medium";
+        return "low";
+    }
+
+    // Render tags as compact chips; show up to 4 then "+N"
+    renderTags(tags) {
+        if (!Array.isArray(tags) || tags.length === 0) return "";
+        const maxVisible = 4;
+        const visible = tags.slice(0, maxVisible);
+        const moreCount = tags.length - visible.length;
+
+        const escape = txt =>
+            window.KimiValidationUtils && window.KimiValidationUtils.escapeHtml
+                ? window.KimiValidationUtils.escapeHtml(String(txt))
+                : String(txt);
+
+        const classify = tag => {
+            if (tag.startsWith("relationship:")) return "tag-relationship";
+            if (tag.startsWith("boundary:")) return "tag-boundary";
+            if (tag.startsWith("time:")) return "tag-time";
+            if (tag.startsWith("type:")) return "tag-type";
+            return "tag-generic";
+        };
+
+        const chips = visible
+            .map(tag => `<span class="memory-tag ${classify(tag)}" title="${escape(tag)}">${escape(tag)}</span>`)
+            .join("");
+
+        const moreChip = moreCount > 0 ? `<span class="memory-tag tag-more" title="${moreCount} more">+${moreCount}</span>` : "";
+
+        return `<div class="memory-tags">${chips}${moreChip}</div>`;
     }
 
     formatCategoryName(category) {

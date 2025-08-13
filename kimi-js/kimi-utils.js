@@ -2,82 +2,87 @@
 
 // Input validation and sanitization utilities
 window.KimiValidationUtils = {
-    // Validate and sanitize user messages
-    validateMessage: function (message) {
+    validateMessage(message) {
         if (!message || typeof message !== "string") {
             return { valid: false, error: "Message must be a non-empty string" };
         }
-
         const trimmed = message.trim();
-        if (trimmed.length === 0) {
-            return { valid: false, error: "Message cannot be empty" };
+        if (!trimmed) return { valid: false, error: "Message cannot be empty" };
+        const MAX = (window.KIMI_SECURITY_CONFIG && window.KIMI_SECURITY_CONFIG.MAX_MESSAGE_LENGTH) || 5000;
+        if (trimmed.length > MAX) {
+            return { valid: false, error: `Message too long (max ${MAX} characters)` };
         }
-
-        if (trimmed.length > 5000) {
-            return { valid: false, error: "Message too long (max 5000 characters)" };
-        }
-
-        // Basic XSS prevention
-        const sanitized = this.escapeHtml(trimmed);
-
-        return { valid: true, sanitized: sanitized };
+        return { valid: true, sanitized: this.escapeHtml(trimmed) };
     },
-
-    // Escape HTML to prevent XSS
-    escapeHtml: function (text) {
+    escapeHtml(text) {
         const div = document.createElement("div");
         div.textContent = text;
         return div.innerHTML;
     },
-
-    // Validate numeric ranges for sliders
-    validateRange: function (value, type) {
-        const numValue = parseFloat(value);
-        if (isNaN(numValue)) {
-            return { valid: false, value: null };
-        }
-
-        const ranges = {
-            voiceRate: { min: 0.5, max: 2, default: 1.1 },
-            voicePitch: { min: 0.5, max: 2, default: 1.1 },
-            voiceVolume: { min: 0, max: 1, default: 0.8 },
-            llmTemperature: { min: 0.1, max: 1, default: 0.9 },
-            llmMaxTokens: { min: 10, max: 1000, default: 100 },
-            llmTopP: { min: 0, max: 1, default: 0.9 },
-            llmFrequencyPenalty: { min: 0, max: 2, default: 0.3 },
-            llmPresencePenalty: { min: 0, max: 2, default: 0.3 },
-            interfaceOpacity: { min: 0.1, max: 1, default: 0.8 }
+    validateRange(value, key) {
+        const bounds = {
+            voiceRate: { min: 0.5, max: 2, def: 1.1 },
+            voicePitch: { min: 0, max: 2, def: 1.0 },
+            voiceVolume: { min: 0, max: 1, def: 0.8 },
+            llmTemperature: { min: 0, max: 2, def: 0.9 },
+            llmMaxTokens: { min: 1, max: 32000, def: 200 },
+            llmTopP: { min: 0, max: 1, def: 1 },
+            llmFrequencyPenalty: { min: 0, max: 2, def: 0 },
+            llmPresencePenalty: { min: 0, max: 2, def: 0 },
+            interfaceOpacity: { min: 0.1, max: 1, def: 0.95 }
         };
-
-        const range = ranges[type];
-        if (!range) {
-            return { valid: false, value: null };
-        }
-
-        const clampedValue = Math.max(range.min, Math.min(range.max, numValue));
-        return { valid: true, value: clampedValue };
-    },
-
-    // Validate API keys
-    validateApiKey: function (key) {
-        if (!key || typeof key !== "string") {
-            return { valid: false, error: "API key must be a string" };
-        }
-        const trimmed = key.trim();
-        if (trimmed.length === 0) {
-            return { valid: false, error: "API key cannot be empty" };
-        }
-        if (window.KIMI_VALIDATORS && typeof window.KIMI_VALIDATORS.validateApiKey === "function") {
-            const ok = window.KIMI_VALIDATORS.validateApiKey(trimmed);
-            return ok ? { valid: true, sanitized: trimmed } : { valid: false, error: "Invalid API key format" };
-        }
-        return { valid: true, sanitized: trimmed };
+        const b = bounds[key] || { min: 0, max: 100, def: 0 };
+        const v = window.KimiSecurityUtils
+            ? window.KimiSecurityUtils.validateRange(value, b.min, b.max, b.def)
+            : isNaN(parseFloat(value))
+              ? b.def
+              : Math.max(b.min, Math.min(b.max, parseFloat(value)));
+        return { value: v, clamped: v !== parseFloat(value) };
     }
 };
 
+// Provider utilities used across the app
+const KimiProviderUtils = {
+    keyPrefMap: {
+        openrouter: "openrouterApiKey",
+        openai: "apiKey_openai",
+        groq: "apiKey_groq",
+        together: "apiKey_together",
+        deepseek: "apiKey_deepseek",
+        custom: "apiKey_custom",
+        "openai-compatible": "llmApiKey",
+        ollama: null
+    },
+    getKeyPrefForProvider(provider) {
+        return this.keyPrefMap[provider] || "llmApiKey";
+    },
+    async getApiKey(db, provider) {
+        if (!db) return null;
+        if (provider === "ollama") return "__local__";
+        const pref = this.getKeyPrefForProvider(provider);
+        if (!pref) return null;
+        if (provider === "openrouter") return await db.getPreference("openrouterApiKey");
+        return await db.getPreference(pref);
+    },
+    getLabelForProvider(provider) {
+        const labels = {
+            openrouter: "OpenRouter API Key",
+            openai: "OpenAI API Key",
+            groq: "Groq API Key",
+            together: "Together API Key",
+            deepseek: "DeepSeek API Key",
+            custom: "Custom API Key",
+            "openai-compatible": "API Key",
+            ollama: "API Key"
+        };
+        return labels[provider] || "API Key";
+    }
+};
+window.KimiProviderUtils = KimiProviderUtils;
+export { KimiProviderUtils };
+
 // Performance utility functions for debouncing and throttling
 window.KimiPerformanceUtils = {
-    // Enhanced debounce with immediate execution option
     debounce: function (func, wait, immediate = false, context = null) {
         let timeout;
         let result;
@@ -102,7 +107,6 @@ window.KimiPerformanceUtils = {
         };
     },
 
-    // Enhanced throttle function with leading and trailing options
     throttle: function (func, limit, options = {}) {
         const { leading = true, trailing = true } = options;
         let inThrottle;
@@ -131,38 +135,6 @@ window.KimiPerformanceUtils = {
 
             setTimeout(() => (inThrottle = false), limit);
         };
-    },
-
-    // Batch processing utility
-    createBatcher: function (processor, delay = 500) {
-        let timeout = null;
-        const pending = {};
-
-        return function (key, value) {
-            pending[key] = value;
-
-            if (timeout) clearTimeout(timeout);
-
-            timeout = setTimeout(async () => {
-                if (Object.keys(pending).length > 0) {
-                    try {
-                        await processor(pending);
-                        Object.keys(pending).forEach(k => delete pending[k]);
-                    } catch (error) {
-                        console.error("Batch processing error:", error);
-                    }
-                }
-            }, delay);
-        };
-    },
-
-    // Batch requests utility
-    batchRequests: function (requests, batchSize = 10) {
-        const batches = [];
-        for (let i = 0; i < requests.length; i += batchSize) {
-            batches.push(requests.slice(i, i + batchSize));
-        }
-        return batches;
     }
 };
 
@@ -242,18 +214,7 @@ class KimiSecurityUtils {
         return key.trim().length > 10 && (key.startsWith("sk-") || key.startsWith("sk-or-"));
     }
 
-    static encryptApiKey(key) {
-        // Simple encoding for basic protection (not cryptographically secure)
-        return btoa(key).split("").reverse().join("");
-    }
-
-    static decryptApiKey(encodedKey) {
-        try {
-            return atob(encodedKey.split("").reverse().join(""));
-        } catch {
-            return "";
-        }
-    }
+    // Removed unused encrypt/decrypt for clarity; storage should rely on secure contexts if reintroduced
 }
 
 // Cache management for better performance
@@ -358,7 +319,7 @@ class KimiVideoManager {
         this.lastSwitchTime = Date.now();
         this.pendingSwitch = null;
         this.autoTransitionDuration = 9900;
-        this.transitionDuration = 900;
+        this.transitionDuration = 300;
         this._prefetchCache = new Map();
         this._prefetchInFlight = new Set();
         this._maxPrefetch = 3;
@@ -409,6 +370,96 @@ class KimiVideoManager {
         this._stickyUntil = 0;
         this._pendingSwitches = [];
         this._debug = false;
+    }
+
+    /**
+     * Centralized crossfade transition between two videos.
+     * Ensures both videos are loaded and playing before transition.
+     * @param {HTMLVideoElement} fromVideo - The currently visible video.
+     * @param {HTMLVideoElement} toVideo - The next video to show.
+     * @param {number} duration - Transition duration in ms.
+     * @param {function} [onComplete] - Optional callback after transition.
+     */
+    static crossfadeVideos(fromVideo, toVideo, duration = 300, onComplete) {
+        // Resolve duration from CSS variable if present
+        try {
+            const cssDur = getComputedStyle(document.documentElement).getPropertyValue("--video-fade-duration").trim();
+            if (cssDur) {
+                // Convert CSS time to ms number if needed (e.g., '300ms' or '0.3s')
+                if (cssDur.endsWith("ms")) duration = parseFloat(cssDur);
+                else if (cssDur.endsWith("s")) duration = Math.round(parseFloat(cssDur) * 1000);
+            }
+        } catch {}
+
+        // Preload and strict synchronization
+        const easing = "ease-in-out";
+        fromVideo.style.transition = `opacity ${duration}ms ${easing}`;
+        toVideo.style.transition = `opacity ${duration}ms ${easing}`;
+        // Prepare target video (opacity 0, top z-index)
+        toVideo.style.opacity = "0";
+        toVideo.style.zIndex = "2";
+        fromVideo.style.zIndex = "1";
+
+        // Start target video slightly before the crossfade
+        const startTarget = () => {
+            if (toVideo.paused) toVideo.play().catch(() => {});
+            // Lance le fondu croisé
+            setTimeout(() => {
+                fromVideo.style.opacity = "0";
+                toVideo.style.opacity = "1";
+            }, 20);
+            // After transition, adjust z-index and call the callback
+            setTimeout(() => {
+                fromVideo.style.zIndex = "1";
+                toVideo.style.zIndex = "2";
+                if (onComplete) onComplete();
+            }, duration + 30);
+        };
+
+        // If target video is not ready, wait for canplay
+        if (toVideo.readyState < 3) {
+            toVideo.addEventListener("canplay", startTarget, { once: true });
+            toVideo.load();
+        } else {
+            startTarget();
+        }
+        // Ensure source video is playing
+        if (fromVideo.paused) fromVideo.play().catch(() => {});
+    }
+
+    /**
+     * Centralized video element creation utility.
+     * @param {string} id - The id for the video element.
+     * @param {string} [className] - Optional class name.
+     * @returns {HTMLVideoElement}
+     */
+    static createVideoElement(id, className = "bg-video") {
+        const video = document.createElement("video");
+        video.id = id;
+        video.className = className;
+        video.autoplay = true;
+        video.muted = true;
+        video.playsinline = true;
+        video.preload = "auto";
+        video.style.opacity = "0";
+        video.innerHTML =
+            '<source src="" type="video/mp4" /><span data-i18n="video_not_supported">Your browser does not support the video tag.</span>';
+        return video;
+    }
+
+    /**
+     * Centralized video selection utility.
+     * @param {string} selector - CSS selector or id.
+     * @returns {HTMLVideoElement|null}
+     */
+    static getVideoElement(selector) {
+        if (typeof selector === "string") {
+            if (selector.startsWith("#")) {
+                return document.getElementById(selector.slice(1));
+            }
+            return document.querySelector(selector);
+        }
+        return selector;
     }
 
     setDebug(enabled) {
@@ -712,7 +763,8 @@ class KimiVideoManager {
             if (speakingCurrent !== speakingPath || this.activeVideo.ended) {
                 this.loadAndSwitchVideo(speakingPath, priority);
             }
-            this.currentContext = context;
+            // IMPORTANT: normalize to the resolved category (e.g., speakingPositive/Negative)
+            this.currentContext = category;
             this.currentEmotion = emotion;
             this.lastSwitchTime = Date.now();
             return;
@@ -723,7 +775,8 @@ class KimiVideoManager {
             if (listeningCurrent !== listeningPath || this.activeVideo.ended) {
                 this.loadAndSwitchVideo(listeningPath, priority);
             }
-            this.currentContext = context;
+            // Normalize to category for consistency
+            this.currentContext = category;
             this.currentEmotion = emotion;
             this.lastSwitchTime = Date.now();
             return;
@@ -777,7 +830,8 @@ class KimiVideoManager {
         this._prefetchLikely(category);
 
         this.loadAndSwitchVideo(videoPath, priority);
-        this.currentContext = context;
+        // Always store normalized category as currentContext so event bindings match speakingPositive/Negative
+        this.currentContext = category;
         this.currentEmotion = emotion;
         this.lastSwitchTime = now;
     }
@@ -812,10 +866,26 @@ class KimiVideoManager {
 
         if (context === "speakingPositive" || context === "speakingNegative") {
             this._globalEndedHandler = () => {
+                // If TTS is still speaking, keep the speaking flow by chaining another speaking clip
+                if (window.voiceManager && window.voiceManager.isSpeaking) {
+                    const emotion = this.currentEmotion || this.currentEmotionContext || "positive";
+                    // Preserve speaking context while chaining
+                    const category = emotion === "negative" ? "speakingNegative" : "speakingPositive";
+                    const next = this.selectOptimalVideo(category, null, null, null, emotion);
+                    if (next) {
+                        this.loadAndSwitchVideo(next, "speaking");
+                        this.currentContext = category;
+                        this.currentEmotion = emotion;
+                        this.isEmotionVideoPlaying = true;
+                        this.currentEmotionContext = emotion;
+                        this.lastSwitchTime = Date.now();
+                        return;
+                    }
+                }
+                // Otherwise, allow pending high-priority switch or return to neutral
                 this.isEmotionVideoPlaying = false;
                 this.currentEmotionContext = null;
                 this._neutralLock = false;
-                // Process any pending high-priority switch first; otherwise return to neutral
                 if (!this._processPendingSwitches()) {
                     this.returnToNeutral();
                 }
@@ -989,6 +1059,12 @@ class KimiVideoManager {
         // Immediate switch to keep UI responsive
         this.switchToContext("listening");
 
+        // Add a short grace window to prevent immediate switch to speaking before TTS starts
+        clearTimeout(this._listeningGraceTimer);
+        this._listeningGraceTimer = setTimeout(() => {
+            // No-op; used as a time marker to let LLM prepare the answer
+        }, 1500);
+
         // If caller did not provide traits, try to fetch and refine selection
         try {
             if (!traits && window.kimiDB && typeof window.kimiDB.getAllPersonalityTraits === "function") {
@@ -1019,6 +1095,23 @@ class KimiVideoManager {
         if (this._stickyContext === "dancing" || this.currentContext === "dancing") return;
         // If we are already playing the same emotion video, do nothing
         if (this.isEmotionVideoPlaying && this.currentEmotionContext === emotion) return;
+        // If we just entered listening and TTS isn’t started yet, wait a bit to avoid desync
+        const now = Date.now();
+        const stillInGrace = this._listeningGraceTimer != null;
+        const ttsNotStarted = !(window.voiceManager && window.voiceManager.isSpeaking);
+        if (this.currentContext === "listening" && stillInGrace && ttsNotStarted) {
+            clearTimeout(this._pendingSpeakSwitch);
+            this._pendingSpeakSwitch = setTimeout(() => {
+                // Re-check speaking state; only switch when we have an actual emotion to play alongside TTS
+                if (window.voiceManager && window.voiceManager.isSpeaking) {
+                    this.switchToContext("speaking", emotion, null, traits, affection);
+                    this.isEmotionVideoPlaying = true;
+                    this.currentEmotionContext = emotion;
+                }
+            }, 900);
+            return;
+        }
+
         // First switch context (so internal guards don't see the new flags yet)
         this.switchToContext("speaking", emotion, null, traits, affection);
         // Then mark the emotion video as playing for override protection
@@ -1038,7 +1131,7 @@ class KimiVideoManager {
         this.isEmotionVideoPlaying = false;
         this.currentEmotionContext = null;
 
-        // Force-select a neutral clip different from current, then load and switch
+        // Correction : si la voix est encore en cours, relancer une vidéo neutre en boucle
         const category = "neutral";
         const currentVideoSrc = this.activeVideo.querySelector("source").getAttribute("src");
         const available = this.videoCategories[category] || [];
@@ -1056,6 +1149,18 @@ class KimiVideoManager {
             this.currentContext = "neutral";
             this.currentEmotion = "neutral";
             this.lastSwitchTime = Date.now();
+            // Si la voix est encore en cours, s'assurer qu'on relance une vidéo neutre à la fin
+            if (window.voiceManager && window.voiceManager.isSpeaking) {
+                this.activeVideo.addEventListener(
+                    "ended",
+                    () => {
+                        if (window.voiceManager && window.voiceManager.isSpeaking) {
+                            this.returnToNeutral();
+                        }
+                    },
+                    { once: true }
+                );
+            }
         } else {
             // Fallback to existing path if list empty
             this.switchToContext("neutral");
@@ -1236,6 +1341,14 @@ class KimiVideoManager {
     }
 
     loadAndSwitchVideo(videoSrc, priority = "normal") {
+        // Avoid redundant loading if the requested source is already active or currently loading in inactive element
+        const activeSrc = this.activeVideo?.querySelector("source")?.getAttribute("src");
+        const inactiveSrc = this.inactiveVideo?.querySelector("source")?.getAttribute("src");
+        if (videoSrc && (videoSrc === activeSrc || (this._loadingInProgress && videoSrc === inactiveSrc))) {
+            if (priority !== "high" && priority !== "speaking") {
+                return; // no need to reload same video
+            }
+        }
         // Only log high priority or error cases to reduce noise
         if (priority === "speaking" || priority === "high") {
             console.log(`🎬 Loading video: ${videoSrc} (priority: ${priority})`);
@@ -1367,47 +1480,56 @@ class KimiVideoManager {
 
     performSwitch() {
         // Prevent rapid double toggles
-        if (this._switchInProgress) {
-            return;
-        }
+        if (this._switchInProgress) return;
         this._switchInProgress = true;
 
-        this.activeVideo.classList.remove("active");
-        this.inactiveVideo.classList.add("active");
-        const prevActive = this.activeVideo;
-        const prevInactive = this.inactiveVideo;
-        this.activeVideo = prevInactive;
-        this.inactiveVideo = prevActive;
+        const fromVideo = this.activeVideo;
+        const toVideo = this.inactiveVideo;
 
-        const playPromise = this.activeVideo.play();
-        if (playPromise && typeof playPromise.then === "function") {
-            playPromise
-                .then(() => {
-                    // Reduced logging for video playing events
-                    this._switchInProgress = false;
-                    // Configurer les event listeners APRÈS que la vidéo commence à jouer
-                    this.setupEventListenersForContext(this.currentContext);
-                })
-                .catch(error => {
-                    console.warn("Failed to play video:", error);
-                    // Revert to previous video to avoid frozen state
-                    this.activeVideo.classList.remove("active");
-                    this.inactiveVideo.classList.add("active");
-                    const tmp = this.activeVideo;
-                    this.activeVideo = this.inactiveVideo;
-                    this.inactiveVideo = tmp;
-                    try {
-                        this.activeVideo.play().catch(() => {});
-                    } catch {}
-                    this._switchInProgress = false;
-                    // Even in case of error, configure listeners
-                    this.setupEventListenersForContext(this.currentContext);
-                });
-        } else {
-            // Fallback si pas de Promise
-            this._switchInProgress = false;
-            this.setupEventListenersForContext(this.currentContext);
-        }
+        // Perform a JS-managed crossfade for smoother transitions
+        // Let crossfadeVideos resolve duration from CSS variable (--video-fade-duration)
+        this.constructor.crossfadeVideos(fromVideo, toVideo, undefined, () => {
+            // After crossfade completion, finalize state and classes
+            fromVideo.classList.remove("active");
+            toVideo.classList.add("active");
+
+            // Swap references
+            const prevActive = this.activeVideo;
+            const prevInactive = this.inactiveVideo;
+            this.activeVideo = prevInactive;
+            this.inactiveVideo = prevActive;
+
+            const playPromise = this.activeVideo.play();
+            if (playPromise && typeof playPromise.then === "function") {
+                playPromise
+                    .then(() => {
+                        try {
+                            const src = this.activeVideo?.querySelector("source")?.getAttribute("src");
+                            const info = { context: this.currentContext, emotion: this.currentEmotion };
+                            console.log("🎬 VideoManager: Now playing:", src, info);
+                        } catch {}
+                        this._switchInProgress = false;
+                        this.setupEventListenersForContext(this.currentContext);
+                    })
+                    .catch(error => {
+                        console.warn("Failed to play video:", error);
+                        // Revert to previous video to avoid frozen state
+                        toVideo.classList.remove("active");
+                        fromVideo.classList.add("active");
+                        this.activeVideo = fromVideo;
+                        this.inactiveVideo = toVideo;
+                        try {
+                            this.activeVideo.play().catch(() => {});
+                        } catch {}
+                        this._switchInProgress = false;
+                        this.setupEventListenersForContext(this.currentContext);
+                    });
+            } else {
+                // Non-promise play fallback
+                this._switchInProgress = false;
+                this.setupEventListenersForContext(this.currentContext);
+            }
+        });
     }
 
     _prefetch(src) {
@@ -1732,6 +1854,8 @@ class KimiTabManager {
         this.settingsContent = document.querySelector(".settings-content");
         this.onTabChange = options.onTabChange || null;
         this.resizeObserver = null;
+        // Guard flag to batch ResizeObserver callbacks within a frame
+        this._resizeRafScheduled = false;
         this.init();
     }
 
@@ -1756,6 +1880,14 @@ class KimiTabManager {
             if (content.dataset.tab === tabName) content.classList.add("active");
             else content.classList.remove("active");
         });
+        // Ensure the content scroll resets to the top when changing tabs
+        if (this.settingsContent) {
+            this.settingsContent.scrollTop = 0;
+            // Defer once to handle layout updates after class toggles
+            window.requestAnimationFrame(() => {
+                this.settingsContent.scrollTop = 0;
+            });
+        }
         if (this.onTabChange) this.onTabChange(tabName);
         setTimeout(() => this.adjustTabsForScrollbar(), 100);
         if (window.innerWidth <= 768) {
@@ -1767,7 +1899,13 @@ class KimiTabManager {
     setupResizeObserver() {
         if ("ResizeObserver" in window && this.settingsContent) {
             this.resizeObserver = new ResizeObserver(() => {
-                this.adjustTabsForScrollbar();
+                // Defer to next animation frame to avoid ResizeObserver loop warnings
+                if (this._resizeRafScheduled) return;
+                this._resizeRafScheduled = true;
+                window.requestAnimationFrame(() => {
+                    this._resizeRafScheduled = false;
+                    this.adjustTabsForScrollbar();
+                });
             });
             this.resizeObserver.observe(this.settingsContent);
         }
@@ -1779,7 +1917,13 @@ class KimiTabManager {
             mutations.forEach(mutation => {
                 if (mutation.type === "attributes" && mutation.attributeName === "class") {
                     if (this.settingsOverlay.classList.contains("visible")) {
-                        // ...
+                        // Reset scroll to top when the settings modal opens
+                        if (this.settingsContent) {
+                            this.settingsContent.scrollTop = 0;
+                            window.requestAnimationFrame(() => {
+                                this.settingsContent.scrollTop = 0;
+                            });
+                        }
                     }
                 }
             });
@@ -1856,48 +2000,10 @@ class KimiFormManager {
     _initSliders() {
         document.querySelectorAll(".kimi-slider").forEach(slider => {
             const valueSpan = document.getElementById(slider.id + "-value");
-            if (valueSpan) {
-                valueSpan.textContent = slider.value;
-            }
-            slider.addEventListener("input", async e => {
+            if (valueSpan) valueSpan.textContent = slider.value;
+            // Only update visible value; side-effects handled by specialized listeners
+            slider.addEventListener("input", () => {
                 if (valueSpan) valueSpan.textContent = slider.value;
-                if (this.db) {
-                    const settingName = slider.id.replace("trait-", "").replace("voice-", "").replace("llm-", "");
-                    if (slider.id.startsWith("trait-")) {
-                        const selectedCharacter = await this.db.getSelectedCharacter();
-                        await this.db.setPersonalityTrait(settingName, parseInt(slider.value), selectedCharacter);
-
-                        // Update memory cache if available
-                        if (this.memory && settingName === "affection") {
-                            this.memory.affectionTrait = parseInt(slider.value);
-                            if (this.memory.updateFavorabilityBar) {
-                                this.memory.updateFavorabilityBar();
-                            }
-                        }
-
-                        // Update video context based on new personality values
-                        if (window.kimiVideo && window.kimiVideo.setMoodByPersonality) {
-                            const allTraits = await this.db.getAllPersonalityTraits(selectedCharacter);
-                            window.kimiVideo.setMoodByPersonality(allTraits);
-                        }
-
-                        // Favorability bar is automatically updated by KimiMemory system
-                    } else if (slider.id.startsWith("voice-")) {
-                        await this.db.setPreference(settingName, parseFloat(slider.value));
-                        if (window.voiceManager && window.voiceManager.updateSettings) {
-                            window.voiceManager.updateSettings();
-                        }
-                    } else {
-                        await this.db.setPreference(settingName, parseFloat(slider.value));
-
-                        // Update LLM settings if needed
-                        if (slider.id.startsWith("llm-") && window.kimiLLM) {
-                            if (window.kimiLLM.updateSettings) {
-                                window.kimiLLM.updateSettings();
-                            }
-                        }
-                    }
-                }
             });
         });
     }
@@ -2104,3 +2210,23 @@ window.KimiTabManager = KimiTabManager;
 window.KimiUIEventManager = KimiUIEventManager;
 window.KimiFormManager = KimiFormManager;
 window.KimiUIStateManager = KimiUIStateManager;
+
+window.KimiTokenUtils = {
+    // Approximate token estimation (heuristic):
+    // Base: 1 token ~ 4 chars (English average). We refine by word count and punctuation density.
+    estimate(text) {
+        if (!text || typeof text !== "string") return 0;
+        const trimmed = text.trim();
+        if (!trimmed) return 0;
+        const charLen = trimmed.length;
+        const words = trimmed.split(/\s+/).length;
+        // Base estimates
+        let estimateByChars = Math.ceil(charLen / 4);
+        const estimateByWords = Math.ceil(words * 1.3); // average 1.3 tokens per word
+        // Blend and adjust for punctuation heavy content
+        const punctCount = (trimmed.match(/[.,!?;:]/g) || []).length;
+        const punctFactor = 1 + Math.min(punctCount / Math.max(words, 1) / 5, 0.15); // cap at +15%
+        const blended = Math.round((estimateByChars * 0.55 + estimateByWords * 0.45) * punctFactor);
+        return Math.max(1, blended);
+    }
+};

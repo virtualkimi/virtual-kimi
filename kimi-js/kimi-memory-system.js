@@ -23,10 +23,34 @@ class KimiMemorySystem {
                 /(?:i live in|i'm from|from) ([^,.!?]+)/i,
                 /(?:i work as|my job is|i'm a) ([^,.!?]+)/i,
                 // French patterns
-                /(?:je m'appelle|mon nom est|je suis) ([^,.!?]+)/i,
+                /(?:je m'appelle|mon nom est|je suis|je me prénomme|je me nomme) ([^,.!?]+)/i,
                 /(?:j'ai) (\d+) ans?/i,
                 /(?:j'habite à|je vis à|je viens de) ([^,.!?]+)/i,
-                /(?:je travaille comme|mon travail est|je suis) ([^,.!?]+)/i
+                /(?:je travaille comme|mon travail est|je suis) ([^,.!?]+)/i,
+                // Spanish patterns
+                /(?:me llamo|mi nombre es|soy) ([^,.!?]+)/i,
+                /(?:tengo) (\d+) años?/i,
+                /(?:vivo en|soy de) ([^,.!?]+)/i,
+                /(?:trabajo como|mi trabajo es|soy) ([^,.!?]+)/i,
+                // Italian patterns
+                /(?:mi chiamo|il mio nome è|sono) ([^,.!?]+)/i,
+                /(?:ho) (\d+) anni?/i,
+                /(?:abito a|vivo a|sono di) ([^,.!?]+)/i,
+                /(?:lavoro come|il mio lavoro è|sono) ([^,.!?]+)/i,
+                // German patterns
+                /(?:ich heiße|mein name ist|ich bin) ([^,.!?]+)/i,
+                /(?:ich bin) (\d+) jahre? alt/i,
+                /(?:ich wohne in|ich lebe in|ich komme aus) ([^,.!?]+)/i,
+                /(?:ich arbeite als|mein beruf ist|ich bin) ([^,.!?]+)/i,
+                // Japanese patterns
+                /私の名前は([^。！？!?、,.]+)[ですだ]?/i,
+                /私は([^。！？!?、,.]+)です/i,
+                /([^、。！？!?,.]+)と申します/i,
+                /([^、。！？!?,.]+)といいます/i,
+                // Chinese patterns
+                /我叫([^，。！？!?,.]+)/i,
+                /我的名字是([^，。！？!?,.]+)/i,
+                /叫我([^，。！？!?,.]+)/i
             ],
             preferences: [
                 // English patterns
@@ -47,7 +71,22 @@ class KimiMemorySystem {
                 /(?:my (?:mother|father|sister|brother|friend)) ([^,.!?]+)/i,
                 // French patterns
                 /(?:ma (?:femme|copine|partenaire)|mon (?:mari|copain|partenaire)) (?:s'appelle|est) ([^,.!?]+)/i,
-                /(?:ma (?:mère|sœur)|mon (?:père|frère|ami)) (?:s'appelle|est) ([^,.!?]+)/i
+                /(?:ma (?:mère|sœur)|mon (?:père|frère|ami)) (?:s'appelle|est) ([^,.!?]+)/i,
+                // Spanish patterns
+                /(?:mi (?:esposa|esposo|novia|novio|pareja)) (?:es|se llama) ([^,.!?]+)/i,
+                /(?:mi (?:madre|padre|hermana|hermano|amigo|amiga)) (?:es|se llama) ([^,.!?]+)/i,
+                // Italian patterns
+                /(?:la mia (?:moglie|fidanzata|compagna)|il mio (?:marito|fidanzato|compagno)) (?:è|si chiama) ([^,.!?]+)/i,
+                /(?:mia (?:madre|sorella)|mio (?:padre|fratello|amico)) (?:è|si chiama) ([^,.!?]+)/i,
+                // German patterns
+                /(?:meine (?:frau|freundin|partnerin)|mein (?:mann|freund|partner)) (?:ist|heißt) ([^,.!?]+)/i,
+                /(?:meine (?:mutter|schwester)|mein (?:vater|bruder|freund)) (?:ist|heißt) ([^,.!?]+)/i,
+                // Japanese patterns
+                /(?:私の(?:妻|夫|彼女|彼氏|パートナー))は([^。！？!?、,.]+)(?:です|といいます)/i,
+                /(?:私の(?:母|父|姉|妹|兄|弟|友達))は([^。！？!?、,.]+)(?:です|といいます)/i,
+                // Chinese patterns
+                /(?:我的(?:妻子|丈夫|女朋友|男朋友|伴侣))叫([^，。！？!?,.]+)/i,
+                /(?:我的(?:妈妈|父亲|姐姐|妹妹|哥哥|弟弟|朋友))叫([^，。！？!?,.]+)/i
             ],
             activities: [
                 // English patterns
@@ -55,7 +94,22 @@ class KimiMemorySystem {
                 /(?:my hobby is|i hobby) ([^,.!?]+)/i,
                 // French patterns
                 /(?:je joue|je fais|je pratique) ([^,.!?]+)/i,
-                /(?:mon passe-temps|mon hobby) (?:est|c'est) ([^,.!?]+)/i
+                /(?:mon passe-temps|mon hobby) (?:est|c'est) ([^,.!?]+)/i,
+                // Spanish patterns
+                /(?:juego|hago|practico) ([^,.!?]+)/i,
+                /(?:mi pasatiempo|mi hobby) (?:es) ([^,.!?]+)/i,
+                // Italian patterns
+                /(?:gioco|faccio|pratico) ([^,.!?]+)/i,
+                /(?:il mio passatempo|il mio hobby) (?:è) ([^,.!?]+)/i,
+                // German patterns
+                /(?:ich spiele|ich mache|ich übe) ([^,.!?]+)/i,
+                /(?:mein hobby ist) ([^,.!?]+)/i,
+                // Japanese patterns
+                /(?:私は)?(?:[^、。！？!?,.]+)が趣味です/i,
+                /趣味は([^。！？!?、,.]+)です/i,
+                // Chinese patterns
+                /(?:我玩|我做|我练习)([^，。！？!?,.]+)/i,
+                /(?:我的爱好是)([^，。！？!?,.]+)/i
             ],
             goals: [
                 // English patterns
@@ -63,7 +117,87 @@ class KimiMemorySystem {
                 /(?:i'm learning|i study) ([^,.!?]+)/i,
                 // French patterns
                 /(?:je veux|je vais|mon objectif est) ([^,.!?]+)/i,
-                /(?:j'apprends|j'étudie) ([^,.!?]+)/i
+                /(?:j'apprends|j'étudie) ([^,.!?]+)/i,
+                // Spanish patterns
+                /(?:quiero|voy a|mi objetivo es) ([^,.!?]+)/i,
+                /(?:estoy aprendiendo|estudio) ([^,.!?]+)/i,
+                // Italian patterns
+                /(?:voglio|andrò a|il mio obiettivo è) ([^,.!?]+)/i,
+                /(?:sto imparando|studio) ([^,.!?]+)/i,
+                // German patterns
+                /(?:ich möchte|ich will|mein ziel ist) ([^,.!?]+)/i,
+                /(?:ich lerne|ich studiere) ([^,.!?]+)/i,
+                // Japanese patterns
+                /(?:私は)?(?:[^、。！？!?,.]+)したい/i,
+                /(?:学んでいる|勉強している) ([^。！？!?、,.]+)/i,
+                // Chinese patterns
+                /(?:我想|我要|我的目标是)([^，。！？!?,.]+)/i,
+                /(?:我在学习|我学习)([^，。！？!?,.]+)/i
+            ],
+            experiences: [
+                // English patterns
+                /we went to ([^,.!?]+)/i,
+                /we met (?:at|on|in) ([^,.!?]+)/i,
+                /our (?:first date|first kiss|trip|vacation) (?:was|was at|was on|was in|was to) ([^,.!?]+)/i,
+                /our anniversary (?:is|falls on|will be) ([^,.!?]+)/i,
+                /we moved in (?:together )?(?:on|in)?\s*([^,.!?]+)/i,
+                // French patterns
+                /on s'est rencontr[ée]s? (?:à|au|en|le) ([^,.!?]+)/i,
+                /on est all[ée]s? à ([^,.!?]+)/i,
+                /notre (?:premier rendez-vous|première sortie) (?:était|c'était) ([^,.!?]+)/i,
+                /notre anniversaire (?:est|c'est) ([^,.!?]+)/i,
+                /on a emménagé (?:ensemble\s*)?(?:le|en|à)\s*([^,.!?]+)/i,
+                // Spanish patterns
+                /nos conocimos (?:en|el|la) ([^,.!?]+)/i,
+                /fuimos a ([^,.!?]+)/i,
+                /nuestra (?:primera cita|primera salida) (?:fue|era) ([^,.!?]+)/i,
+                /nuestro aniversario (?:es|cae en|será) ([^,.!?]+)/i,
+                /nos mudamos (?:juntos\s*)?(?:el|en|a)\s*([^,.!?]+)/i,
+                // Italian patterns
+                /ci siamo conosciuti (?:a|al|in|il) ([^,.!?]+)/i,
+                /siamo andati a ([^,.!?]+)/i,
+                /il nostro (?:primo appuntamento|primo bacio|viaggio) (?:era|è stato) ([^,.!?]+)/i,
+                /il nostro anniversario (?:è|cade il|sarà) ([^,.!?]+)/i,
+                /ci siamo trasferiti (?:insieme\s*)?(?:il|in|a)\s*([^,.!?]+)/i,
+                // German patterns
+                /wir haben uns (?:in|am) ([^,.!?]+) kennengelernt/i,
+                /wir sind (?:nach|zu) ([^,.!?]+) (?:gegangen|gefahren)/i,
+                /unser (?:erstes date|erster kuss|urlaub) (?:war|fand statt) ([^,.!?]+)/i,
+                /unser jahrestag (?:ist|fällt auf|wird sein) ([^,.!?]+)/i,
+                /wir sind (?:zusammen )?eingezogen (?:am|im|in)\s*([^,.!?]+)/i,
+                // Japanese patterns
+                /私たちは([^、。！？!?,.]+)で出会った/i,
+                /一緒に([^、。！？!?,.]+)へ行った/i,
+                /私たちの記念日(?:は)?([^、。！？!?,.]+)/i,
+                /一緒に引っ越した(?:のは)?([^、。！？!?,.]+)/i,
+                // Chinese patterns
+                /我们在([^，。！？!?,.]+)认识/i,
+                /我们去了([^，。！？!?,.]+)/i,
+                /我们的纪念日是([^，。！？!?,.]+)/i,
+                /我们一起搬家(?:是在)?([^，。！？!?,.]+)/i
+            ],
+            important: [
+                // English patterns
+                /it's important (?:to remember|that) (.+)/i,
+                /please remember (.+)/i,
+                // French patterns
+                /c'est important (?:de se souvenir|que) (.+)/i,
+                /merci de te souvenir (.+)/i,
+                // Spanish patterns
+                /es importante (?:recordar|que) (.+)/i,
+                /por favor recuerda (.+)/i,
+                // Italian patterns
+                /è importante (?:ricordare|che) (.+)/i,
+                /per favore ricorda (.+)/i,
+                // German patterns
+                /es ist wichtig (?:zu erinnern|dass) (.+)/i,
+                /bitte erinnere dich an (.+)/i,
+                // Japanese patterns
+                /重要なのは(.+)です/i,
+                /覚えておいてほしいのは(.+)です/i,
+                // Chinese patterns
+                /重要的是(.+)/i,
+                /请记住(.+)/i
             ]
         };
     }
@@ -185,7 +319,49 @@ class KimiMemorySystem {
             /(?:i\s+want\s+you\s+to\s+)?(?:remember|memorize|add)\s+(?:that\s+)?(.+)/i
         ];
 
-        const allPatterns = [...frenchPatterns, ...englishPatterns];
+        // Spanish explicit memory requests
+        const spanishPatterns = [
+            /(?:añade|agrega|recuerda|memoriza|guarda)\s+(?:en|a)\s+(?:la\s+)?memoria\s+(?:que\s+)?(.+)/i,
+            /(?:puedes|podrías)?\s*(?:añadir|agregar|recordar|memorizar|guardar)\s+(?:que\s+)?(.+)\s+(?:en|a)\s+(?:la\s+)?memoria/i,
+            /(?:quiero\s+que\s+)?(?:recuerdes|memorices|añadas)\s+(?:que\s+)?(.+)/i
+        ];
+
+        // Italian explicit memory requests
+        const italianPatterns = [
+            /(?:aggiungi|ricorda|memorizza|salva)\s+(?:nella|in)\s+memoria\s+(?:che\s+)?(.+)/i,
+            /(?:puoi|potresti)?\s*(?:aggiungere|ricordare|memorizzare|salvare)\s+(?:che\s+)?(.+)\s+(?:nella|in)\s+memoria/i,
+            /(?:voglio\s+che\s+)?(?:ricordi|memorizzi|aggiunga)\s+(?:che\s+)?(.+)/i
+        ];
+
+        // German explicit memory requests
+        const germanPatterns = [
+            /(?:füge|merke|speichere)\s+(?:es\s+)?(?:in|zur)\s+?gedächtnis|speicher\s+(?:dass\s+)?(.+)/i,
+            /(?:kannst\s+du|könntest\s+du)?\s*(?:hinzufügen|merken|speichern)\s+(?:dass\s+)?(.+)\s+(?:in|zum)\s+(?:gedächtnis|speicher)/i,
+            /(?:ich\s+möchte\s+dass\s+du)\s*(?:merkst|speicherst|hinzufügst)\s+(?:dass\s+)?(.+)/i
+        ];
+
+        // Japanese explicit memory requests
+        const japanesePatterns = [
+            /記憶に(?:追加|保存|覚えて)(?:して)?(?:ほしい|ください)?(?:、)?(.+)/i,
+            /(?:覚えて|記憶して)(?:ほしい|ください)?(?:、)?(.+)/i
+        ];
+
+        // Chinese explicit memory requests
+        const chinesePatterns = [
+            /把(.+)记在(?:记忆|内存|记忆库)里/i,
+            /(?:请)?记住(?:这件事|这个|以下)?(.+)/i,
+            /保存到记忆(?:里|中)(?:的是)?(.+)/i
+        ];
+
+        const allPatterns = [
+            ...frenchPatterns,
+            ...englishPatterns,
+            ...spanishPatterns,
+            ...italianPatterns,
+            ...germanPatterns,
+            ...japanesePatterns,
+            ...chinesePatterns
+        ];
 
         for (const pattern of allPatterns) {
             const match = lowerText.match(pattern);
@@ -295,7 +471,25 @@ class KimiMemorySystem {
         let confidence = 0.6; // Base confidence
 
         // Boost confidence for explicit statements
-        if (fullText.includes("my name is") || fullText.includes("i am called")) {
+        const lower = fullText.toLowerCase();
+        if (
+            lower.includes("my name is") ||
+            lower.includes("i am called") ||
+            lower.includes("je m'appelle") ||
+            lower.includes("mon nom est") ||
+            lower.includes("je me prénomme") ||
+            lower.includes("je me nomme") ||
+            lower.includes("me llamo") ||
+            lower.includes("mi nombre es") ||
+            lower.includes("mi chiamo") ||
+            lower.includes("il mio nome è") ||
+            lower.includes("ich heiße") ||
+            lower.includes("mein name ist") ||
+            lower.includes("と申します") ||
+            lower.includes("私の名前は") ||
+            lower.includes("我叫") ||
+            lower.includes("我的名字是")
+        ) {
             confidence += 0.3;
         }
 
@@ -332,8 +526,35 @@ class KimiMemorySystem {
         const naturalMemories = [];
         const lowerText = text.toLowerCase();
 
-        // Detect name mentions in natural context
-        const namePatterns = [/call me (\w+)/i, /(\w+) here[,.]?/i, /this is (\w+)/i, /(\w+) speaking/i];
+        // Detect name mentions in natural context (multilingual)
+        const namePatterns = [
+            // English
+            /call me (\w+)/i,
+            /(\w+) here[,.]?/i,
+            /this is (\w+)/i,
+            /(\w+) speaking/i,
+            // French
+            /appelle-?moi (\w+)/i,
+            /on m'appelle (\w+)/i,
+            /c'est (\w+)/i,
+            // Spanish
+            /llámame (\w+)/i,
+            /me llaman (\w+)/i,
+            /soy (\w+)/i,
+            // Italian
+            /chiamami (\w+)/i,
+            /mi chiamano (\w+)/i,
+            /sono (\w+)/i,
+            // German
+            /nenn mich (\w+)/i,
+            /man nennt mich (\w+)/i,
+            /ich bin (\w+)/i,
+            // Japanese
+            /(?:私は)?(\w+)です/i,
+            // Chinese
+            /我是(\w+)/i,
+            /叫我(\w+)/i
+        ];
 
         for (const pattern of namePatterns) {
             const match = lowerText.match(pattern);
@@ -431,7 +652,7 @@ class KimiMemorySystem {
                 timestamp: memoryData.timestamp || new Date(),
                 character: memoryData.character || this.selectedCharacter,
                 isActive: true,
-                tags: memoryData.tags || [],
+                tags: [...new Set([...(memoryData.tags || []), ...this.deriveMemoryTags(memoryData)])],
                 lastModified: new Date(),
                 accessCount: 0,
                 importance: this.calculateImportance(memoryData)
@@ -506,7 +727,7 @@ class KimiMemorySystem {
                 ...existingMemory,
                 content: mergedContent,
                 confidence: mergedConfidence,
-                tags: [...new Set(mergedTags)], // Remove duplicates
+                tags: [...new Set([...mergedTags, ...this.deriveMemoryTags(newMemoryData)])], // Remove duplicates
                 lastModified: new Date(),
                 accessCount: (existingMemory.accessCount || 0) + 1,
                 importance: Math.max(existingMemory.importance || 0.5, this.calculateImportance(newMemoryData))
@@ -565,30 +786,102 @@ class KimiMemorySystem {
     calculateImportance(memoryData) {
         let importance = 0.5; // Base importance
 
-        // Personal information is generally more important
+        // Category base weights
         const categoryWeights = {
+            important: 1.0,
             personal: 0.9,
-            relationships: 0.8,
-            goals: 0.7,
+            relationships: 0.85,
+            goals: 0.75,
+            experiences: 0.65,
             preferences: 0.6,
-            activities: 0.5,
-            experiences: 0.4,
-            important: 1.0
+            activities: 0.5
         };
 
         importance = categoryWeights[memoryData.category] || 0.5;
 
-        // Boost importance for longer, more detailed content
-        if (memoryData.content && memoryData.content.length > 20) {
-            importance += 0.1;
+        const content = (memoryData.content || "").toLowerCase();
+        const tags = new Set([...(memoryData.tags || []), ...this.deriveMemoryTags(memoryData)]);
+
+        // Heuristic boosts for meaningful relationship milestones and commitments
+        const milestoneTags = [
+            "relationship:first_meet",
+            "relationship:first_date",
+            "relationship:first_kiss",
+            "relationship:anniversary",
+            "relationship:moved_in",
+            "relationship:engaged",
+            "relationship:married",
+            "relationship:breakup"
+        ];
+        if ([...tags].some(t => milestoneTags.includes(t))) importance += 0.15;
+
+        // Boundaries and consent are high priority to remember
+        if ([...tags].some(t => t.startsWith("boundary:"))) importance += 0.15;
+
+        // Preferences tied to strong like/dislike
+        if (
+            content.includes("i love") ||
+            content.includes("j'adore") ||
+            content.includes("i hate") ||
+            content.includes("je déteste")
+        ) {
+            importance += 0.05;
         }
 
-        // High confidence boosts importance
-        if (memoryData.confidence && memoryData.confidence > 0.9) {
-            importance += 0.1;
+        // Temporal cues: future commitments or dates
+        if (/(\bnext\b|\btomorrow\b|\bce soir\b|\bdemain\b|\bmañana\b|\bdomani\b|\bmorgen\b)/i.test(content)) {
+            importance += 0.05;
         }
+
+        // Longer details and high confidence
+        if (memoryData.content && memoryData.content.length > 24) importance += 0.05;
+        if (memoryData.confidence && memoryData.confidence > 0.9) importance += 0.05;
 
         return Math.min(1.0, importance);
+    }
+
+    // Derive semantic tags from memory content to assist prioritization and merging
+    deriveMemoryTags(memoryData) {
+        const tags = [];
+        const text = (memoryData.content || "").toLowerCase();
+        const category = memoryData.category || "";
+
+        // Relationship status and milestones
+        if (/(single|célibataire|soltero|single|ledig)/i.test(text)) tags.push("relationship:status_single");
+        if (/(in a relationship|en couple|together|ensemble|pareja|coppia|beziehung)/i.test(text))
+            tags.push("relationship:status_in_relationship");
+        if (/(engaged|fiancé|fiancée|promis|promised|verlobt)/i.test(text)) tags.push("relationship:status_engaged");
+        if (/(married|marié|mariée|casado|sposato|verheiratet)/i.test(text)) tags.push("relationship:status_married");
+        if (/(broke up|rupture|separated|separado|separati|getrennt)/i.test(text)) tags.push("relationship:breakup");
+        if (/(first date|premier rendez-vous|primera cita|primo appuntamento)/i.test(text)) tags.push("relationship:first_date");
+        if (/(first kiss|premier baiser|primer beso|primo bacio)/i.test(text)) tags.push("relationship:first_kiss");
+        if (/(anniversary|anniversaire|aniversario|anniversario|jahrestag)/i.test(text)) tags.push("relationship:anniversary");
+        if (/(moved in together|emménagé ensemble|mudamos juntos|trasferiti insieme|zusammen eingezogen)/i.test(text))
+            tags.push("relationship:moved_in");
+        if (/(met at|rencontré à|conocimos en|conosciuti a|kennengelernt)/i.test(text)) tags.push("relationship:first_meet");
+
+        // Boundaries and consent (keep generic and non-graphic)
+        if (/(i don't like|je n'aime pas|no me gusta|non mi piace|ich mag nicht)\s+[^,.!?]+/i.test(text))
+            tags.push("boundary:dislike");
+        if (/(i prefer|je préfère|prefiero|preferisco|ich bevorzuge)\s+[^,.!?]+/i.test(text)) tags.push("boundary:preference");
+        if (/(no|pas)\s+(?:kissing|baiser|beso|bacio|küssen)/i.test(text)) tags.push("boundary:limit");
+        if (/(consent|consentement|consentimiento|consenso|einwilligung)/i.test(text)) tags.push("boundary:consent");
+
+        // Time-related tags
+        if (/(today|ce jour|hoy|oggi|heute|今日)/i.test(text)) tags.push("time:today");
+        if (/(tomorrow|demain|mañana|domani|morgen|明日)/i.test(text)) tags.push("time:tomorrow");
+        if (/(next week|semaine prochaine|la próxima semana|la prossima settimana|nächste woche)/i.test(text))
+            tags.push("time:next_week");
+
+        // Category-specific hints
+        if (category === "preferences") tags.push("type:preference");
+        if (category === "personal") tags.push("type:personal");
+        if (category === "relationships") tags.push("type:relationship");
+        if (category === "experiences") tags.push("type:experience");
+        if (category === "goals") tags.push("type:goal");
+        if (category === "important") tags.push("type:important");
+
+        return tags;
     }
 
     async updateMemory(memoryId, updateData) {
@@ -814,17 +1107,21 @@ class KimiMemorySystem {
         if (!this.db) return;
 
         try {
+            // Retrieve all active memories for the current character
             const memories = await this.getAllMemories();
 
+            // If the number of memories exceeds the limit (this.maxMemoryEntries),
+            // delete the least important/oldest ones to keep only the most relevant.
             if (memories.length > this.maxMemoryEntries) {
-                // Keep most recent and important memories
+                // Sort by importance (confidence) and recency (timestamp)
                 memories.sort((a, b) => {
-                    // Priority: confidence * recency
+                    // Score = confidence * age (the higher the score, the less priority the memory has)
                     const scoreA = a.confidence * (Date.now() - new Date(a.timestamp).getTime());
                     const scoreB = b.confidence * (Date.now() - new Date(b.timestamp).getTime());
                     return scoreB - scoreA;
                 });
 
+                // Delete all memories beyond the limit
                 const toDelete = memories.slice(this.maxMemoryEntries);
                 for (const memory of toDelete) {
                     await this.deleteMemory(memory.id);
@@ -937,13 +1234,158 @@ class KimiMemorySystem {
         const contextLower = context.toLowerCase();
 
         const categoryKeywords = {
-            personal: ["name", "age", "live", "work", "job", "who", "am", "myself"],
-            preferences: ["like", "love", "hate", "prefer", "enjoy", "favorite", "dislike"],
-            relationships: ["family", "friend", "wife", "husband", "partner", "mother", "father"],
-            activities: ["play", "hobby", "sport", "activity", "practice", "do"],
-            goals: ["want", "plan", "goal", "dream", "hope", "wish", "future"],
-            experiences: ["remember", "happened", "story", "experience", "time"],
-            important: ["important", "remember", "special", "never forget"]
+            personal: [
+                "name",
+                "age",
+                "live",
+                "work",
+                "job",
+                "who",
+                "am",
+                "myself",
+                "appelle",
+                "nombre",
+                "chiamo",
+                "heiße",
+                "名前",
+                "名字",
+                "我叫"
+            ],
+            preferences: [
+                "like",
+                "love",
+                "hate",
+                "prefer",
+                "enjoy",
+                "favorite",
+                "dislike",
+                "j'aime",
+                "j'adore",
+                "je préfère",
+                "je déteste",
+                "me gusta",
+                "prefiero",
+                "odio",
+                "mi piace",
+                "preferisco",
+                "ich mag",
+                "ich bevorzuge",
+                "hasse"
+            ],
+            relationships: [
+                "family",
+                "friend",
+                "wife",
+                "husband",
+                "partner",
+                "mother",
+                "father",
+                "girlfriend",
+                "boyfriend",
+                "anniversary",
+                "date",
+                "kiss",
+                "move in",
+                "famille",
+                "ami",
+                "copine",
+                "copain",
+                "anniversaire",
+                "rendez-vous",
+                "baiser",
+                "emménagé",
+                "pareja",
+                "cita",
+                "beso",
+                "aniversario",
+                "mudarnos",
+                "fidanzata",
+                "fidanzato",
+                "anniversario",
+                "bacio",
+                "trasferiti",
+                "freundin",
+                "freund",
+                "jahrestag",
+                "kuss",
+                "eingezogen"
+            ],
+            activities: [
+                "play",
+                "hobby",
+                "sport",
+                "activity",
+                "practice",
+                "do",
+                "joue",
+                "passe-temps",
+                "hobby",
+                "juego",
+                "pasatiempo",
+                "gioco",
+                "passatempo",
+                "spiele",
+                "hobby"
+            ],
+            goals: [
+                "want",
+                "plan",
+                "goal",
+                "dream",
+                "hope",
+                "wish",
+                "future",
+                "veux",
+                "objectif",
+                "apprends",
+                "aprendo",
+                "voglio",
+                "obiettivo",
+                "lerne",
+                "ziel"
+            ],
+            experiences: [
+                "remember",
+                "happened",
+                "story",
+                "experience",
+                "time",
+                "we met",
+                "first date",
+                "first kiss",
+                "anniversary",
+                "rencontré",
+                "premier rendez-vous",
+                "premier baiser",
+                "anniversaire",
+                "conocimos",
+                "primera cita",
+                "primer beso",
+                "aniversario",
+                "conosciuti",
+                "primo appuntamento",
+                "primo bacio",
+                "anniversario",
+                "kennengelernt",
+                "erstes date",
+                "erster kuss",
+                "jahrestag"
+            ],
+            important: [
+                "important",
+                "remember",
+                "special",
+                "never forget",
+                "important",
+                "souvenir",
+                "spécial",
+                "importante",
+                "recuerda",
+                "importante",
+                "ricorda",
+                "wichtig",
+                "erinnere"
+            ]
         };
 
         const keywords = categoryKeywords[category] || [];
@@ -1092,5 +1534,8 @@ class KimiMemorySystem {
         }
     }
 }
+
+window.KimiMemorySystem = KimiMemorySystem;
+export default KimiMemorySystem;
 
 window.KimiMemorySystem = KimiMemorySystem;

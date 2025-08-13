@@ -407,6 +407,70 @@
     color: white;
 }
 
+/* Importance badge */
+.memory-importance {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+.importance-high {
+    background: #8e44ad;
+    color: #fff;
+}
+.importance-medium {
+    background: #16a085;
+    color: #fff;
+}
+.importance-low {
+    background: #7f8c8d;
+    color: #fff;
+}
+
+/* Tags (chips) */
+.memory-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin: 6px 0 4px 0;
+}
+.memory-tag {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: var(--border-color);
+    color: var(--text-secondary);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+.memory-tag.tag-relationship {
+    background: rgba(231, 76, 60, 0.15);
+    color: #e74c3c;
+    border-color: rgba(231, 76, 60, 0.25);
+}
+.memory-tag.tag-boundary {
+    background: rgba(52, 152, 219, 0.15);
+    color: #3498db;
+    border-color: rgba(52, 152, 219, 0.25);
+}
+.memory-tag.tag-time {
+    background: rgba(241, 196, 15, 0.2);
+    color: #d35400;
+    border-color: rgba(241, 196, 15, 0.3);
+}
+.memory-tag.tag-type {
+    background: rgba(46, 204, 113, 0.2);
+    color: #27ae60;
+    border-color: rgba(46, 204, 113, 0.3);
+}
+.memory-tag.tag-generic {
+    opacity: 0.9;
+}
+.memory-tag.tag-more {
+    background: transparent;
+    color: var(--text-secondary);
+    border-style: dashed;
+}
+
 /* Memory Toggle Indicator */
 .toggle-switch {
     position: relative;

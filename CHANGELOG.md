@@ -1,26 +1,26 @@
 # Virtual Kimi Changelog
 
-## [1.0.5] - 2025-08-12
+## [1.0.5] - 2025-08-13 - "Personality & Language Sensitivity"
 
-### Security & UX
+### Added
 
-- Removed all browser/extension password save and autofill prompts for API key and all text fields (no type="password", no name, all autofill-blocking attributes, CSS masking only).
-- Global autofill prevention for all text/textarea fields, including dynamically added ones.
-- Provider selection: Base URL is readonly for OpenRouter, OpenAI, Groq, Together, DeepSeek; editable only for Custom and Ollama.
-- Model ID is auto-synced and readonly for OpenRouter; editable for others. Selection is persistent and always reflected in the UI.
-- Robust preference persistence and UI sync for provider, base URL, and model.
+- Multilingual profanity/insult detection for negative context across 7 languages (en, fr, es, de, it, ja, zh)
+- Gendered variants support in negative keywords (fr, es, it, de) to improve accuracy (e.g., sérieux/sérieuse)
+- Extended personality keywords for Spanish and Italian (all traits) with gendered forms
 
-### Provider & LLM Model Handling
+### Changed
 
-- Base URL is now readonly for OpenRouter, OpenAI, Groq, Together, DeepSeek (canonical, not user-editable). Editable only for Custom OpenAI-compatible and Ollama.
-- Model ID is auto-synced and readonly for OpenRouter; editable for others. Selection is persistent and always reflected in the UI.
-- Robust preference persistence and UI sync for provider, base URL, and model.
-- Fixed Model ID sync when changing OpenRouter model (immediate update, persistence, readonly).
+- Personality sync now completes missing values using character-specific defaults (with generic fallback)
+- Centralized side-effects on personality updates (UI/memory/video/voice) behind a single `personality:updated` listener
+- Sliders: generic handler only updates display; persistence and effects handled by specialized listeners
+- Trait updates preserve fractional progress (2 decimals) for smoother affection changes
+- Stats now use character-specific default for affection (with generic fallback) when missing
 
-### Misc
+### Fixed
 
-- No text field in the app can be autofilled or saved by browser or extension.
-- Improved UI robustness when switching provider or model.
+- Removed obsolete `personalityUpdated` listener to avoid duplicate processing
+- Unified KimiMemory affection default loading (removed conflicting double assignment and legacy default 80)
+- Minor cleanup and consistency improvements in utils and sync flows
 
 ## [1.0.4] - 2025-08-09 - "Emotion & Context Logic Upgrade"
 

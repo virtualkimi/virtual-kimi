@@ -26,8 +26,12 @@ class KimiMemory {
             // Start with lower favorability level - relationships must be built over time
             this.favorabilityLevel = await this.db.getPreference(`favorabilityLevel_${this.selectedCharacter}`, 50);
 
-            // Load affection trait from personality database - CRITICAL FIX
-            this.affectionTrait = await this.db.getPersonalityTrait("affection", 50, this.selectedCharacter);
+            // Load affection trait from personality database with coherent defaults
+            const charDefAff =
+                (window.KIMI_CHARACTERS && window.KIMI_CHARACTERS[this.selectedCharacter]?.traits?.affection) || null;
+            const genericAff = (window.getTraitDefaults && window.getTraitDefaults().affection) || 65;
+            const defaultAff = typeof charDefAff === "number" ? charDefAff : genericAff;
+            this.affectionTrait = await this.db.getPersonalityTrait("affection", defaultAff, this.selectedCharacter);
 
             this.preferences = {
                 voiceRate: await this.db.getPreference(`voiceRate_${this.selectedCharacter}`, 1.1),
@@ -38,7 +42,7 @@ class KimiMemory {
                 favoriteWords: await this.db.getPreference(`favoriteWords_${this.selectedCharacter}`, []),
                 emotionalState: await this.db.getPreference(`emotionalState_${this.selectedCharacter}`, "neutral")
             };
-            this.affectionTrait = await this.db.getPersonalityTrait("affection", 80, this.selectedCharacter);
+            // affectionTrait already loaded above with coherent default
             this.isReady = true;
             this.updateFavorabilityBar();
         } catch (error) {
@@ -46,17 +50,26 @@ class KimiMemory {
         }
     }
 
-    async saveConversation(userText, kimiResponse) {
+    async saveConversation(userText, kimiResponse, tokenInfo = null) {
         if (!this.db) return;
 
         try {
             const character = await this.db.getSelectedCharacter();
             await this.db.saveConversation(userText, kimiResponse, this.favorabilityLevel, new Date(), character);
 
+            // Legacy interactions counter kept for backward compatibility (not shown in UI now)
             let total = await this.db.getPreference(`totalInteractions_${character}`, 0);
             total = Number(total) + 1;
             await this.db.setPreference(`totalInteractions_${character}`, total);
             this.preferences.totalInteractions = total;
+
+            // Update tokens usage if provided (in/out)
+            if (tokenInfo && typeof tokenInfo.tokensIn === "number" && typeof tokenInfo.tokensOut === "number") {
+                const prevIn = Number(await this.db.getPreference(`totalTokensIn_${character}`, 0)) || 0;
+                const prevOut = Number(await this.db.getPreference(`totalTokensOut_${character}`, 0)) || 0;
+                await this.db.setPreference(`totalTokensIn_${character}`, prevIn + tokenInfo.tokensIn);
+                await this.db.setPreference(`totalTokensOut_${character}`, prevOut + tokenInfo.tokensOut);
+            }
 
             let first = await this.db.getPreference(`firstInteraction_${character}`, null);
             if (!first) {
@@ -129,3 +142,4 @@ class KimiMemory {
 
 // Export to global scope
 window.KimiMemory = KimiMemory;
+export default KimiMemory;

@@ -1,9 +1,20 @@
+import KimiDatabase from "./kimi-database.js";
+import KimiLLMManager from "./kimi-llm-manager.js";
+import KimiEmotionSystem from "./kimi-emotion-system.js";
+import KimiMemorySystem from "./kimi-memory-system.js";
+import KimiMemory from "./kimi-memory.js";
+
 document.addEventListener("DOMContentLoaded", async function () {
     const DEFAULT_SYSTEM_PROMPT = window.DEFAULT_SYSTEM_PROMPT;
 
     let kimiDB = null;
     let kimiLLM = null;
     let isSystemReady = false;
+
+    // Global debug flag for sync/log verbosity (default: false)
+    if (typeof window.KIMI_DEBUG_SYNC === "undefined") {
+        window.KIMI_DEBUG_SYNC = false;
+    }
 
     const kimiInit = new KimiInitManager();
     let kimiVideo = null;
@@ -42,10 +53,10 @@ document.addEventListener("DOMContentLoaded", async function () {
         await kimiLLM.init();
 
         // Initialize unified emotion system
-        window.kimiEmotionSystem = new window.KimiEmotionSystem(kimiDB);
+        window.kimiEmotionSystem = new KimiEmotionSystem(kimiDB);
 
         // Initialize the new memory system
-        window.kimiMemorySystem = new window.KimiMemorySystem(kimiDB);
+        window.kimiMemorySystem = new KimiMemorySystem(kimiDB);
         await window.kimiMemorySystem.init();
 
         // Initialize legacy memory for favorability
@@ -62,8 +73,12 @@ document.addEventListener("DOMContentLoaded", async function () {
 
         isSystemReady = true;
         window.isSystemReady = true;
-        // Hydrate API config UI from DB after systems ready
-        initializeApiConfigUI();
+        // API config UI will be initialized after ApiUi is defined
+        if (window.refreshAllSliders) {
+            try {
+                await window.refreshAllSliders();
+            } catch {}
+        }
     } catch (error) {
         console.error("Initialization error:", error);
     }
@@ -104,19 +119,11 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     // Initial presence state based on current input value
     {
-        const apiInputInit = ApiUi.apiKeyInput();
-        const currentVal = (apiInputInit || {}).value || "";
+        const currentVal = (ApiUi.apiKeyInput() || {}).value || "";
         const colorInit = currentVal && currentVal.length > 0 ? "#4caf50" : "#9e9e9e";
         ApiUi.setPresence(colorInit);
         // On load, test status is unknown
         ApiUi.setTestPresence("#9e9e9e");
-        // Enforce initial masking style to avoid UA text-security glitches
-        if (apiInputInit && apiInputInit.classList.contains("masked")) {
-            try {
-                apiInputInit.style.webkitTextSecurity = "disc";
-            } catch (_) {}
-            apiInputInit.style.filter = "blur(6px)";
-        }
     }
 
     // Initialize API config UI from saved preferences
@@ -139,99 +146,19 @@ document.addEventListener("DOMContentLoaded", async function () {
             const baseUrlInput = ApiUi.baseUrlInput();
             const modelIdInput = ApiUi.modelIdInput();
             const apiKeyInput = ApiUi.apiKeyInput();
-            if (baseUrlInput) {
-                baseUrlInput.value = baseUrl || "";
-                const isFixed = ["openrouter", "openai", "groq", "together", "deepseek"].includes(provider);
-                baseUrlInput.readOnly = !!isFixed;
-                baseUrlInput.setAttribute("aria-readonly", isFixed ? "true" : "false");
-                // Anti-autofill & soft-readonly flags
-                baseUrlInput.autocomplete = "new-password";
-                baseUrlInput.removeAttribute("name");
-                baseUrlInput.setAttribute("data-lpignore", "true");
-                baseUrlInput.setAttribute("data-1p-ignore", "true");
-                baseUrlInput.setAttribute("data-bwignore", "true");
-                baseUrlInput.setAttribute("data-form-type", "other");
-                baseUrlInput.setAttribute("autocapitalize", "none");
-                baseUrlInput.setAttribute("autocorrect", "off");
-                // For editable providers, use a soft-readonly until focus to deter autofill prompts
-                if (!isFixed) {
-                    baseUrlInput.setAttribute("data-soft-readonly", "true");
-                    baseUrlInput.setAttribute("readonly", "true");
-                    baseUrlInput.addEventListener(
-                        "focus",
-                        () => {
-                            if (baseUrlInput.hasAttribute("data-soft-readonly")) {
-                                baseUrlInput.removeAttribute("readonly");
-                            }
-                        },
-                        { once: true }
-                    );
-                } else {
-                    baseUrlInput.removeAttribute("data-soft-readonly");
-                }
-            }
+            if (baseUrlInput) baseUrlInput.value = baseUrl || "";
             // Only prefill model for OpenRouter, others should show placeholder only
             if (modelIdInput) {
                 if (provider === "openrouter") {
-                    modelIdInput.value = modelId || (window.kimiLLM ? window.kimiLLM.currentModel : "");
-                    modelIdInput.readOnly = true;
-                    modelIdInput.setAttribute("aria-readonly", "true");
+                    if (!modelIdInput.value) modelIdInput.value = modelId;
                 } else {
                     modelIdInput.value = "";
-                    modelIdInput.readOnly = false;
-                    modelIdInput.setAttribute("aria-readonly", "false");
-                }
-                // Anti-autofill & soft-readonly flags for model id when editable
-                modelIdInput.autocomplete = "new-password";
-                modelIdInput.removeAttribute("name");
-                modelIdInput.setAttribute("data-lpignore", "true");
-                modelIdInput.setAttribute("data-1p-ignore", "true");
-                modelIdInput.setAttribute("data-bwignore", "true");
-                modelIdInput.setAttribute("data-form-type", "other");
-                modelIdInput.setAttribute("autocapitalize", "none");
-                modelIdInput.setAttribute("autocorrect", "off");
-                if (!modelIdInput.readOnly) {
-                    modelIdInput.setAttribute("data-soft-readonly", "true");
-                    modelIdInput.setAttribute("readonly", "true");
-                    modelIdInput.addEventListener(
-                        "focus",
-                        () => {
-                            if (modelIdInput.hasAttribute("data-soft-readonly")) {
-                                modelIdInput.removeAttribute("readonly");
-                            }
-                        },
-                        { once: true }
-                    );
-                } else {
-                    modelIdInput.removeAttribute("data-soft-readonly");
                 }
             }
             // Load the provider-specific key
-            const keyPrefMap = {
-                openrouter: "openrouterApiKey",
-                openai: "apiKey_openai",
-                groq: "apiKey_groq",
-                together: "apiKey_together",
-                deepseek: "apiKey_deepseek",
-                "openai-compatible": "apiKey_custom"
-            };
-            const keyPref = keyPrefMap[provider] || "llmApiKey";
+            const keyPref = window.KimiProviderUtils ? window.KimiProviderUtils.getKeyPrefForProvider(provider) : "llmApiKey";
             const storedKey = await window.kimiDB.getPreference(keyPref, "");
-            if (apiKeyInput) {
-                apiKeyInput.value = storedKey || "";
-                // Keep masking visuals consistent after programmatic value changes
-                if (apiKeyInput.classList.contains("masked")) {
-                    try {
-                        apiKeyInput.style.webkitTextSecurity = "disc";
-                    } catch (_) {}
-                    apiKeyInput.style.filter = "blur(6px)";
-                } else {
-                    try {
-                        apiKeyInput.style.webkitTextSecurity = "";
-                    } catch (_) {}
-                    apiKeyInput.style.filter = "none";
-                }
-            }
+            if (apiKeyInput) apiKeyInput.value = storedKey || "";
             ApiUi.setPresence(storedKey ? "#4caf50" : "#9e9e9e");
             ApiUi.setTestPresence("#9e9e9e");
             const savedBadge = ApiUi.savedBadge();
@@ -249,14 +176,17 @@ document.addEventListener("DOMContentLoaded", async function () {
             console.warn("Failed to initialize API config UI:", e);
         }
     }
+    // Hydrate API config UI from DB after ApiUi is defined and function declared
+    initializeApiConfigUI();
 
     const providerSelectEl = document.getElementById("llm-provider");
     if (providerSelectEl) {
-        providerSelectEl.addEventListener("change", async () => {
-            const provider = providerSelectEl.value;
+        providerSelectEl.addEventListener("change", async function (e) {
+            const provider = e.target.value;
             const baseUrlInput = ApiUi.baseUrlInput();
-            const apiKeyInput = ApiUi.apiKeyInput();
             const modelIdInput = ApiUi.modelIdInput();
+            const apiKeyInput = ApiUi.apiKeyInput();
+
             const placeholders = {
                 openrouter: {
                     url: "https://openrouter.ai/api/v1/chat/completions",
@@ -297,101 +227,20 @@ document.addEventListener("DOMContentLoaded", async function () {
             const p = placeholders[provider] || placeholders.openai;
             if (baseUrlInput) {
                 baseUrlInput.placeholder = p.url;
-                // Providers fixes: URL canonique, champ en lecture seule
-                const isFixed = ["openrouter", "openai", "groq", "together", "deepseek"].includes(provider);
-                if (isFixed) {
-                    baseUrlInput.value = provider === "openrouter" ? "https://openrouter.ai/api/v1/chat/completions" : p.url;
-                    baseUrlInput.readOnly = true;
-                    baseUrlInput.setAttribute("aria-readonly", "true");
-                    baseUrlInput.removeAttribute("data-soft-readonly");
-                } else {
-                    // Custom & Ollama: laisser éditable et ne pas écraser l’URL utilisateur si déjà définie
-                    let savedUrl = "";
-                    if (window.kimiDB) {
-                        savedUrl = await window.kimiDB.getPreference("llmBaseUrl", "");
-                    }
-                    baseUrlInput.value = savedUrl || p.url;
-                    baseUrlInput.readOnly = false;
-                    baseUrlInput.setAttribute("aria-readonly", "false");
-                    baseUrlInput.setAttribute("data-soft-readonly", "true");
-                    baseUrlInput.setAttribute("readonly", "true");
-                    baseUrlInput.addEventListener(
-                        "focus",
-                        () => {
-                            if (baseUrlInput.hasAttribute("data-soft-readonly")) {
-                                baseUrlInput.removeAttribute("readonly");
-                            }
-                        },
-                        { once: true }
-                    );
-                }
-                // Reassert anti-autofill attributes each switch
-                baseUrlInput.autocomplete = "new-password";
-                baseUrlInput.removeAttribute("name");
-                baseUrlInput.setAttribute("data-lpignore", "true");
-                baseUrlInput.setAttribute("data-1p-ignore", "true");
-                baseUrlInput.setAttribute("data-bwignore", "true");
-                baseUrlInput.setAttribute("data-form-type", "other");
-                baseUrlInput.setAttribute("autocapitalize", "none");
-                baseUrlInput.setAttribute("autocorrect", "off");
+                baseUrlInput.value = provider === "openrouter" ? placeholders.openrouter.url : p.url;
             }
             if (apiKeyInput) apiKeyInput.placeholder = p.keyPh;
             if (modelIdInput) {
                 modelIdInput.placeholder = p.model;
                 // Value only for OpenRouter; others cleared to encourage provider-specific model naming
-                if (provider === "openrouter") {
-                    const savedId = (window.kimiDB && (await window.kimiDB.getPreference("llmModelId", ""))) || "";
-                    modelIdInput.value = savedId || (window.kimiLLM ? window.kimiLLM.currentModel : "");
-                    modelIdInput.readOnly = true;
-                    modelIdInput.setAttribute("aria-readonly", "true");
-                    modelIdInput.removeAttribute("data-soft-readonly");
-                } else {
-                    modelIdInput.value = "";
-                    modelIdInput.readOnly = false;
-                    modelIdInput.setAttribute("aria-readonly", "false");
-                    modelIdInput.setAttribute("data-soft-readonly", "true");
-                    modelIdInput.setAttribute("readonly", "true");
-                    modelIdInput.addEventListener(
-                        "focus",
-                        () => {
-                            if (modelIdInput.hasAttribute("data-soft-readonly")) {
-                                modelIdInput.removeAttribute("readonly");
-                            }
-                        },
-                        { once: true }
-                    );
-                }
-                // Reassert anti-autofill attributes each switch
-                modelIdInput.autocomplete = "new-password";
-                modelIdInput.removeAttribute("name");
-                modelIdInput.setAttribute("data-lpignore", "true");
-                modelIdInput.setAttribute("data-1p-ignore", "true");
-                modelIdInput.setAttribute("data-bwignore", "true");
-                modelIdInput.setAttribute("data-form-type", "other");
-                modelIdInput.setAttribute("autocapitalize", "none");
-                modelIdInput.setAttribute("autocorrect", "off");
+                modelIdInput.value = provider === "openrouter" && window.kimiLLM ? window.kimiLLM.currentModel : "";
             }
             if (window.kimiDB) {
                 await window.kimiDB.setPreference("llmProvider", provider);
-                // Éviter d’écraser l’URL personnalisée pour custom/ollama
-                if (["openrouter", "openai", "groq", "together", "deepseek"].includes(provider)) {
-                    const canonical = provider === "openrouter" ? "https://openrouter.ai/api/v1/chat/completions" : p.url;
-                    await window.kimiDB.setPreference("llmBaseUrl", canonical);
-                } else {
-                    const existing = await window.kimiDB.getPreference("llmBaseUrl", "");
-                    await window.kimiDB.setPreference("llmBaseUrl", existing || p.url);
-                }
+                await window.kimiDB.setPreference("llmBaseUrl", provider === "openrouter" ? placeholders.openrouter.url : p.url);
                 const apiKeyLabel = document.getElementById("api-key-label");
                 // Load provider-specific key into the input for clarity
-                const keyPrefMap = {
-                    openrouter: "openrouterApiKey",
-                    openai: "apiKey_openai",
-                    groq: "apiKey_groq",
-                    together: "apiKey_together",
-                    deepseek: "apiKey_deepseek",
-                    "openai-compatible": "apiKey_custom"
-                };
-                const keyPref = keyPrefMap[provider] || "llmApiKey";
+                const keyPref = window.KimiProviderUtils ? window.KimiProviderUtils.getKeyPrefForProvider(provider) : "llmApiKey";
                 const storedKey = await window.kimiDB.getPreference(keyPref, "");
                 if (apiKeyInput) apiKeyInput.value = storedKey || "";
                 const color = provider === "ollama" ? "#9e9e9e" : storedKey && storedKey.length > 0 ? "#4caf50" : "#9e9e9e";
@@ -406,16 +255,9 @@ document.addEventListener("DOMContentLoaded", async function () {
 
                 // Dynamic label per provider
                 if (apiKeyLabel) {
-                    const labelByProvider = {
-                        openrouter: "OpenRouter API Key",
-                        openai: "OpenAI API Key",
-                        groq: "Groq API Key",
-                        together: "Together API Key",
-                        deepseek: "DeepSeek API Key",
-                        "openai-compatible": "API Key",
-                        ollama: "API Key"
-                    };
-                    apiKeyLabel.textContent = labelByProvider[provider] || "API Key";
+                    apiKeyLabel.textContent = window.KimiProviderUtils
+                        ? window.KimiProviderUtils.getLabelForProvider(provider)
+                        : "API Key";
                 }
                 const savedBadge = ApiUi.savedBadge();
                 if (savedBadge) savedBadge.style.display = "none";
@@ -434,42 +276,21 @@ document.addEventListener("DOMContentLoaded", async function () {
         }, 1500);
     }
 
-    let video1 = window.KimiDOMUtils.get("#video1");
-    let video2 = window.KimiDOMUtils.get("#video2");
-
+    // Use centralized video utilities
+    let video1 = window.KimiVideoManager.getVideoElement("#video1");
+    let video2 = window.KimiVideoManager.getVideoElement("#video2");
     if (!video1 || !video2) {
-        console.error("Video elements not found! Creating them...");
         const videoContainer = document.querySelector(".video-container");
         if (videoContainer) {
-            video1 = document.createElement("video");
-            video1.id = "video1";
-            video1.className = "bg-video active";
-            video1.autoplay = true;
-            video1.muted = true;
-            video1.playsinline = true;
-            video1.preload = "auto";
-            video1.innerHTML =
-                '<source src="" type="video/mp4" /><span data-i18n="video_not_supported">Your browser does not support the video tag.</span>';
-
-            video2 = document.createElement("video");
-            video2.id = "video2";
-            video2.className = "bg-video";
-            video2.autoplay = true;
-            video2.muted = true;
-            video2.playsinline = true;
-            video2.preload = "auto";
-            video2.innerHTML =
-                '<source src="" type="video/mp4" /><span data-i18n="video_not_supported">Your browser does not support the video tag.</span>';
-
+            video1 = window.KimiVideoManager.createVideoElement("video1", "bg-video active");
+            video2 = window.KimiVideoManager.createVideoElement("video2", "bg-video");
             videoContainer.appendChild(video1);
             videoContainer.appendChild(video2);
         }
     }
-
     let activeVideo = video1;
     let inactiveVideo = video2;
-
-    kimiVideo = new KimiVideoManager(video1, video2);
+    kimiVideo = new window.KimiVideoManager(video1, video2);
     await kimiVideo.init(kimiDB);
     window.kimiVideo = kimiVideo;
 
@@ -731,10 +552,14 @@ document.addEventListener("DOMContentLoaded", async function () {
     if (resetSystemPromptButton) {
         resetSystemPromptButton.addEventListener("click", async () => {
             const selectedCharacter = await window.kimiDB.getPreference("selectedCharacter", "kimi");
+            const characterDefault =
+                (window.KIMI_CHARACTERS && window.KIMI_CHARACTERS[selectedCharacter]?.defaultPrompt) ||
+                DEFAULT_SYSTEM_PROMPT ||
+                "";
             if (systemPromptInput && window.kimiDB && window.kimiLLM) {
-                await window.kimiDB.setSystemPromptForCharacter(selectedCharacter, DEFAULT_SYSTEM_PROMPT);
-                systemPromptInput.value = DEFAULT_SYSTEM_PROMPT;
-                window.kimiLLM.setSystemPrompt(DEFAULT_SYSTEM_PROMPT);
+                await window.kimiDB.setSystemPromptForCharacter(selectedCharacter, characterDefault);
+                systemPromptInput.value = characterDefault;
+                window.kimiLLM.setSystemPrompt(characterDefault);
                 resetSystemPromptButton.textContent = "Reset!";
                 resetSystemPromptButton.classList.add("animated");
                 resetSystemPromptButton.setAttribute("data-i18n", "reset_done");
@@ -833,15 +658,9 @@ document.addEventListener("DOMContentLoaded", async function () {
             if (window.kimiDB) {
                 // Save API key under provider-specific preference key (skip for Ollama)
                 if (provider !== "ollama") {
-                    const keyPrefMap = {
-                        openrouter: "openrouterApiKey",
-                        openai: "apiKey_openai",
-                        groq: "apiKey_groq",
-                        together: "apiKey_together",
-                        deepseek: "apiKey_deepseek",
-                        "openai-compatible": "apiKey_custom"
-                    };
-                    const keyPref = keyPrefMap[provider] || "llmApiKey";
+                    const keyPref = window.KimiProviderUtils
+                        ? window.KimiProviderUtils.getKeyPrefForProvider(provider)
+                        : "llmApiKey";
                     await window.kimiDB.setPreference(keyPref, apiKey);
                 }
                 await window.kimiDB.setPreference("llmProvider", provider);
@@ -917,15 +736,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             t = setTimeout(async () => {
                 const providerEl = ApiUi.providerSelect();
                 const provider = providerEl ? providerEl.value : "openrouter";
-                const keyPrefMap = {
-                    openrouter: "openrouterApiKey",
-                    openai: "apiKey_openai",
-                    groq: "apiKey_groq",
-                    together: "apiKey_together",
-                    deepseek: "apiKey_deepseek",
-                    "openai-compatible": "apiKey_custom"
-                };
-                const keyPref = keyPrefMap[provider] || "llmApiKey";
+                const keyPref = window.KimiProviderUtils ? window.KimiProviderUtils.getKeyPrefForProvider(provider) : "llmApiKey";
                 const value = input.value.trim();
                 // Update Test button state immediately
                 const validNow = !!(window.KIMI_VALIDATORS && window.KIMI_VALIDATORS.validateApiKey(value));
@@ -958,71 +769,21 @@ document.addEventListener("DOMContentLoaded", async function () {
         });
     })();
 
-    // Harden anti-autofill and masking on DOM ready
-    (function enforceApiInputSecurity() {
-        const input = ApiUi.apiKeyInput();
-        if (!input) return;
-        // Anti-autofill flags
-        input.autocomplete = "off";
-        input.removeAttribute("name");
-        input.setAttribute("data-lpignore", "true");
-        input.setAttribute("data-1p-ignore", "true");
-        input.setAttribute("data-bwignore", "true");
-        input.setAttribute("data-form-type", "other");
-        input.setAttribute("autocapitalize", "none");
-        input.setAttribute("autocorrect", "off");
-        // Keep masked by style as well
-        if (input.classList.contains("masked")) {
-            try {
-                input.style.webkitTextSecurity = "disc";
-            } catch (_) {}
-            input.style.filter = "blur(6px)";
-        }
-        // If the field gets focus, ensure it is editable (index.html sets readonly initially)
-        input.addEventListener(
-            "focus",
-            () => {
-                if (input.hasAttribute("readonly")) input.removeAttribute("readonly");
-            },
-            { once: false }
-        );
-    })();
-
     // Toggle show/hide for API key
     (function setupToggleEye() {
         const btn = ApiUi.toggleBtn();
         const input = ApiUi.apiKeyInput();
         if (!btn || !input) return;
         btn.addEventListener("click", () => {
-            const wasMasked = input.classList.contains("masked");
-            // Toggle class first
-            if (wasMasked) {
-                input.classList.remove("masked");
-            } else {
-                input.classList.add("masked");
-            }
-            // Force style to avoid UA quirks where -webkit-text-security persists
-            const nowMasked = input.classList.contains("masked");
-            if (nowMasked) {
-                // Apply masking explicitly
-                try {
-                    input.style.webkitTextSecurity = "disc"; // Chromium/WebKit
-                } catch (_) {}
-                input.style.filter = "blur(6px)"; // Fallback
-            } else {
-                // Remove any residual masking
-                try {
-                    input.style.webkitTextSecurity = ""; // reset to CSS/default
-                } catch (_) {}
-                input.style.filter = "none";
-            }
-            btn.setAttribute("aria-pressed", String(!nowMasked));
+            const showing = input.type === "text";
+            input.type = showing ? "password" : "text";
+            btn.setAttribute("aria-pressed", String(!showing));
             const icon = btn.querySelector("i");
             if (icon) {
                 icon.classList.toggle("fa-eye");
                 icon.classList.toggle("fa-eye-slash");
             }
-            btn.setAttribute("aria-label", nowMasked ? "Show API key" : "Hide API key");
+            btn.setAttribute("aria-label", showing ? "Show API key" : "Hide API key");
         });
     })();
 
@@ -1077,57 +838,6 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     // Setup unified event handlers to prevent duplicates
     setupUnifiedEventHandlers();
-
-    // Global hardening against browser/extension autofill on all text-like fields
-    (function hardenAgainstAutofill() {
-        const ATTRS = {
-            autocomplete: "off",
-            autocorrect: "off",
-            autocapitalize: "none",
-            spellcheck: "false",
-            "data-lpignore": "true",
-            "data-1p-ignore": "true",
-            "data-bwignore": "true",
-            "data-form-type": "other"
-        };
-        const block = el => {
-            if (!el || !(el instanceof HTMLElement)) return;
-            const tag = el.tagName.toLowerCase();
-            const type = (el.getAttribute("type") || "").toLowerCase();
-            if (tag === "input" && (type === "text" || type === "search" || type === "email" || type === "url")) {
-                Object.entries(ATTRS).forEach(([k, v]) => el.setAttribute(k, v));
-                // Never keep a sensitive name attribute
-                const name = el.getAttribute("name") || "";
-                if (name) el.removeAttribute("name");
-            }
-            if (tag === "textarea") {
-                Object.entries(ATTRS).forEach(([k, v]) => el.setAttribute(k, v));
-                const name = el.getAttribute("name") || "";
-                if (name) el.removeAttribute("name");
-            }
-        };
-        document.querySelectorAll("input, textarea").forEach(block);
-        const mo = new MutationObserver(muts => {
-            for (const m of muts) {
-                m.addedNodes &&
-                    m.addedNodes.forEach(n => {
-                        if (n instanceof HTMLElement) {
-                            if (n.matches && (n.matches("input") || n.matches("textarea"))) block(n);
-                            n.querySelectorAll && n.querySelectorAll("input, textarea").forEach(block);
-                        }
-                    });
-                if (m.type === "attributes" && m.target instanceof HTMLElement) {
-                    if (m.attributeName === "type" || m.attributeName === "name") block(m.target);
-                }
-            }
-        });
-        mo.observe(document.documentElement, {
-            subtree: true,
-            childList: true,
-            attributes: true,
-            attributeFilter: ["type", "name"]
-        });
-    })();
 
     // Initialize language and UI
     await initializeLanguageAndUI();
@@ -1245,23 +955,78 @@ document.addEventListener("DOMContentLoaded", async function () {
         // No need to reattach them here to avoid duplicates
     }
 
-    // Add personality change listener
-    window.addEventListener("personalityUpdated", async event => {
-        const { character, traits } = event.detail;
-        console.log(`🧠 Personality updated for ${character}:`, traits);
+    // ==== BATCHED EVENT AGGREGATOR (personality + preferences) ====
+    const batchedUpdates = {
+        personality: null,
+        preferences: new Set()
+    };
+    let batchTimer = null;
 
-        // Update video context based on new traits
-        if (window.kimiVideo && window.kimiVideo.setMoodByPersonality) {
-            window.kimiVideo.setMoodByPersonality(traits);
+    function scheduleFlush() {
+        if (batchTimer) return;
+        batchTimer = setTimeout(flushBatchedUpdates, 100); // 100ms coalescing window
+    }
+
+    async function flushBatchedUpdates() {
+        const personalityPayload = batchedUpdates.personality;
+        const prefKeys = Array.from(batchedUpdates.preferences);
+        batchedUpdates.personality = null;
+        batchedUpdates.preferences.clear();
+        batchTimer = null;
+
+        // Apply personality update once (last-wins)
+        if (personalityPayload) {
+            const { character, traits } = personalityPayload;
+            const defaults = (window.getTraitDefaults && window.getTraitDefaults()) || {
+                affection: 65,
+                romance: 50,
+                empathy: 75,
+                playfulness: 55,
+                humor: 60,
+                intelligence: 70
+            };
+
+            // Prefer persisted DB traits over defaults to avoid temporary inconsistencies.
+            let dbTraits = null;
+            try {
+                if (window.kimiDB && typeof window.kimiDB.getAllPersonalityTraits === "function") {
+                    dbTraits = await window.kimiDB.getAllPersonalityTraits(character || null);
+                }
+            } catch (e) {
+                dbTraits = null;
+            }
+
+            const baseline = { ...defaults, ...(dbTraits || {}) };
+            const safeTraits = {};
+            for (const key of Object.keys(defaults)) {
+                // If incoming payload provides the key, use it; otherwise use baseline (DB -> defaults)
+                let raw = Object.prototype.hasOwnProperty.call(traits || {}, key) ? traits[key] : baseline[key];
+                let v = Number(raw);
+                if (!isFinite(v) || isNaN(v)) v = Number(baseline[key]);
+                v = Math.max(0, Math.min(100, v));
+                safeTraits[key] = v;
+            }
+            if (window.KIMI_DEBUG_SYNC) {
+                console.log(`🧠 (Batched) Personality updated for ${character}:`, safeTraits);
+            }
+            // Centralize side-effects elsewhere; aggregator remains a coalesced logger only.
         }
 
-        // Update voice modulation if available
-        if (window.voiceManager && window.voiceManager.updatePersonalityModulation) {
-            window.voiceManager.updatePersonalityModulation(traits);
+        // Preference keys batch (currently UI refresh for sliders already handled elsewhere)
+        if (prefKeys.length > 0) {
+            // Potential future hook: log or perform aggregated operations
+            // console.log("⚙️ Batched preference keys:", prefKeys);
         }
+    }
 
-        // Update UI elements that depend on personality
-        // Favorability bar will be updated by KimiMemory system
+    // Also listen to the DB-wrapped event name to preserve batched logging
+    window.addEventListener("personality:updated", event => {
+        batchedUpdates.personality = event.detail; // last event wins
+        scheduleFlush();
+    });
+    window.addEventListener("preferenceUpdated", event => {
+        if (event.detail?.key) batchedUpdates.preferences.add(event.detail.key);
+        scheduleFlush();
     });
 
     // Add global keyboard event listener for microphone toggle (F8)
@@ -1284,6 +1049,17 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
     });
 
+    // Refresh sliders when character or language preference changes
+    window.addEventListener("preferenceUpdated", evt => {
+        const k = evt.detail?.key;
+        if (!k) return;
+        if (k === "selectedCharacter" || k === "selectedLanguage") {
+            if (window.refreshAllSliders) {
+                setTimeout(() => window.refreshAllSliders(), 50);
+            }
+        }
+    });
+
     document.addEventListener("keyup", function (event) {
         if (event.key === "F8") {
             f8KeyPressed = false;
@@ -1296,4 +1072,190 @@ document.addEventListener("DOMContentLoaded", async function () {
             await window.ensureVideoContextConsistency();
         }
     }, 30000); // Check every 30 seconds
+
+    // Personality sync: global event and wrappers
+    (function setupPersonalitySync() {
+        // Guard to avoid multiple initializations
+        if (window._kimiPersonalitySyncReady) return;
+        window._kimiPersonalitySyncReady = true;
+
+        const dispatchUpdated = async (partialTraits, characterHint = null) => {
+            try {
+                const character = characterHint || (window.kimiDB && (await window.kimiDB.getSelectedCharacter())) || null;
+                window.dispatchEvent(
+                    new CustomEvent("personality:updated", {
+                        detail: { character, traits: { ...partialTraits } }
+                    })
+                );
+            } catch (e) {}
+        };
+
+        const tryWrapDB = () => {
+            const db = window.kimiDB;
+            if (!db) return false;
+
+            const wrapOnce = (obj, methodName, buildTraitsFromArgs) => {
+                if (!obj || typeof obj[methodName] !== "function") return;
+                if (obj[methodName]._kimiWrapped) return;
+                const original = obj[methodName].bind(obj);
+                obj[methodName] = async function (...args) {
+                    const res = await original(...args);
+                    try {
+                        const { traits, character } = await buildTraitsFromArgs(args, res);
+                        if (traits && Object.keys(traits).length > 0) {
+                            await dispatchUpdated(traits, character);
+                        }
+                    } catch (e) {}
+                    return res;
+                };
+                obj[methodName]._kimiWrapped = true;
+            };
+
+            // setPersonalityTrait(trait, value, character?)
+            wrapOnce(db, "setPersonalityTrait", async args => {
+                const [trait, value, character] = args;
+                return { traits: { [String(trait)]: Number(value) }, character: character || null };
+            });
+
+            // setPersonalityBatch(traitsObj, character?)
+            wrapOnce(db, "setPersonalityBatch", async args => {
+                const [traitsObj, character] = args;
+                const traits = {};
+                if (traitsObj && typeof traitsObj === "object") {
+                    for (const [k, v] of Object.entries(traitsObj)) {
+                        traits[String(k)] = Number(v);
+                    }
+                }
+                return { traits, character: character || null };
+            });
+
+            // savePersonality(personalityObj, character?)
+            wrapOnce(db, "savePersonality", async args => {
+                const [personalityObj, character] = args;
+                const traits = {};
+                if (personalityObj && typeof personalityObj === "object") {
+                    for (const [k, v] of Object.entries(personalityObj)) {
+                        traits[String(k)] = Number(v);
+                    }
+                }
+                return { traits, character: character || null };
+            });
+
+            return true;
+        };
+
+        // Try immediately and then retry a few times if DB not yet ready
+        if (!tryWrapDB()) {
+            let attempts = 0;
+            const maxAttempts = 20;
+            const interval = setInterval(() => {
+                attempts++;
+                if (tryWrapDB() || attempts >= maxAttempts) {
+                    clearInterval(interval);
+                }
+            }, 250);
+        }
+
+        // Central listener: debounce UI/video sync to avoid thrashing
+        let syncTimer = null;
+        let lastTraits = {};
+        window.addEventListener("personality:updated", async e => {
+            try {
+                if (e && e.detail && e.detail.traits) {
+                    // Merge incremental updates
+                    lastTraits = { ...lastTraits, ...e.detail.traits };
+                }
+            } catch {}
+
+            if (syncTimer) clearTimeout(syncTimer);
+            syncTimer = setTimeout(async () => {
+                try {
+                    const db = window.kimiDB;
+                    const character = (e && e.detail && e.detail.character) || (db && (await db.getSelectedCharacter())) || null;
+                    let traits = lastTraits;
+                    if (!traits || Object.keys(traits).length === 0) {
+                        // Fallback: fetch all traits if partial not provided
+                        traits = db && (await db.getAllPersonalityTraits(character));
+                    }
+
+                    // 1) Update UI sliders if available
+                    if (typeof window.updateSlider === "function" && traits) {
+                        for (const [trait, value] of Object.entries(traits)) {
+                            const id = `trait-${trait}`;
+                            if (document.getElementById(id)) {
+                                try {
+                                    window.updateSlider(id, value);
+                                } catch {}
+                            }
+                        }
+                    }
+                    if (typeof window.syncPersonalityTraits === "function") {
+                        try {
+                            await window.syncPersonalityTraits(character);
+                        } catch {}
+                    }
+
+                    // 2) Update memory cache affection bar if available
+                    if (window.kimiMemory && typeof window.kimiMemory.updateAffectionTrait === "function") {
+                        try {
+                            await window.kimiMemory.updateAffectionTrait();
+                        } catch {}
+                    }
+
+                    // 3) Update video mood by personality
+                    if (window.kimiVideo && typeof window.kimiVideo.setMoodByPersonality === "function") {
+                        const allTraits =
+                            traits && Object.keys(traits).length > 0
+                                ? { ...traits }
+                                : (db && (await db.getAllPersonalityTraits(character))) || {};
+                        try {
+                            window.kimiVideo.setMoodByPersonality(allTraits);
+                        } catch {}
+                        // 3b) Update voice modulation based on personality
+                        try {
+                            if (window.voiceManager && typeof window.voiceManager.updatePersonalityModulation === "function") {
+                                window.voiceManager.updatePersonalityModulation(allTraits);
+                            }
+                        } catch {}
+                    }
+
+                    // 4) Ensure current video context is valid (lightweight guard)
+                    let beforeInfo = null;
+                    try {
+                        if (window.kimiVideo && typeof window.kimiVideo.getCurrentVideoInfo === "function") {
+                            beforeInfo = window.kimiVideo.getCurrentVideoInfo();
+                        }
+                    } catch {}
+
+                    if (typeof window.ensureVideoContextConsistency === "function") {
+                        try {
+                            await window.ensureVideoContextConsistency();
+                        } catch {}
+                    }
+
+                    try {
+                        if (
+                            window.KIMI_DEBUG_SYNC &&
+                            window.kimiVideo &&
+                            typeof window.kimiVideo.getCurrentVideoInfo === "function"
+                        ) {
+                            const afterInfo = window.kimiVideo.getCurrentVideoInfo();
+                            if (
+                                beforeInfo &&
+                                afterInfo &&
+                                (beforeInfo.context !== afterInfo.context ||
+                                    beforeInfo.emotion !== afterInfo.emotion ||
+                                    beforeInfo.category !== afterInfo.category)
+                            ) {
+                                console.log("🔧 SyncGuard: corrected video context", { from: beforeInfo, to: afterInfo });
+                            }
+                        }
+                    } catch {}
+                } catch {
+                } finally {
+                    lastTraits = {};
+                }
+            }, 120); // small debounce
+        });
+    })();
 });

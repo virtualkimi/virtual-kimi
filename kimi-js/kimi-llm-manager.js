@@ -1,10 +1,11 @@
 // ===== KIMI INTELLIGENT LLM SYSTEM =====
+import { KimiProviderUtils } from "./kimi-utils.js";
 class KimiLLMManager {
     constructor(database) {
         this.db = database;
         this.currentModel = null;
         this.conversationContext = [];
-        this.maxContextLength = 30;
+        this.maxContextLength = 100;
         this.systemPrompt = "";
 
         // Recommended models on OpenRouter (IDs updated August 2025)
@@ -30,8 +31,8 @@ class KimiLLMManager {
                 provider: "xAI",
                 type: "openrouter",
                 contextWindow: 131000,
-                pricing: { input: 0.3, output: 0.50 },
-                strengths: ["Multilingual", "Balanced", "Fast", "Economical"]
+                pricing: { input: 0.3, output: 0.5 },
+                strengths: ["Multilingual", "Balanced", "Efficient", "Economical"]
             },
             "cohere/command-r-08-2024": {
                 name: "Command-R-08-2024",
@@ -196,13 +197,10 @@ class KimiLLMManager {
         const preferences = await this.db.getAllPreferences();
 
         // Use unified emotion system defaults - CRITICAL FIX
-        const getUnifiedDefaults = () => {
-            if (window.KimiEmotionSystem) {
-                const emotionSystem = new window.KimiEmotionSystem(this.db);
-                return emotionSystem.TRAIT_DEFAULTS;
-            }
-            return { affection: 65, playfulness: 55, intelligence: 70, empathy: 75, humor: 60, romance: 50 };
-        };
+        const getUnifiedDefaults = () =>
+            window.getTraitDefaults
+                ? window.getTraitDefaults()
+                : { affection: 65, playfulness: 55, intelligence: 70, empathy: 75, humor: 60, romance: 50 };
 
         const defaults = getUnifiedDefaults();
         const affection = personality.affection || defaults.affection;
@@ -359,19 +357,9 @@ class KimiLLMManager {
     async chatWithOpenAICompatible(userMessage, options = {}) {
         const baseUrl = await this.db.getPreference("llmBaseUrl", "https://api.openai.com/v1/chat/completions");
         const provider = await this.db.getPreference("llmProvider", "openai");
-        const providerKeyMap = {
-            openrouter: "openrouterApiKey",
-            openai: "apiKey_openai",
-            groq: "apiKey_groq",
-            together: "apiKey_together",
-            deepseek: "apiKey_deepseek",
-            "openai-compatible": "apiKey_custom"
-        };
-        const keyPref = providerKeyMap[provider] || "llmApiKey";
-        let apiKey = await this.db.getPreference(keyPref, "");
-        if (!apiKey) {
-            apiKey = await this.db.getPreference("llmApiKey", "");
-        }
+        const apiKey = KimiProviderUtils
+            ? await KimiProviderUtils.getApiKey(this.db, provider)
+            : await this.db.getPreference("llmApiKey", "");
         const modelId = await this.db.getPreference("llmModelId", this.currentModel || "gpt-4o-mini");
         if (!apiKey) {
             throw new Error("API key not configured for selected provider");
@@ -384,7 +372,7 @@ class KimiLLMManager {
 
         const llmSettings = await this.db.getSetting("llm", {
             temperature: 0.9,
-            maxTokens: 100,
+            maxTokens: 200,
             top_p: 0.9,
             frequency_penalty: 0.3,
             presence_penalty: 0.3
@@ -432,6 +420,23 @@ class KimiLLMManager {
             );
             if (this.conversationContext.length > this.maxContextLength * 2) {
                 this.conversationContext = this.conversationContext.slice(-this.maxContextLength * 2);
+            }
+            // Approximate token usage and store temporarily for later persistence (single save point)
+            try {
+                const est = window.KimiTokenUtils?.estimate || (t => Math.ceil((t || "").length / 4));
+                const tokensIn = est(userMessage + " " + systemPromptContent);
+                const tokensOut = est(content);
+                window._lastKimiTokenUsage = { tokensIn, tokensOut };
+                if (!window.kimiMemory && this.db) {
+                    // Update counters early so UI can reflect even if memory save occurs later
+                    const character = await this.db.getSelectedCharacter();
+                    const prevIn = Number(await this.db.getPreference(`totalTokensIn_${character}`, 0)) || 0;
+                    const prevOut = Number(await this.db.getPreference(`totalTokensOut_${character}`, 0)) || 0;
+                    await this.db.setPreference(`totalTokensIn_${character}`, prevIn + tokensIn);
+                    await this.db.setPreference(`totalTokensOut_${character}`, prevOut + tokensOut);
+                }
+            } catch (tokenErr) {
+                console.warn("Token usage estimation failed:", tokenErr);
             }
             return content;
         } catch (e) {
@@ -605,6 +610,22 @@ class KimiLLMManager {
                 this.conversationContext = this.conversationContext.slice(-this.maxContextLength * 2);
             }
 
+            // Token usage estimation (deferred save)
+            try {
+                const est = window.KimiTokenUtils?.estimate || (t => Math.ceil((t || "").length / 4));
+                const tokensIn = est(userMessage + " " + systemPromptContent);
+                const tokensOut = est(kimiResponse);
+                window._lastKimiTokenUsage = { tokensIn, tokensOut };
+                if (!window.kimiMemory && this.db) {
+                    const character = await this.db.getSelectedCharacter();
+                    const prevIn = Number(await this.db.getPreference(`totalTokensIn_${character}`, 0)) || 0;
+                    const prevOut = Number(await this.db.getPreference(`totalTokensOut_${character}`, 0)) || 0;
+                    await this.db.setPreference(`totalTokensIn_${character}`, prevIn + tokensIn);
+                    await this.db.setPreference(`totalTokensOut_${character}`, prevOut + tokensOut);
+                }
+            } catch (e) {
+                console.warn("Token usage estimation failed (OpenRouter):", e);
+            }
             return kimiResponse;
         } catch (networkError) {
             if (networkError.name === "TypeError" && networkError.message.includes("fetch")) {
@@ -918,3 +939,4 @@ class KimiLLMManager {
 
 // Export for usage
 window.KimiLLMManager = KimiLLMManager;
+export default KimiLLMManager;

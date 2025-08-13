@@ -98,13 +98,114 @@ window.KIMI_CONTEXT_POSITIVE = {
 };
 
 window.KIMI_CONTEXT_NEGATIVE = {
-    en: ["sad", "angry", "anger", "disappointed", "problem", "bad", "frustrated", "worried", "upset", "annoyed"],
-    fr: ["triste", "colère", "fâché", "déçu", "problème", "mauvais", "frustré", "inquiet", "énervé"],
-    es: ["triste", "enojado", "decepcionado", "problema", "malo", "frustrado", "preocupado", "molesto"],
-    de: ["traurig", "wütend", "enttäuscht", "problem", "schlecht", "frustriert", "besorgt", "genervt"],
-    it: ["triste", "arrabbiato", "deluso", "problema", "cattivo", "frustrato", "preoccupato", "infastidito"],
-    ja: ["悲しい", "怒り", "失望", "問題", "悪い", "イライラ", "心配", "不満"],
-    zh: ["悲伤", "愤怒", "失望", "问题", "坏", "沮丧", "担心", "烦"]
+    en: [
+        "sad",
+        "angry",
+        "anger",
+        "disappointed",
+        "problem",
+        "bad",
+        "frustrated",
+        "worried",
+        "upset",
+        "annoyed",
+        // profanity/insults (moderate list)
+        "hate",
+        "stupid",
+        "idiot",
+        "dumb",
+        "moron",
+        "bitch"
+    ],
+    fr: [
+        "triste",
+        "colère",
+        "fâché",
+        "fâchée",
+        "déçu",
+        "déçue",
+        "problème",
+        "mauvais",
+        "frustré",
+        "frustrée",
+        "inquiet",
+        "inquiète",
+        "énervé",
+        "énervée",
+        // insults/profanity
+        "haine",
+        "idiot",
+        "idiote",
+        "stupide",
+        "con",
+        "connard",
+        "salope"
+    ],
+    es: [
+        "triste",
+        "enojado",
+        "enojada",
+        "decepcionado",
+        "decepcionada",
+        "problema",
+        "malo",
+        "mala",
+        "frustrado",
+        "frustrada",
+        "preocupado",
+        "preocupada",
+        "molesto",
+        "molesta",
+        "odio",
+        "idiota",
+        "estúpido",
+        "estúpida",
+        "puta"
+    ],
+    de: [
+        "traurig",
+        "traurige",
+        "wütend",
+        "wütende",
+        "enttäuscht",
+        "enttäuschte",
+        "problem",
+        "schlecht",
+        "schlechte",
+        "frustriert",
+        "frustrierte",
+        "besorgt",
+        "besorgte",
+        "genervt",
+        "genervte",
+        "hass",
+        "idiot",
+        "dumm",
+        "schlampe"
+    ],
+    it: [
+        "triste",
+        "arrabbiato",
+        "arrabbiata",
+        "deluso",
+        "delusa",
+        "problema",
+        "cattivo",
+        "cattiva",
+        "frustrato",
+        "frustrata",
+        "preoccupato",
+        "preoccupata",
+        "infastidito",
+        "infastidita",
+        "odio",
+        "idiota",
+        "stupido",
+        "stupida",
+        "puttana"
+    ],
+    ja: ["悲しい", "怒り", "失望", "問題", "悪い", "イライラ", "心配", "不満", "嫌い", "ばか", "くそ", "アホ"],
+    zh: ["悲伤", "愤怒", "失望", "问题", "坏", "沮丧", "担心", "烦", "讨厌", "笨蛋", "傻", "婊子"]
 };
 
 // Note: KIMI_CONTEXT_EMOTIONS was a redundant alias - now integrated directly into emotion system
@@ -126,7 +227,21 @@ window.KIMI_PERSONALITY_KEYWORDS = {
         },
         affection: {
             positive: ["affection", "tenderness", "close", "warmth", "kind", "caring", "cuddle", "love", "adore"],
-            negative: ["mean", "cold", "indifferent", "distant", "rejection", "hate", "hostile"]
+            negative: [
+                "mean",
+                "cold",
+                "indifferent",
+                "distant",
+                "rejection",
+                "hate",
+                "hostile",
+                // profanity/insults
+                "stupid",
+                "idiot",
+                "dumb",
+                "moron",
+                "bitch"
+            ]
         },
         playfulness: {
             positive: ["play", "game", "tease", "mischievous", "fun", "amusing", "playful", "joke", "frolic"],
@@ -140,23 +255,89 @@ window.KIMI_PERSONALITY_KEYWORDS = {
     fr: {
         humor: {
             positive: ["drôle", "rigolo", "blague", "rire", "amusant", "marrant", "humour", "sourire", "plaisanter"],
-            negative: ["ennuyeux", "triste", "sérieux", "froid", "sec", "déprimant", "morose"]
+            negative: [
+                "ennuyeux",
+                "ennuyeuse",
+                "triste",
+                "sérieux",
+                "sérieuse",
+                "froid",
+                "froide",
+                "sec",
+                "sèche",
+                "déprimant",
+                "déprimante",
+                "morose"
+            ]
         },
         intelligence: {
             positive: ["intelligent", "malin", "brillant", "logique", "astucieux", "savant", "génie", "réfléchi", "perspicace"],
-            negative: ["bête", "idiot", "stupide", "lent", "simplet", "naïf", "ignorant"]
+            negative: [
+                "bête",
+                "idiot",
+                "idiote",
+                "stupide",
+                "lent",
+                "lente",
+                "simplet",
+                "simplette",
+                "naïf",
+                "naïve",
+                "ignorant",
+                "ignorante"
+            ]
         },
         romance: {
             positive: ["câlin", "amour", "romantique", "bisou", "tendresse", "passion", "séduisant", "charmant", "adorable"],
-            negative: ["froid", "distant", "indifférent", "rejet", "solitude", "rupture", "triste"]
+            negative: [
+                "froid",
+                "froide",
+                "distant",
+                "distante",
+                "indifférent",
+                "indifférente",
+                "rejet",
+                "solitude",
+                "rupture",
+                "triste"
+            ]
         },
         affection: {
             positive: ["affection", "tendresse", "proche", "chaleur", "gentil", "attentionné", "câlin", "aimer", "adorer"],
-            negative: ["méchant", "froid", "indifférent", "distant", "rejet", "haine", "hostile"]
+            negative: [
+                "méchant",
+                "méchante",
+                "froid",
+                "indifférent",
+                "indifférente",
+                "distant",
+                "distante",
+                "rejet",
+                "haine",
+                "hostile",
+                // insults/profanity
+                "idiot",
+                "idiote",
+                "stupide",
+                "con",
+                "connard",
+                "salope"
+            ]
         },
         playfulness: {
             positive: ["jouer", "jeu", "taquiner", "espiègle", "fun", "amusant", "délire", "ludique", "plaisanter"],
-            negative: ["sérieux", "ennuyeux", "strict", "rigide", "monotone", "lassant"]
+            negative: [
+                "sérieux",
+                "sérieuse",
+                "ennuyeux",
+                "ennuyeuse",
+                "strict",
+                "stricte",
+                "rigide",
+                "monotone",
+                "lassant",
+                "lassante"
+            ]
         },
         empathy: {
             positive: [
@@ -170,7 +351,249 @@ window.KIMI_PERSONALITY_KEYWORDS = {
                 "compatir",
                 "bienveillance"
             ],
-            negative: ["indifférent", "froid", "égoïste", "ignorer", "mépriser", "dénigrer", "hostile"]
+            negative: ["indifférent", "indifférente", "froid", "froide", "égoïste", "ignorer", "mépriser", "dénigrer", "hostile"]
+        }
+    },
+    es: {
+        humor: {
+            positive: ["divertido", "broma", "reír", "gracioso", "humor", "sonrisa", "ocurrente", "jugar"],
+            negative: [
+                "aburrido",
+                "aburrida",
+                "serio",
+                "seria",
+                "frío",
+                "fría",
+                "seco",
+                "seca",
+                "deprimente",
+                "sombrío",
+                "sombría"
+            ]
+        },
+        intelligence: {
+            positive: ["inteligente", "listo", "brillante", "lógico", "sabio", "genio", "reflexivo", "perspicaz"],
+            negative: [
+                "tonto",
+                "tonta",
+                "estúpido",
+                "estúpida",
+                "necio",
+                "necia",
+                "lento",
+                "lenta",
+                "ingenuo",
+                "ingenua",
+                "ignorante"
+            ]
+        },
+        romance: {
+            positive: ["abrazo", "amor", "romántico", "beso", "ternura", "pasión", "encantador", "adorable", "dulce"],
+            negative: ["frío", "fría", "distante", "indiferente", "rechazo", "soledad", "ruptura", "triste"]
+        },
+        affection: {
+            positive: ["afecto", "ternura", "cerca", "calidez", "amable", "cariño", "abrazar", "amor", "adorar"],
+            negative: [
+                "malo",
+                "mala",
+                "frío",
+                "fría",
+                "indiferente",
+                "distante",
+                "rechazo",
+                "odio",
+                "hostil",
+                "idiota",
+                "estúpido",
+                "estúpida",
+                "puta"
+            ]
+        },
+        playfulness: {
+            positive: ["jugar", "broma", "bromear", "travieso", "diversión", "lúdico"],
+            negative: [
+                "serio",
+                "seria",
+                "aburrido",
+                "aburrida",
+                "estricto",
+                "estricta",
+                "rígido",
+                "rígida",
+                "monótono",
+                "monótona",
+                "tedioso",
+                "tediosa"
+            ]
+        },
+        empathy: {
+            positive: ["escuchar", "entender", "empatía", "apoyo", "ayudar", "consuelo", "compasión", "amabilidad"],
+            negative: ["indiferente", "frío", "fría", "egoísta", "ignorar", "despreciar", "hostil"]
+        }
+    },
+    de: {
+        humor: {
+            positive: ["lustig", "witz", "lachen", "amüsant", "humor", "lächeln", "schlagfertig", "spielen"],
+            negative: [
+                "langweilig",
+                "langweilige",
+                "ernst",
+                "ernste",
+                "kalt",
+                "kalte",
+                "trocken",
+                "trockene",
+                "deprimierend",
+                "düster",
+                "düstere"
+            ]
+        },
+        intelligence: {
+            positive: ["intelligent", "klug", "brillant", "logisch", "weise", "genial", "nachdenklich", "scharfsinnig"],
+            negative: ["dumm", "dumme", "blöd", "blöde", "langsam", "langsame", "naiv", "naive", "ahnungslos", "ahnungslosen"]
+        },
+        romance: {
+            positive: [
+                "umarmung",
+                "liebe",
+                "romantisch",
+                "kuss",
+                "zärtlichkeit",
+                "leidenschaft",
+                "charmant",
+                "liebenswert",
+                "süß"
+            ],
+            negative: [
+                "kalt",
+                "kalte",
+                "distanziert",
+                "distanzierte",
+                "gleichgültig",
+                "gleichgültige",
+                "ablehnung",
+                "einsamkeit",
+                "trennung",
+                "traurig",
+                "traurige"
+            ]
+        },
+        affection: {
+            positive: ["zuneigung", "zärtlichkeit", "nah", "wärme", "freundlich", "fürsorglich", "umarmen", "liebe", "anbeten"],
+            negative: [
+                "gemein",
+                "gemeine",
+                "kalt",
+                "kalte",
+                "gleichgültig",
+                "gleichgültige",
+                "distanziert",
+                "distanzierte",
+                "ablehnung",
+                "hass",
+                "feindselig",
+                "feindselige",
+                "idiot",
+                "dumme",
+                "dumm",
+                "schlampe"
+            ]
+        },
+        playfulness: {
+            positive: ["spielen", "scherz", "scherzen", "schelmisch", "spaß", "spielerisch"],
+            negative: [
+                "ernst",
+                "ernste",
+                "langweilig",
+                "langweilige",
+                "streng",
+                "strenge",
+                "starr",
+                "starre",
+                "eintönig",
+                "eintönige",
+                "mühsam",
+                "mühselige"
+            ]
+        },
+        empathy: {
+            positive: ["zuhören", "verstehen", "empathie", "unterstützung", "helfen", "trösten", "mitgefühl", "freundlichkeit"],
+            negative: [
+                "gleichgültig",
+                "gleichgültige",
+                "kalt",
+                "kalte",
+                "egoistisch",
+                "ignorieren",
+                "verachten",
+                "feindselig",
+                "feindselige"
+            ]
+        }
+    },
+    it: {
+        humor: {
+            positive: ["divertente", "scherzo", "ridere", "spassoso", "umorismo", "sorriso", "arguto", "giocare"],
+            negative: ["noioso", "noiosa", "serio", "seria", "freddo", "fredda", "secco", "secca", "deprimente", "cupo", "cupa"]
+        },
+        intelligence: {
+            positive: ["intelligente", "brillante", "logico", "saggio", "genio", "riflessivo", "perspicace"],
+            negative: ["stupido", "stupida", "sciocco", "sciocca", "lento", "lenta", "ingenuo", "ingenua", "ignorante"]
+        },
+        romance: {
+            positive: ["abbraccio", "amore", "romantico", "bacio", "tenerezza", "passione", "affascinante", "adorabile", "dolce"],
+            negative: ["freddo", "fredda", "distante", "indifferente", "rifiuto", "solitudine", "rottura", "triste"]
+        },
+        affection: {
+            positive: ["affetto", "tenerezza", "vicino", "calore", "gentile", "premuroso", "abbraccio", "amore", "adorare"],
+            negative: [
+                "cattivo",
+                "cattiva",
+                "freddo",
+                "fredda",
+                "indifferente",
+                "distante",
+                "rifiuto",
+                "odio",
+                "ostile",
+                "idiota",
+                "stupido",
+                "stupida",
+                "puttana"
+            ]
+        },
+        playfulness: {
+            positive: ["giocare", "scherzo", "scherzare", "birichino", "divertimento", "ludico"],
+            negative: [
+                "serio",
+                "seria",
+                "noioso",
+                "noiosa",
+                "severo",
+                "severa",
+                "rigido",
+                "rigida",
+                "monotono",
+                "monotona",
+                "tedioso",
+                "tediosa"
+            ]
+        },
+        empathy: {
+            positive: ["ascoltare", "capire", "empatia", "sostegno", "aiutare", "conforto", "compassione", "gentilezza"],
+            negative: ["indifferente", "freddo", "fredda", "egoista", "ignorare", "disprezzare", "ostile"]
+        }
+    },
+    ja: {
+        affection: {
+            positive: ["愛情", "優しさ", "近い", "温かさ", "親切", "思いやり", "抱きしめる", "愛", "敬愛"],
+            negative: ["意地悪", "冷たい", "無関心", "距離がある", "拒絶", "嫌い", "敵対的", "ばか", "くそ", "アホ"]
+        }
+    },
+    zh: {
+        affection: {
+            positive: ["感情", "温柔", "亲近", "温暖", "善良", "关怀", "拥抱", "爱", "崇拜"],
+            negative: ["刻薄", "冷漠", "无动于衷", "疏远", "拒绝", "讨厌", "敌对", "笨蛋", "傻", "婊子"]
         }
     }
 };

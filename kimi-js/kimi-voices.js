@@ -45,13 +45,14 @@ class KimiVoiceManager {
         // Track if microphone permission has been granted
         this.micPermissionGranted = false;
 
-        // Debounce flag for toggle microphone
-        this._toggleDebounce = false;
+        // Debounced microphone toggle (centralized utility)
+        this._debouncedToggleMicrophone = window.KimiPerformanceUtils
+            ? window.KimiPerformanceUtils.debounce(() => this._toggleMicrophoneCore(), 300, false, this)
+            : null;
 
         // Browser detection
         this.browser = this._detectBrowser();
     }
-
     // ===== INITIALIZATION =====
     async init() {
         // Avoid double initialization
@@ -393,6 +394,22 @@ class KimiVoiceManager {
                 this.transcriptContainer.classList.add("visible");
             } else if (this.transcriptContainer) {
                 this.transcriptContainer.classList.remove("visible");
+            }
+            // Ensure a speaking animation plays (avoid frozen neutral frame during TTS)
+            try {
+                if (window.kimiVideo && window.kimiVideo.getCurrentVideoInfo) {
+                    const info = window.kimiVideo.getCurrentVideoInfo();
+                    if (info && !(info.context && info.context.startsWith("speaking"))) {
+                        // Use positive speaking as neutral fallback
+                        const traits = await this.db?.getAllPersonalityTraits(
+                            window.kimiMemory?.selectedCharacter || (await this.db.getSelectedCharacter())
+                        );
+                        const affection = traits ? traits.affection : 50;
+                        window.kimiVideo.switchToContext("speakingPositive", "positive", null, traits || {}, affection);
+                    }
+                }
+            } catch (e) {
+                // Silent fallback
             }
         };
 
@@ -901,9 +918,9 @@ class KimiVoiceManager {
                     currentInfo.context === "speakingNegative" ||
                     currentInfo.context === "dancing")
             ) {
-                // On laisse la vidéo d'émotion se terminer naturellement
+                // Let emotion video finish naturally
             } else if (this.isStoppingVolontaire) {
-                // On retourne directement au neutre sans utiliser "transition"
+                // Use centralized video utility for neutral transition
                 window.kimiVideo.returnToNeutral();
             }
         }
@@ -1068,22 +1085,15 @@ class KimiVoiceManager {
 
     // Public method for external microphone toggle (keyboard, etc.)
     toggleMicrophone() {
+        if (this._debouncedToggleMicrophone) return this._debouncedToggleMicrophone();
+        return this._toggleMicrophoneCore();
+    }
+
+    _toggleMicrophoneCore() {
         if (!this.SpeechRecognition) {
             console.warn("🎤 Speech recognition not available");
             return false;
         }
-
-        // Add debouncing to prevent rapid toggles
-        if (this._toggleDebounce) {
-            console.log("🎤 Toggle debounced, ignoring rapid call");
-            return false;
-        }
-
-        this._toggleDebounce = true;
-        setTimeout(() => {
-            this._toggleDebounce = false;
-        }, 300); // 300ms debounce
-
         // If Kimi is speaking, stop speech synthesis first
         if (this.isSpeaking && this.speechSynthesis.speaking) {
             console.log("🎤 Interrupting speech to start listening");

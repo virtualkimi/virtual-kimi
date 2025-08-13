@@ -10,7 +10,7 @@ window.KIMI_CONFIG = {
         VOICE_PITCH: 1.1,
         VOICE_VOLUME: 0.8,
         LLM_TEMPERATURE: 0.9,
-        LLM_MAX_TOKENS: 100,
+        LLM_MAX_TOKENS: 200,
         LLM_TOP_P: 0.9,
         LLM_FREQUENCY_PENALTY: 0.3,
         LLM_PRESENCE_PENALTY: 0.3,

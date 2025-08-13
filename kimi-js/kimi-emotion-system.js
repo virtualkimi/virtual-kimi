@@ -53,7 +53,6 @@ class KimiEmotionSystem {
             romance: 50 // Significantly reduced from 95 - romance must be earned!
         };
     }
-
     // ===== UNIFIED EMOTION ANALYSIS =====
     analyzeEmotion(text, lang = "auto") {
         if (!text || typeof text !== "string") return this.EMOTIONS.NEUTRAL;
@@ -159,12 +158,13 @@ class KimiEmotionSystem {
         const selectedCharacter = character || (await this.db.getSelectedCharacter());
         const traits = await this.db.getAllPersonalityTraits(selectedCharacter);
 
-        let affection = traits.affection || this.TRAIT_DEFAULTS.affection;
-        let romance = traits.romance || this.TRAIT_DEFAULTS.romance;
-        let empathy = traits.empathy || this.TRAIT_DEFAULTS.empathy;
-        let playfulness = traits.playfulness || this.TRAIT_DEFAULTS.playfulness;
-        let humor = traits.humor || this.TRAIT_DEFAULTS.humor;
-        let intelligence = traits.intelligence || this.TRAIT_DEFAULTS.intelligence;
+        const safe = (v, def) => (typeof v === "number" && isFinite(v) ? v : def);
+        let affection = safe(traits?.affection, this.TRAIT_DEFAULTS.affection);
+        let romance = safe(traits?.romance, this.TRAIT_DEFAULTS.romance);
+        let empathy = safe(traits?.empathy, this.TRAIT_DEFAULTS.empathy);
+        let playfulness = safe(traits?.playfulness, this.TRAIT_DEFAULTS.playfulness);
+        let humor = safe(traits?.humor, this.TRAIT_DEFAULTS.humor);
+        let intelligence = safe(traits?.intelligence, this.TRAIT_DEFAULTS.intelligence);
 
         // Unified adjustment functions - More gradual progression for balanced experience
         const adjustUp = (val, amount) => {
@@ -251,21 +251,24 @@ class KimiEmotionSystem {
         await this._analyzeTextContent(
             text,
             traits => {
-                romance = traits.romance;
-                affection = traits.affection;
-                humor = traits.humor;
-                playfulness = traits.playfulness;
+                if (typeof traits.romance !== "undefined") romance = traits.romance;
+                if (typeof traits.affection !== "undefined") affection = traits.affection;
+                if (typeof traits.humor !== "undefined") humor = traits.humor;
+                if (typeof traits.playfulness !== "undefined") playfulness = traits.playfulness;
             },
             adjustUp
         );
 
+        // Preserve fractional progress to allow gradual visible changes
+        const to2 = v => Number(Number(v).toFixed(2));
+        const clamp = v => Math.max(0, Math.min(100, v));
         const updatedTraits = {
-            affection: Math.round(affection),
-            romance: Math.round(romance),
-            empathy: Math.round(empathy),
-            playfulness: Math.round(playfulness),
-            humor: Math.round(humor),
-            intelligence: Math.round(intelligence)
+            affection: to2(clamp(affection)),
+            romance: to2(clamp(romance)),
+            empathy: to2(clamp(empathy)),
+            playfulness: to2(clamp(playfulness)),
+            humor: to2(clamp(humor)),
+            intelligence: to2(clamp(intelligence))
         };
 
         // Save to database
@@ -280,7 +283,7 @@ class KimiEmotionSystem {
 
         const lowerUser = userMessage ? userMessage.toLowerCase() : "";
         const lowerKimi = (kimiResponse || "").toLowerCase();
-        const traits = await this.db.getAllPersonalityTraits(character);
+        const traits = (await this.db.getAllPersonalityTraits(character)) || {};
         const selectedLanguage = await this.db.getPreference("selectedLanguage", "en");
 
         // Use unified keyword system
@@ -294,7 +297,7 @@ class KimiEmotionSystem {
         for (const trait of ["humor", "intelligence", "romance", "affection", "playfulness", "empathy"]) {
             const posWords = getPersonalityWords(trait, "positive");
             const negWords = getPersonalityWords(trait, "negative");
-            let value = typeof traits[trait] === "number" ? traits[trait] : this.TRAIT_DEFAULTS[trait];
+            let value = typeof traits[trait] === "number" && isFinite(traits[trait]) ? traits[trait] : this.TRAIT_DEFAULTS[trait];
 
             // Count occurrences with proper weighting
             let posCount = 0;
@@ -451,8 +454,8 @@ class KimiEmotionSystem {
     }
 }
 
-// ===== GLOBAL EXPORT =====
 window.KimiEmotionSystem = KimiEmotionSystem;
+export default KimiEmotionSystem;
 
 // ===== BACKWARD COMPATIBILITY LAYER =====
 // Replace the old kimiAnalyzeEmotion function
@@ -471,39 +474,6 @@ window.updatePersonalityTraitsFromEmotion = async function (emotion, text) {
 
     const updatedTraits = await window.kimiEmotionSystem.updatePersonalityFromEmotion(emotion, text);
 
-    // Update UI sliders
-    if (updatedTraits && window.updateSlider) {
-        window.updateSlider("trait-affection", updatedTraits.affection);
-        window.updateSlider("trait-romance", updatedTraits.romance);
-        window.updateSlider("trait-empathy", updatedTraits.empathy);
-        window.updateSlider("trait-playfulness", updatedTraits.playfulness);
-        window.updateSlider("trait-humor", updatedTraits.humor);
-        window.updateSlider("trait-intelligence", updatedTraits.intelligence);
-    }
-
-    // Update memory system
-    if (window.kimiMemory && updatedTraits) {
-        window.kimiMemory.affectionTrait = updatedTraits.affection;
-        if (window.kimiMemory.updateFavorabilityBar) {
-            window.kimiMemory.updateFavorabilityBar();
-        }
-    }
-
-    // Update video context
-    if (window.kimiVideo && window.kimiVideo.setMoodByPersonality && updatedTraits) {
-        window.kimiVideo.setMoodByPersonality(updatedTraits);
-    }
-
-    // Dispatch event
-    if (window.dispatchEvent && updatedTraits) {
-        const selectedCharacter = window.kimiDB ? await window.kimiDB.getSelectedCharacter() : "kimi";
-        window.dispatchEvent(
-            new CustomEvent("personalityUpdated", {
-                detail: { character: selectedCharacter, traits: updatedTraits }
-            })
-        );
-    }
-
     return updatedTraits;
 };
 
@@ -513,4 +483,11 @@ window.getPersonalityAverage = function (traits) {
         window.kimiEmotionSystem = new KimiEmotionSystem(window.kimiDB);
     }
     return window.kimiEmotionSystem.calculatePersonalityAverage(traits);
+};
+
+// Unified trait defaults accessor
+window.getTraitDefaults = function () {
+    if (window.kimiEmotionSystem) return window.kimiEmotionSystem.TRAIT_DEFAULTS;
+    const temp = new KimiEmotionSystem(window.kimiDB);
+    return temp.TRAIT_DEFAULTS;
 };

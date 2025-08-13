@@ -118,6 +118,9 @@
     --mic-pulse-color: rgba(39, 174, 96, 0.5);
     --mic-pulse-listening-color: rgba(39, 174, 96, 0.4);
 
+    /* Video crossfade timing */
+    --video-fade-duration: 400ms;
+
     /* Cards & Stats */
     --card-bg: rgba(255, 255, 255, 0.05);
     --card-border: rgba(255, 255, 255, 0.1);
@@ -767,7 +770,7 @@ body {
     height: 100%;
     object-fit: contain;
     opacity: 0;
-    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: opacity var(--video-fade-duration) cubic-bezier(0.4, 0, 0.2, 1);
     background-color: #1a1a1a;
     will-change: opacity;
     backface-visibility: hidden;
@@ -775,7 +778,7 @@ body {
 
 .bg-video.transitioning {
     opacity: 0;
-    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: opacity var(--video-fade-duration) cubic-bezier(0.4, 0, 0.2, 1);
     pointer-events: none;
 }
 
@@ -1249,12 +1252,6 @@ body {
     backdrop-filter: blur(10px);
     width: 100%;
     box-sizing: border-box;
-}
-
-/* Mask sensitive values without using input type=password to avoid save prompts */
-.kimi-input.masked {
-    -webkit-text-security: disc; /* non-standard but widely supported in Chromium/WebKit */
-    filter: blur(6px); /* fallback for browsers without text-security (e.g., Firefox) */
 }
 
 .kimi-input:focus,
