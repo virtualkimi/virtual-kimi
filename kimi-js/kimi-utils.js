@@ -561,7 +561,6 @@ class KimiVideoManager {
                 `${folder}listening/listening-gentle-sway.mp4`,
                 `${folder}listening/listening-hand-gesture.mp4`,
                 `${folder}listening/listening-hair-touch.mp4`,
-                `${folder}listening/listening-chin-hand.mp4`,
                 `${folder}listening/listening-full-spin.mp4`,
                 `${folder}listening/listening-teasing-smile.mp4`,
                 `${folder}listening/listening-dreamy-gaze-romantic.mp4`
@@ -582,11 +581,11 @@ class KimiVideoManager {
                 `${folder}speaking-negative/speaking-frustrated-graceful.mp4`,
                 `${folder}speaking-negative/speaking-worried-tender.mp4`,
                 `${folder}speaking-negative/speaking-disappointed-elegant.mp4`,
-                `${folder}speaking-negative/speaking-shy-blush-adorable.mp4`,
                 `${folder}speaking-negative/speaking-gentle-wave-goodbye.mp4`
             ],
             neutral: [
                 `${folder}neutral/neutral-thinking-pose.mp4`,
+                `${folder}neutral/neutral-shy-blush-adorable.mp4`,
                 `${folder}neutral/neutral-gentle-breathing.mp4`,
                 `${folder}neutral/neutral-hair-adjustment.mp4`,
                 `${folder}neutral/neutral-arms-crossed-elegant.mp4`,
