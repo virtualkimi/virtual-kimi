@@ -1532,6 +1532,15 @@ class KimiVideoManager {
             }
             this._recentFailures.set(videoSrc, performance.now());
             this._consecutiveErrorCount++;
+            // Stop runaway fallback loop: pause if too many sequential errors relative to pool size
+            if (this._fallbackPool && this._consecutiveErrorCount >= this._fallbackPool.length * 2) {
+                console.error("Temporarily pausing fallback loop after repeated failures. Retrying in 2s.");
+                setTimeout(() => {
+                    this._consecutiveErrorCount = 0;
+                    this.loadAndSwitchVideo(fallbackVideo, "high");
+                }, 2000);
+                return;
+            }
             if (videoSrc !== fallbackVideo) {
                 // Try fallback video
                 this._fallbackIndex = (this._fallbackIndex + 1) % this._fallbackPool.length; // advance for next time
@@ -1592,6 +1601,24 @@ class KimiVideoManager {
                             else this._currentErrorHandler();
                         }
                     }, this._timeoutExtension);
+                    return;
+                }
+                // Grace retry: still fetching over network (networkState=2) with no data (readyState=0)
+                if (
+                    this.inactiveVideo.networkState === 2 &&
+                    this.inactiveVideo.readyState === 0 &&
+                    (this._graceRetryCounts?.[videoSrc] || 0) < 1
+                ) {
+                    if (!this._graceRetryCounts) this._graceRetryCounts = {};
+                    this._graceRetryCounts[videoSrc] = (this._graceRetryCounts[videoSrc] || 0) + 1;
+                    const extra = this._timeoutExtension + 600;
+                    console.debug(`Grace retry for ${videoSrc} (network loading). Extending by ${extra}ms`);
+                    this._loadTimeout = setTimeout(() => {
+                        if (!fired) {
+                            if (this.inactiveVideo.readyState >= 2) onReady();
+                            else this._currentErrorHandler();
+                        }
+                    }, extra);
                     return;
                 }
                 if (this.inactiveVideo.readyState >= 2) {
