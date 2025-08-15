@@ -559,6 +559,11 @@ class KimiVideoManager {
         this.videoCategories = {
             listening: [
                 `${folder}listening/listening-gentle-sway.mp4`,
+                `${folder}listening/listening-magnetic-eye-gaze.mp4`,
+                `${folder}listening/listening-silky-caressing-hairplay.mp4`,
+                `${folder}listening/listening-softly-velvet-glance.mp4`,
+                `${folder}listening/listening-surprise-sweet-shiver.mp4`,
+                `${folder}listening/listening-whispered-attention.mp4`,
                 `${folder}listening/listening-hand-gesture.mp4`,
                 `${folder}listening/listening-hair-touch.mp4`,
                 `${folder}listening/listening-full-spin.mp4`,
@@ -567,6 +572,10 @@ class KimiVideoManager {
             ],
             speakingPositive: [
                 `${folder}speaking-positive/speaking-happy-gestures.mp4`,
+                `${folder}speaking-positive/speaking-positive-heartfelt-shine.mp4`,
+                `${folder}speaking-positive/speaking-positive-joyful-flutter.mp4`,
+                `${folder}speaking-positive/speaking-positive-mischief-touch.mp4`,
+                `${folder}speaking-positive/speaking-positive-sparkling-tease.mp4`,
                 `${folder}speaking-positive/speaking-playful-wink.mp4`,
                 `${folder}speaking-positive/speaking-excited-clapping.mp4`,
                 `${folder}speaking-positive/speaking-heart-gesture.mp4`,
@@ -577,6 +586,10 @@ class KimiVideoManager {
                 `${folder}speaking-positive/speaking-flirtatious-tease.mp4`
             ],
             speakingNegative: [
+                `${folder}speaking-negative/speaking-negative-anxious-caress.mp4`,
+                `${folder}speaking-negative/speaking-negative-frosted-glance.mp4`,
+                `${folder}speaking-negative/speaking-negative-muted-longing.mp4`,
+                `${folder}speaking-negative/speaking-negative-shadowed-sigh.mp4`,
                 `${folder}speaking-negative/speaking-sad-elegant.mp4`,
                 `${folder}speaking-negative/speaking-frustrated-graceful.mp4`,
                 `${folder}speaking-negative/speaking-worried-tender.mp4`,
@@ -586,6 +599,15 @@ class KimiVideoManager {
             neutral: [
                 `${folder}neutral/neutral-thinking-pose.mp4`,
                 `${folder}neutral/neutral-shy-blush-adorable.mp4`,
+                `${folder}neutral/neutral-confident-chic-flair.mp4`,
+                `${folder}neutral/neutral-dreamy-soft-reverie.mp4`,
+                `${folder}neutral/neutral-flirt-wink-whisper.mp4`,
+                `${folder}neutral/neutral-goodbye-tender-wave.mp4`,
+                `${folder}neutral/neutral-hair-twirl.mp4`,
+                `${folder}neutral/neutral-kiss-air-caress.mp4`,
+                `${folder}neutral/neutral-poised-shift.mp4`,
+                `${folder}neutral/neutral-shy-blush-glow.mp4`,
+                `${folder}neutral/neutral-speaking-dreamy-flow.mp4`,
                 `${folder}neutral/neutral-gentle-breathing.mp4`,
                 `${folder}neutral/neutral-hair-adjustment.mp4`,
                 `${folder}neutral/neutral-arms-crossed-elegant.mp4`,
@@ -595,6 +617,11 @@ class KimiVideoManager {
             ],
             dancing: [
                 `${folder}dancing/dancing-chin-hand.mp4`,
+                `${folder}dancing/dancing-bow-promise.mp4`,
+                `${folder}dancing/dancing-enchanting-flow.mp4`,
+                `${folder}dancing/dancing-magnetic-spin.mp4`,
+                `${folder}dancing/dancing-playful-glimmer.mp4`,
+                `${folder}dancing/dancing-silken-undulation.mp4`,
                 `${folder}dancing/dancing-full-spin.mp4`,
                 `${folder}dancing/dancing-seductive-dance-undulation.mp4`,
                 `${folder}dancing/dancing-slow-seductive.mp4`,
