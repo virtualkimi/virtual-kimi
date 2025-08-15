@@ -1,5 +1,19 @@
 # Virtual Kimi Changelog
 
+## [1.0.6] - 2025-08-15
+
+### Added
+
+- Added 100+ videos for various contexts.
+
+### Changed
+
+- Optimized video preloading to improve speed on slow web servers.
+
+### Fixed
+
+- Fixed various minor bugs.
+
 ## [1.0.5] - 2025-08-13 - "Personality & Language Sensitivity"
 
 ### Added
