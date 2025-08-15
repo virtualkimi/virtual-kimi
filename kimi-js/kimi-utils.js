@@ -562,6 +562,10 @@ class KimiVideoManager {
 
         // Nettoyer les handlers en cours lors du changement de personnage
         this._cleanupLoadingHandlers();
+        // Reset per-character fallback pool so it will be rebuilt for the new character
+        this._fallbackPool = null;
+        this._fallbackIndex = 0;
+        this._fallbackPoolCharacter = null;
 
         this.updateVideoCategories();
     }
@@ -1508,11 +1512,13 @@ class KimiVideoManager {
 
         const folder = getCharacterInfo(this.characterName).videoFolder;
         // Rotating fallback pool (stable neutrals first positions)
-        if (!this._fallbackPool) {
+        // Build or rebuild fallback pool when absent or when character changed
+        if (!this._fallbackPool || this._fallbackPoolCharacter !== this.characterName) {
             const neutralList = (this.videoCategories && this.videoCategories.neutral) || [];
-            // Choose first 3 as "ultra reliable" (order curated manually in list)
+            // Choose first 3 as core reliable set; if less than 3 available, take all
             this._fallbackPool = neutralList.slice(0, 3);
             this._fallbackIndex = 0;
+            this._fallbackPoolCharacter = this.characterName;
         }
         const fallbackVideo = this._fallbackPool[this._fallbackIndex % this._fallbackPool.length];
 
