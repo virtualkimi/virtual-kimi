@@ -370,6 +370,18 @@ class KimiVideoManager {
         this._stickyUntil = 0;
         this._pendingSwitches = [];
         this._debug = false;
+        // Adaptive timeout refinements (A+B+C)
+        this._maxTimeout = 6000; // Reduced upper bound (was 10000) for 10s clips
+        this._timeoutExtension = 1200; // Extension when metadata only
+        this._timeoutCapRatio = 0.7; // Cap total wait <= 70% clip length
+        // Initialize adaptive loading metrics and failure tracking
+        this._avgLoadTime = null;
+        this._loadTimeSamples = [];
+        this._maxSamples = 10;
+        this._minTimeout = 3000;
+        this._recentFailures = new Map();
+        this._failureCooldown = 5000;
+        this._consecutiveErrorCount = 0;
     }
 
     /**
@@ -633,7 +645,30 @@ class KimiVideoManager {
         this.neutralVideos = this.videoCategories.neutral;
 
         const neutrals = this.neutralVideos || [];
-        neutrals.slice(0, 2).forEach(src => this._prefetch(src));
+        // Progressive warm-up phase: start with only 2 neutrals (adaptive on network), others scheduled later
+        let neutralPrefetchCount = 2;
+        try {
+            const conn = navigator.connection || navigator.webkitConnection || navigator.mozConnection;
+            if (conn && conn.effectiveType) {
+                // Reduce on slower connections
+                if (/2g/i.test(conn.effectiveType)) neutralPrefetchCount = 1;
+                else if (/3g/i.test(conn.effectiveType)) neutralPrefetchCount = 2;
+            }
+        } catch {}
+        neutrals.slice(0, neutralPrefetchCount).forEach(src => this._prefetch(src));
+
+        // Schedule warm-up step 2: after 5s prefetch the 3rd neutral if not already cached
+        if (!this._warmupTimer) {
+            this._warmupTimer = setTimeout(() => {
+                try {
+                    const target = neutrals[2];
+                    if (target && !this._prefetchCache.has(target)) this._prefetch(target);
+                } catch {}
+            }, 5000);
+        }
+
+        // Mark waiting for first interaction to fetch 4th neutral later
+        this._awaitingFirstInteraction = true;
     }
 
     async init(database = null) {
@@ -641,6 +676,21 @@ class KimiVideoManager {
         if (!this._visibilityHandler) {
             this._visibilityHandler = this.onVisibilityChange.bind(this);
             document.addEventListener("visibilitychange", this._visibilityHandler);
+        }
+        // Hook basic user interaction (first click / keypress) to advance warm-up
+        if (!this._firstInteractionHandler) {
+            this._firstInteractionHandler = () => {
+                if (this._awaitingFirstInteraction) {
+                    this._awaitingFirstInteraction = false;
+                    try {
+                        const neutrals = this.neutralVideos || [];
+                        const fourth = neutrals[3];
+                        if (fourth && !this._prefetchCache.has(fourth)) this._prefetch(fourth);
+                    } catch {}
+                }
+            };
+            window.addEventListener("click", this._firstInteractionHandler, { once: true });
+            window.addEventListener("keydown", this._firstInteractionHandler, { once: true });
         }
     }
 
@@ -682,6 +732,7 @@ class KimiVideoManager {
             }
             this._stickyContext = null;
             this._stickyUntil = 0;
+            // Do not reset adaptive loading metrics here; preserve rolling stats across sticky context release
         }
         // While an emotion video is playing (speaking), block non-speaking context switches
         if (
@@ -1367,6 +1418,18 @@ class KimiVideoManager {
     }
 
     loadAndSwitchVideo(videoSrc, priority = "normal") {
+        const startTs = performance.now();
+        // Guard: ignore if recently failed and still in cooldown
+        const lastFail = this._recentFailures.get(videoSrc);
+        if (lastFail && performance.now() - lastFail < this._failureCooldown) {
+            // Pick an alternative neutral as quick substitution
+            const neutralList = (this.videoCategories && this.videoCategories.neutral) || [];
+            const alt = neutralList.find(v => v !== videoSrc) || neutralList[0];
+            if (alt && alt !== videoSrc) {
+                console.warn(`Skipping recently failed video (cooldown): ${videoSrc} -> trying alt: ${alt}`);
+                return this.loadAndSwitchVideo(alt, priority);
+            }
+        }
         // Avoid redundant loading if the requested source is already active or currently loading in inactive element
         const activeSrc = this.activeVideo?.querySelector("source")?.getAttribute("src");
         const inactiveSrc = this.inactiveVideo?.querySelector("source")?.getAttribute("src");
@@ -1432,22 +1495,46 @@ class KimiVideoManager {
             this.inactiveVideo.removeEventListener("canplay", this._currentLoadHandler);
             this.inactiveVideo.removeEventListener("loadeddata", this._currentLoadHandler);
             this.inactiveVideo.removeEventListener("error", this._currentErrorHandler);
+            // Update rolling average load time
+            const duration = performance.now() - startTs;
+            this._loadTimeSamples.push(duration);
+            if (this._loadTimeSamples.length > this._maxSamples) this._loadTimeSamples.shift();
+            const sum = this._loadTimeSamples.reduce((a, b) => a + b, 0);
+            this._avgLoadTime = sum / this._loadTimeSamples.length;
+            this._consecutiveErrorCount = 0; // reset on success
             this.performSwitch();
         };
         this._currentLoadHandler = onReady;
 
         const folder = getCharacterInfo(this.characterName).videoFolder;
-        const fallbackVideo = `${folder}neutral/neutral-gentle-breathing.mp4`;
+        // Rotating fallback pool (stable neutrals first positions)
+        if (!this._fallbackPool) {
+            const neutralList = (this.videoCategories && this.videoCategories.neutral) || [];
+            // Choose first 3 as "ultra reliable" (order curated manually in list)
+            this._fallbackPool = neutralList.slice(0, 3);
+            this._fallbackIndex = 0;
+        }
+        const fallbackVideo = this._fallbackPool[this._fallbackIndex % this._fallbackPool.length];
 
         this._currentErrorHandler = e => {
-            console.warn(`Error loading video: ${videoSrc}, falling back to: ${fallbackVideo}`);
+            const mediaEl = this.inactiveVideo;
+            const readyState = mediaEl ? mediaEl.readyState : -1;
+            const networkState = mediaEl ? mediaEl.networkState : -1;
+            let mediaErrorCode = null;
+            if (mediaEl && mediaEl.error) mediaErrorCode = mediaEl.error.code;
+            console.warn(
+                `Error loading video: ${videoSrc} (readyState=${readyState} networkState=${networkState} mediaError=${mediaErrorCode}) falling back to: ${fallbackVideo}`
+            );
             this._loadingInProgress = false;
             if (this._loadTimeout) {
                 clearTimeout(this._loadTimeout);
                 this._loadTimeout = null;
             }
+            this._recentFailures.set(videoSrc, performance.now());
+            this._consecutiveErrorCount++;
             if (videoSrc !== fallbackVideo) {
                 // Try fallback video
+                this._fallbackIndex = (this._fallbackIndex + 1) % this._fallbackPool.length; // advance for next time
                 this.loadAndSwitchVideo(fallbackVideo, "high");
             } else {
                 // Ultimate fallback: try any neutral video
@@ -1468,6 +1555,12 @@ class KimiVideoManager {
                     this._switchInProgress = false;
                 }
             }
+            // Escalate diagnostics if many consecutive errors
+            if (this._consecutiveErrorCount >= 3) {
+                console.info(
+                    `Diagnostics: avgLoadTime=${this._avgLoadTime?.toFixed(1) || "n/a"}ms samples=${this._loadTimeSamples.length} prefetchCache=${this._prefetchCache.size}`
+                );
+            }
         };
 
         this.inactiveVideo.addEventListener("loadeddata", this._currentLoadHandler, { once: true });
@@ -1478,15 +1571,36 @@ class KimiVideoManager {
             queueMicrotask(() => onReady());
         }
 
+        // Dynamic timeout: refined formula avg*1.5 + buffer, bounded
+        let adaptiveTimeout = this._minTimeout;
+        if (this._avgLoadTime) {
+            adaptiveTimeout = Math.min(this._maxTimeout, Math.max(this._minTimeout, this._avgLoadTime * 1.5 + 400));
+        }
+        // Cap by clip length ratio if we know (assume 10000ms default when metadata absent)
+        const currentClipMs = 10000; // All clips are 10s
+        adaptiveTimeout = Math.min(adaptiveTimeout, Math.floor(currentClipMs * this._timeoutCapRatio));
         this._loadTimeout = setTimeout(() => {
             if (!fired) {
+                // If metadata is there but not canplay yet, extend once
+                if (this.inactiveVideo.readyState >= 1 && this.inactiveVideo.readyState < 2) {
+                    console.debug(
+                        `Extending timeout for ${videoSrc} (readyState=${this.inactiveVideo.readyState}) by ${this._timeoutExtension}ms`
+                    );
+                    this._loadTimeout = setTimeout(() => {
+                        if (!fired) {
+                            if (this.inactiveVideo.readyState >= 2) onReady();
+                            else this._currentErrorHandler();
+                        }
+                    }, this._timeoutExtension);
+                    return;
+                }
                 if (this.inactiveVideo.readyState >= 2) {
                     onReady();
                 } else {
                     this._currentErrorHandler();
                 }
             }
-        }, 3000);
+        }, adaptiveTimeout);
     }
 
     usePreloadedVideo(preloadedVideo, videoSrc) {
@@ -1533,6 +1647,19 @@ class KimiVideoManager {
                             const src = this.activeVideo?.querySelector("source")?.getAttribute("src");
                             const info = { context: this.currentContext, emotion: this.currentEmotion };
                             console.log("🎬 VideoManager: Now playing:", src, info);
+                            // Recompute autoTransitionDuration from actual duration if available (C)
+                            try {
+                                const d = this.activeVideo.duration;
+                                if (!isNaN(d) && d > 0.5) {
+                                    // Keep 1s headroom before natural end for auto scheduling
+                                    const target = Math.max(1000, d * 1000 - 1100);
+                                    this.autoTransitionDuration = target;
+                                } else {
+                                    this.autoTransitionDuration = 9900; // fallback for 10s clips
+                                }
+                                // Dynamic neutral prefetch to widen diversity without burst
+                                this._prefetchNeutralDynamic();
+                            } catch {}
                         } catch {}
                         this._switchInProgress = false;
                         this.setupEventListenersForContext(this.currentContext);
@@ -1553,9 +1680,45 @@ class KimiVideoManager {
             } else {
                 // Non-promise play fallback
                 this._switchInProgress = false;
+                try {
+                    const d = this.activeVideo.duration;
+                    if (!isNaN(d) && d > 0.5) {
+                        const target = Math.max(1000, d * 1000 - 1100);
+                        this.autoTransitionDuration = target;
+                    } else {
+                        this.autoTransitionDuration = 9900;
+                    }
+                    this._prefetchNeutralDynamic();
+                } catch {}
                 this.setupEventListenersForContext(this.currentContext);
             }
         });
+    }
+
+    _prefetchNeutralDynamic() {
+        try {
+            const neutrals = (this.videoCategories && this.videoCategories.neutral) || [];
+            if (!neutrals.length) return;
+            // Build a set of already cached or in-flight
+            const cached = new Set(
+                [...this._prefetchCache.keys(), ...this._prefetchInFlight.values()].map(v => (typeof v === "string" ? v : v?.src))
+            ); // defensive
+            const current = this.activeVideo?.querySelector("source")?.getAttribute("src");
+            // Choose up to 2 unseen neutral videos different from current
+            const candidates = neutrals.filter(s => s && s !== current && !cached.has(s));
+            if (!candidates.length) return;
+            let limit = 2;
+            // Network-aware limiting
+            try {
+                const conn = navigator.connection || navigator.webkitConnection || navigator.mozConnection;
+                if (conn && conn.effectiveType) {
+                    if (/2g/i.test(conn.effectiveType)) limit = 0;
+                    else if (/3g/i.test(conn.effectiveType)) limit = 1;
+                }
+            } catch {}
+            if (limit <= 0) return;
+            candidates.slice(0, limit).forEach(src => this._prefetch(src));
+        } catch {}
     }
 
     _prefetch(src) {
@@ -1575,10 +1738,12 @@ class KimiVideoManager {
         };
         v.oncanplay = () => {
             this._prefetchCache.set(src, v);
+            this._trimPrefetchCacheIfNeeded();
             cleanup();
         };
         v.oncanplaythrough = () => {
             this._prefetchCache.set(src, v);
+            this._trimPrefetchCacheIfNeeded();
             cleanup();
         };
         v.onerror = () => {
@@ -1586,6 +1751,31 @@ class KimiVideoManager {
         };
         try {
             v.load();
+        } catch {}
+    }
+
+    _trimPrefetchCacheIfNeeded() {
+        try {
+            // Only apply LRU trimming to neutral videos; cap at 6 neutrals cached
+            const MAX_NEUTRAL = 6;
+            const entries = [...this._prefetchCache.entries()];
+            const neutralEntries = entries.filter(([src]) => /\/neutral\//.test(src));
+            if (neutralEntries.length <= MAX_NEUTRAL) return;
+            // LRU heuristic: older insertion first (Map preserves insertion order)
+            const excess = neutralEntries.length - MAX_NEUTRAL;
+            let removed = 0;
+            for (const [src, vid] of neutralEntries) {
+                if (removed >= excess) break;
+                // Avoid removing currently active or about to be used
+                const current = this.activeVideo?.querySelector("source")?.getAttribute("src");
+                if (src === current) continue;
+                this._prefetchCache.delete(src);
+                try {
+                    vid.removeAttribute("src");
+                    vid.load();
+                } catch {}
+                removed++;
+            }
         } catch {}
     }
 
