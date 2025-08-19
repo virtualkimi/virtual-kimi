@@ -191,7 +191,7 @@ class KimiVoiceManager {
             filteredVoices = this.availableVoices.filter(voice => voice.lang.toLowerCase().includes(this.selectedLanguage));
         }
         if (filteredVoices.length === 0) {
-            // As a last resort, use any available voice rather than defaulting to English
+            // As a last resort, use any available voice
             filteredVoices = this.availableVoices;
         }
 
@@ -214,22 +214,17 @@ class KimiVoiceManager {
             }
         }
 
-        if (this.selectedLanguage && this.selectedLanguage.startsWith("fr")) {
-            this.kimiEnglishVoice =
-                filteredVoices.find(voice => voice.name.startsWith("Microsoft Eloise Online")) ||
-                filteredVoices.find(voice => voice.name.toLowerCase().includes("eloise")) ||
-                filteredVoices[0] ||
-                this.availableVoices[0];
-        } else {
-            this.kimiEnglishVoice =
-                filteredVoices.find(voice => voice.name.toLowerCase().includes("female")) ||
-                filteredVoices[0] ||
-                this.availableVoices[0];
-        }
+        // Prefer female voices if available, otherwise fallback
+        const femaleVoice = filteredVoices.find(
+            voice =>
+                voice.name.toLowerCase().includes("female") ||
+                (voice.gender && voice.gender.toLowerCase() === "female") ||
+                voice.name.toLowerCase().includes("woman") ||
+                voice.name.toLowerCase().includes("girl")
+        );
+        this.kimiEnglishVoice = femaleVoice || filteredVoices[0] || this.availableVoices[0];
 
-        if (this.kimiEnglishVoice) {
-            await this.db?.setPreference("selectedVoice", this.kimiEnglishVoice.name);
-        }
+        // Do not overwrite "auto" preference here; only update if user selects a specific voice
 
         this.updateVoiceSelector();
         this._initializingVoices = false;
@@ -276,12 +271,10 @@ class KimiVoiceManager {
     async handleVoiceChange(e) {
         if (e.target.value === "auto") {
             await this.db?.setPreference("selectedVoice", "auto");
-            // Don't re-init voices when auto is selected to avoid loops
-            this.kimiEnglishVoice = null; // Reset to trigger auto-selection on next speak
+            this.kimiEnglishVoice = null; // Trigger auto-selection next time
         } else {
             this.kimiEnglishVoice = this.availableVoices.find(voice => voice.name === e.target.value);
             await this.db?.setPreference("selectedVoice", e.target.value);
-            // Reduced logging to prevent noise
         }
     }
 
@@ -305,15 +298,7 @@ class KimiVoiceManager {
         }
 
         // Clean text for better speech synthesis
-        let processedText = text
-            .replace(/([\p{Emoji}\p{Extended_Pictographic}])/gu, " ")
-            .replace(/\.\.\./g, " pause ")
-            .replace(/\!+/g, " ! ")
-            .replace(/\?+/g, " ? ")
-            .replace(/\.{2,}/g, " pause ")
-            .replace(/[,;:]+/g, ", ")
-            .replace(/\s+/g, " ")
-            .trim();
+        let processedText = this._normalizeForSpeech(text);
 
         // Detect emotional content for voice adjustments
         let customRate = options.rate;
@@ -450,6 +435,67 @@ class KimiVoiceManager {
         };
 
         this.speechSynthesis.speak(utterance);
+    }
+
+    /**
+     * Normalize raw model text into something natural for browser speech synthesis.
+     * Goals:
+     *  - Remove emojis / pictographs (engines try to read them literally)
+     *  - Collapse excessive punctuation while preserving rhythm
+     *  - Convert ellipses to a Unicode ellipsis (…)
+     *  - Remove markdown / formatting artifacts (* _ ~ ` # [] <> etc.)
+     *  - Remove stray markup like **bold**, inline code, URLs parentheses clutter
+     *  - Keep meaningful punctuation (. , ! ? ; :)
+     *  - Avoid inserting artificial words (e.g., "pause")
+     */
+    _normalizeForSpeech(raw) {
+        if (!raw) return "";
+        let txt = raw;
+        // Remove URLs completely (they sound awkward) – keep none.
+        txt = txt.replace(/https?:\/\/\S+/gi, " ");
+        // Remove markdown code blocks and inline code markers
+        txt = txt.replace(/`{3}[\s\S]*?`{3}/g, " "); // fenced blocks
+        txt = txt.replace(/`([^`]+)`/g, "$1"); // inline code unwrap
+        // Remove emphasis markers (*, _, ~) while keeping inner text
+        txt = txt.replace(/\*{1,3}([^*]+)\*{1,3}/g, "$1");
+        txt = txt.replace(/_{1,3}([^_]+)_{1,3}/g, "$1");
+        txt = txt.replace(/~{1,2}([^~]+)~{1,2}/g, "$1");
+        // Strip remaining markdown heading symbols at line starts
+        txt = txt.replace(/^\s{0,3}#{1,6}\s+/gm, "");
+        // Remove HTML/XML tags
+        txt = txt.replace(/<[^>]+>/g, " ");
+        // Remove brackets content if it is link style [text](url)
+        txt = txt.replace(/\[([^\]]+)\]\([^)]*\)/g, "$1");
+        // Remove leftover standalone brackets
+        txt = txt.replace(/[\[\]<>]/g, " ");
+        // Remove emojis / pictographic chars
+        txt = txt.replace(/[\p{Emoji}\p{Extended_Pictographic}]/gu, " ");
+        // Normalize ellipses: sequences of 3+ dots -> single ellipsis surrounded by light spaces
+        txt = txt.replace(/\.{3,}/g, " … ");
+        // Replace double dots with single period + space
+        txt = txt.replace(/\.\./g, ". ");
+        // Collapse multiple exclamation/question marks to single (keeps expressiveness but avoids stutter)
+        txt = txt.replace(/!{2,}/g, "!");
+        txt = txt.replace(/\?{2,}/g, "?");
+        // Space after sentence punctuation if missing
+        txt = txt.replace(/([.!?])([^\s\d])/g, "$1 $2");
+        // Replace underscores or asterisks still present with spaces
+        txt = txt.replace(/[*_]{2,}/g, " ");
+        // Remove stray backticks
+        txt = txt.replace(/`+/g, " ");
+        // Collapse mixed punctuation like ?!?! to a single terminal symbol keeping first char
+        txt = txt.replace(/([!?]){2,}/g, "$1");
+        // Remove repeated commas / semicolons / colons
+        txt = txt.replace(/,{2,}/g, ",");
+        txt = txt.replace(/;{2,}/g, ";");
+        txt = txt.replace(/:{2,}/g, ":");
+        // Remove leading/trailing punctuation clusters
+        txt = txt.replace(/^[\s.,;:!?]+/, "").replace(/[\s.,;:!?]+$/, "");
+        // Collapse whitespace
+        txt = txt.replace(/\s+/g, " ");
+        // Final trim
+        txt = txt.trim();
+        return txt;
     }
 
     // Intelligently calculate synthesis duration

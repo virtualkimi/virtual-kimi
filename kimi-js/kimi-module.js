@@ -297,19 +297,102 @@ async function loadCharacterSection() {
         promptInput.id = `prompt-${key}`;
         promptInput.rows = 6;
 
+        // Create buttons container
+        const buttonsContainer = document.createElement("div");
+        buttonsContainer.className = "character-prompt-buttons";
+
+        // Save button
+        const saveButton = document.createElement("button");
+        saveButton.className = "kimi-button character-save-btn";
+        saveButton.id = `save-${key}`;
+        saveButton.setAttribute("data-i18n", "save");
+        saveButton.textContent = "Save";
+
+        // Reset button
+        const resetButton = document.createElement("button");
+        resetButton.className = "kimi-button character-reset-btn";
+        resetButton.id = `reset-${key}`;
+        resetButton.setAttribute("data-i18n", "reset_to_default");
+        resetButton.textContent = "Reset to Default";
+
+        buttonsContainer.appendChild(saveButton);
+        buttonsContainer.appendChild(resetButton);
+
         card.appendChild(img);
         card.appendChild(infoDiv);
         card.appendChild(promptLabel);
         card.appendChild(promptInput);
+        card.appendChild(buttonsContainer);
         characterGrid.appendChild(card);
     }
     applyTranslations();
+
+    // Initialize prompt values and button event listeners
     for (const key of Object.keys(window.KIMI_CHARACTERS)) {
         const promptInput = document.getElementById(`prompt-${key}`);
+        const saveButton = document.getElementById(`save-${key}`);
+        const resetButton = document.getElementById(`reset-${key}`);
+
         if (promptInput) {
             const prompt = await kimiDB.getSystemPromptForCharacter(key);
             promptInput.value = prompt;
             promptInput.disabled = key !== selectedCharacter;
+        }
+
+        // Save button event listener
+        if (saveButton) {
+            saveButton.addEventListener("click", async () => {
+                if (promptInput) {
+                    await kimiDB.setSystemPromptForCharacter(key, promptInput.value);
+
+                    // Visual feedback
+                    const originalText = saveButton.textContent;
+                    saveButton.textContent = "Saved!";
+                    saveButton.classList.add("success");
+                    saveButton.disabled = true;
+
+                    setTimeout(() => {
+                        saveButton.setAttribute("data-i18n", "save");
+                        applyTranslations();
+                        saveButton.classList.remove("success");
+                        saveButton.disabled = false;
+                    }, 1500);
+
+                    // Refresh personality if this is the selected character
+                    if (key === selectedCharacter && window.kimiLLM && window.kimiLLM.refreshMemoryContext) {
+                        await window.kimiLLM.refreshMemoryContext();
+                    }
+                }
+            });
+        }
+
+        // Reset button event listener
+        if (resetButton) {
+            resetButton.addEventListener("click", async () => {
+                const defaultPrompt = window.KIMI_CHARACTERS[key]?.defaultPrompt || "";
+                if (promptInput) {
+                    promptInput.value = defaultPrompt;
+                    await kimiDB.setSystemPromptForCharacter(key, defaultPrompt);
+
+                    // Visual feedback
+                    const originalText = resetButton.textContent;
+                    resetButton.textContent = "Reset!";
+                    resetButton.classList.add("animated");
+                    resetButton.setAttribute("data-i18n", "reset_done");
+                    applyTranslations();
+
+                    setTimeout(() => {
+                        resetButton.setAttribute("data-i18n", "reset_to_default");
+                        applyTranslations();
+                        resetButton.classList.remove("animated");
+                    }, 1500);
+
+                    // Refresh personality if this is the selected character
+                    if (key === selectedCharacter && window.kimiLLM && window.kimiLLM.refreshMemoryContext) {
+                        await window.kimiLLM.refreshMemoryContext();
+                    }
+                }
+            });
         }
     }
     characterGrid.querySelectorAll(".character-card").forEach(card => {
@@ -319,7 +402,12 @@ async function loadCharacterSection() {
             const charKey = card.dataset.character;
             for (const key of Object.keys(window.KIMI_CHARACTERS)) {
                 const promptInput = document.getElementById(`prompt-${key}`);
+                const saveButton = document.getElementById(`save-${key}`);
+                const resetButton = document.getElementById(`reset-${key}`);
+
                 if (promptInput) promptInput.disabled = key !== charKey;
+                if (saveButton) saveButton.disabled = key !== charKey;
+                if (resetButton) resetButton.disabled = key !== charKey;
             }
             updateFavorabilityLabel(charKey);
             const chatHeaderName = document.querySelector(".chat-header span[data-i18n]");
@@ -684,11 +772,11 @@ async function loadSettingsData() {
         const modelId = preferences.llmModelId || (window.kimiLLM ? window.kimiLLM.currentModel : "");
         const genericKey = preferences.llmApiKey || "";
         const selectedCharacter = preferences.selectedCharacter || "kimi";
-        const llmTemperature = preferences.llmTemperature !== undefined ? preferences.llmTemperature : 0.9;
-        const llmMaxTokens = preferences.llmMaxTokens !== undefined ? preferences.llmMaxTokens : 100;
+        const llmTemperature = preferences.llmTemperature !== undefined ? preferences.llmTemperature : 0.8;
+        const llmMaxTokens = preferences.llmMaxTokens !== undefined ? preferences.llmMaxTokens : 400;
         const llmTopP = preferences.llmTopP !== undefined ? preferences.llmTopP : 0.9;
-        const llmFrequencyPenalty = preferences.llmFrequencyPenalty !== undefined ? preferences.llmFrequencyPenalty : 0.3;
-        const llmPresencePenalty = preferences.llmPresencePenalty !== undefined ? preferences.llmPresencePenalty : 0.3;
+        const llmFrequencyPenalty = preferences.llmFrequencyPenalty !== undefined ? preferences.llmFrequencyPenalty : 0.6;
+        const llmPresencePenalty = preferences.llmPresencePenalty !== undefined ? preferences.llmPresencePenalty : 0.5;
 
         // Update UI with voice settings
         const languageSelect = document.getElementById("language-selection");
@@ -707,7 +795,7 @@ async function loadSettingsData() {
         // Batch load personality traits
         const traitNames = ["affection", "playfulness", "intelligence", "empathy", "humor", "romance"];
         const personality = await kimiDB.getPersonalityTraitsBatch(traitNames, selectedCharacter);
-        const defaults = [80, 70, 85, 90, 75, 95];
+        const defaults = [65, 55, 70, 75, 60, 50];
 
         traitNames.forEach((trait, index) => {
             const value = typeof personality[trait] === "number" ? personality[trait] : defaults[index];
@@ -750,15 +838,6 @@ async function loadSettingsData() {
                 ? window.KimiProviderUtils.getLabelForProvider(provider)
                 : "API Key";
         }
-
-        // Load system prompt
-        let systemPrompt = DEFAULT_SYSTEM_PROMPT;
-        if (kimiDB.getSystemPromptForCharacter) {
-            systemPrompt = await kimiDB.getSystemPromptForCharacter(selectedCharacter);
-        }
-        const systemPromptInput = document.getElementById("system-prompt");
-        if (systemPromptInput) systemPromptInput.value = systemPrompt;
-        if (kimiLLM && kimiLLM.setSystemPrompt) kimiLLM.setSystemPrompt(systemPrompt);
 
         loadAvailableModels();
     } catch (error) {
@@ -883,7 +962,7 @@ async function syncLLMMaxTokensSlider() {
     const llmMaxTokensSlider = document.getElementById("llm-max-tokens");
     const llmMaxTokensValue = document.getElementById("llm-max-tokens-value");
     if (llmMaxTokensSlider && llmMaxTokensValue && kimiDB) {
-        const saved = await kimiDB.getPreference("llmMaxTokens", 200);
+        const saved = await kimiDB.getPreference("llmMaxTokens", 400);
         llmMaxTokensSlider.value = saved;
         llmMaxTokensValue.textContent = saved;
     }
@@ -894,7 +973,7 @@ async function syncLLMTemperatureSlider() {
     const llmTemperatureSlider = document.getElementById("llm-temperature");
     const llmTemperatureValue = document.getElementById("llm-temperature-value");
     if (llmTemperatureSlider && llmTemperatureValue && kimiDB) {
-        const saved = await kimiDB.getPreference("llmTemperature", 0.9);
+        const saved = await kimiDB.getPreference("llmTemperature", 0.8);
         llmTemperatureSlider.value = saved;
         llmTemperatureValue.textContent = saved;
     }
@@ -1469,7 +1548,7 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     if (llmTemperatureSlider) {
         const listener = e => {
             const validation = window.KimiValidationUtils?.validateRange(e.target.value, "llmTemperature");
-            const value = validation?.value || parseFloat(e.target.value) || 0.9;
+            const value = validation?.value || parseFloat(e.target.value) || 0.8;
 
             document.getElementById("llm-temperature-value").textContent = value;
             e.target.value = value;
@@ -1481,7 +1560,7 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     if (llmMaxTokensSlider) {
         const listener = e => {
             const validation = window.KimiValidationUtils?.validateRange(e.target.value, "llmMaxTokens");
-            const value = validation?.value || parseInt(e.target.value) || 100;
+            const value = validation?.value || parseInt(e.target.value) || 400;
 
             document.getElementById("llm-max-tokens-value").textContent = value;
             e.target.value = value;
@@ -1505,7 +1584,7 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     if (llmFrequencyPenaltySlider) {
         const listener = e => {
             const validation = window.KimiValidationUtils?.validateRange(e.target.value, "llmFrequencyPenalty");
-            const value = validation?.value || parseFloat(e.target.value) || 0.3;
+            const value = validation?.value || parseFloat(e.target.value) || 0.6;
 
             document.getElementById("llm-frequency-penalty-value").textContent = value;
             e.target.value = value;
@@ -1517,7 +1596,7 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     if (llmPresencePenaltySlider) {
         const listener = e => {
             const validation = window.KimiValidationUtils?.validateRange(e.target.value, "llmPresencePenalty");
-            const value = validation?.value || parseFloat(e.target.value) || 0.3;
+            const value = validation?.value || parseFloat(e.target.value) || 0.5;
 
             document.getElementById("llm-presence-penalty-value").textContent = value;
             e.target.value = value;

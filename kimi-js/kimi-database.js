@@ -31,11 +31,11 @@ class KimiDatabase {
                         await settings.put({
                             category: "llm",
                             settings: {
-                                temperature: 0.9,
-                                maxTokens: 100,
+                                temperature: 0.8,
+                                maxTokens: 400,
                                 top_p: 0.9,
-                                frequency_penalty: 0.3,
-                                presence_penalty: 0.3
+                                frequency_penalty: 0.6,
+                                presence_penalty: 0.5
                             },
                             updated: new Date().toISOString()
                         });
@@ -52,13 +52,39 @@ class KimiDatabase {
                             name: "Mistral Small 3.2",
                             provider: "openrouter",
                             apiKey: "",
-                            config: { temperature: 0.9, maxTokens: 100 },
+                            config: { temperature: 0.8, maxTokens: 400 },
                             added: new Date().toISOString(),
                             lastUsed: null
                         });
                     }
                 } catch (e) {
                     // Swallow upgrade errors to avoid blocking DB open; post-open migrations will attempt fixes
+                }
+            });
+
+        // Version 4: extend memories metadata (importance, accessCount, lastAccess, createdAt)
+        this.db
+            .version(4)
+            .stores({
+                conversations: "++id,timestamp,favorability,character",
+                preferences: "key",
+                settings: "category",
+                personality: "[character+trait],character",
+                llmModels: "id",
+                memories: "++id,[character+category],character,timestamp,isActive,importance,accessCount"
+            })
+            .upgrade(async tx => {
+                try {
+                    const memories = tx.table("memories");
+                    const now = new Date().toISOString();
+                    await memories.toCollection().modify(rec => {
+                        if (rec.importance == null) rec.importance = rec.type === "explicit_request" ? 0.9 : 0.5;
+                        if (rec.accessCount == null) rec.accessCount = 0;
+                        if (!rec.createdAt) rec.createdAt = rec.timestamp || now;
+                        if (!rec.lastAccess) rec.lastAccess = rec.timestamp || now;
+                    });
+                } catch (e) {
+                    // Silent; non-blocking
                 }
             });
     }
@@ -88,7 +114,7 @@ class KimiDatabase {
     getDefaultPreferences() {
         return [
             { key: "selectedLanguage", value: "en" },
-            { key: "selectedVoice", value: "Microsoft Eloise Online" },
+            { key: "selectedVoice", value: "auto" },
             { key: "voiceRate", value: 1.1 },
             { key: "voicePitch", value: 1.1 },
             { key: "voiceVolume", value: 0.8 },
@@ -101,6 +127,8 @@ class KimiDatabase {
             { key: "llmBaseUrl", value: "https://openrouter.ai/api/v1/chat/completions" },
             { key: "llmModelId", value: "mistralai/mistral-small-3.2-24b-instruct" },
             { key: "llmApiKey", value: "" },
+            // Explicit default for OpenRouter key to avoid missing key errors
+            { key: "openrouterApiKey", value: "" },
             { key: "apiKey_openai", value: "" },
             { key: "apiKey_groq", value: "" },
             { key: "apiKey_together", value: "" },
@@ -114,11 +142,11 @@ class KimiDatabase {
             {
                 category: "llm",
                 settings: {
-                    temperature: 0.9,
-                    maxTokens: 100,
+                    temperature: 0.8,
+                    maxTokens: 400,
                     top_p: 0.9,
-                    frequency_penalty: 0.3,
-                    presence_penalty: 0.3
+                    frequency_penalty: 0.6,
+                    presence_penalty: 0.5
                 }
             }
         ];
@@ -143,7 +171,7 @@ class KimiDatabase {
                 name: "Mistral Small 3.2",
                 provider: "openrouter",
                 apiKey: "",
-                config: { temperature: 0.9, maxTokens: 100 },
+                config: { temperature: 0.8, maxTokens: 400 },
                 added: new Date().toISOString(),
                 lastUsed: null
             }
@@ -352,6 +380,25 @@ class KimiDatabase {
                 // do not set encrypted flag anymore
                 updated: new Date().toISOString()
             });
+        }
+
+        // Centralized numeric validation using KIMI_CONFIG ranges (only if key matches known numeric preference)
+        const numericMap = {
+            voiceRate: "VOICE_RATE",
+            voicePitch: "VOICE_PITCH",
+            voiceVolume: "VOICE_VOLUME",
+            interfaceOpacity: "INTERFACE_OPACITY",
+            llmTemperature: "LLM_TEMPERATURE",
+            llmMaxTokens: "LLM_MAX_TOKENS",
+            llmTopP: "LLM_TOP_P",
+            llmFrequencyPenalty: "LLM_FREQUENCY_PENALTY",
+            llmPresencePenalty: "LLM_PRESENCE_PENALTY"
+        };
+        if (numericMap[key] && window.KIMI_CONFIG && typeof window.KIMI_CONFIG.validate === "function") {
+            const validation = window.KIMI_CONFIG.validate(value, numericMap[key]);
+            if (validation.valid) {
+                value = validation.value;
+            }
         }
 
         // Update cache for regular preferences
@@ -687,7 +734,24 @@ class KimiDatabase {
     }
 
     async setPreferencesBatch(prefsArray) {
-        const batch = prefsArray.map(({ key, value }) => ({ key, value, updated: new Date().toISOString() }));
+        const numericMap = {
+            voiceRate: "VOICE_RATE",
+            voicePitch: "VOICE_PITCH",
+            voiceVolume: "VOICE_VOLUME",
+            interfaceOpacity: "INTERFACE_OPACITY",
+            llmTemperature: "LLM_TEMPERATURE",
+            llmMaxTokens: "LLM_MAX_TOKENS",
+            llmTopP: "LLM_TOP_P",
+            llmFrequencyPenalty: "LLM_FREQUENCY_PENALTY",
+            llmPresencePenalty: "LLM_PRESENCE_PENALTY"
+        };
+        const batch = prefsArray.map(({ key, value }) => {
+            if (numericMap[key] && window.KIMI_CONFIG && typeof window.KIMI_CONFIG.validate === "function") {
+                const validation = window.KIMI_CONFIG.validate(value, numericMap[key]);
+                if (validation.valid) value = validation.value;
+            }
+            return { key, value, updated: new Date().toISOString() };
+        });
         return this.db.preferences.bulkPut(batch);
     }
     async setPersonalityBatch(traitsObj, character = null) {

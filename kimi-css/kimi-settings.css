@@ -1349,6 +1349,52 @@
     cursor: not-allowed;
 }
 
+/* Character prompt buttons */
+.character-prompt-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    justify-content: center;
+}
+
+.character-save-btn,
+.character-reset-btn {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    border-radius: 6px;
+    border: 1px solid var(--input-border);
+    background: var(--button-bg);
+    color: var(--button-text);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 70px;
+}
+
+.character-save-btn:hover,
+.character-reset-btn:hover {
+    background: var(--button-hover-bg);
+    border-color: var(--primary-color);
+}
+
+.character-save-btn:disabled,
+.character-reset-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: var(--input-bg);
+}
+
+.character-save-btn.success {
+    background: #28a745;
+    color: white;
+    border-color: #28a745;
+}
+
+.character-reset-btn.animated {
+    background: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
+}
+
 /* ===== PERSONALITY CHEAT PANEL ===== */
 
 .cheat-toggle-btn {

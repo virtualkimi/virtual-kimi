@@ -24,12 +24,12 @@ window.KimiValidationUtils = {
             voiceRate: { min: 0.5, max: 2, def: 1.1 },
             voicePitch: { min: 0, max: 2, def: 1.0 },
             voiceVolume: { min: 0, max: 1, def: 0.8 },
-            llmTemperature: { min: 0, max: 2, def: 0.9 },
-            llmMaxTokens: { min: 1, max: 32000, def: 200 },
-            llmTopP: { min: 0, max: 1, def: 1 },
-            llmFrequencyPenalty: { min: 0, max: 2, def: 0 },
-            llmPresencePenalty: { min: 0, max: 2, def: 0 },
-            interfaceOpacity: { min: 0.1, max: 1, def: 0.95 }
+            llmTemperature: { min: 0, max: 1, def: 0.8 },
+            llmMaxTokens: { min: 1, max: 32000, def: 400 },
+            llmTopP: { min: 0, max: 1, def: 0.9 },
+            llmFrequencyPenalty: { min: 0, max: 2, def: 0.6 },
+            llmPresencePenalty: { min: 0, max: 2, def: 0.5 },
+            interfaceOpacity: { min: 0.1, max: 1, def: 0.8 }
         };
         const b = bounds[key] || { min: 0, max: 100, def: 0 };
         const v = window.KimiSecurityUtils

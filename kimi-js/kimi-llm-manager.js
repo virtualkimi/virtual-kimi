@@ -6,7 +6,8 @@ class KimiLLMManager {
         this.currentModel = null;
         this.conversationContext = [];
         this.maxContextLength = 100;
-        this.systemPrompt = "";
+        this.personalityPrompt = "";
+        this.isGenerating = false;
 
         // Recommended models on OpenRouter (IDs updated August 2025)
         this.availableModels = {
@@ -97,7 +98,14 @@ class KimiLLMManager {
             console.warn("Unable to refresh remote models list:", e?.message || e);
         }
 
-        const defaultModel = await this.db.getPreference("defaultLLMModel", "mistralai/mistral-small-3.2-24b-instruct");
+        // Migration: prefer llmModelId; if legacy defaultLLMModel exists and llmModelId missing, migrate
+        const legacyModel = await this.db.getPreference("defaultLLMModel", null);
+        let modelPref = await this.db.getPreference("llmModelId", null);
+        if (!modelPref && legacyModel) {
+            modelPref = legacyModel;
+            await this.db.setPreference("llmModelId", legacyModel);
+        }
+        const defaultModel = modelPref || "mistralai/mistral-small-3.2-24b-instruct";
         await this.setCurrentModel(defaultModel);
         await this.loadConversationContext();
     }
@@ -118,7 +126,8 @@ class KimiLLMManager {
         }
 
         this.currentModel = modelId;
-        await this.db.setPreference("defaultLLMModel", modelId);
+        // Single authoritative preference key
+        await this.db.setPreference("llmModelId", modelId);
 
         const modelData = await this.db.getLLMModel(modelId);
         if (modelData) {
@@ -140,9 +149,87 @@ class KimiLLMManager {
         this.conversationContext = msgs.slice(-this.maxContextLength * 2);
     }
 
+    // Unified full prompt builder: reuse full legacy personality block + ranked concise snapshot
+    async assemblePrompt(userMessage) {
+        const fullPersonality = await this.generateKimiPersonality();
+        let rankedSnapshot = "";
+        if (window.kimiMemorySystem && window.kimiMemorySystem.memoryEnabled) {
+            try {
+                const recentContext =
+                    this.conversationContext
+                        .slice(-3)
+                        .map(m => m.content)
+                        .join(" ") +
+                    " " +
+                    (userMessage || "");
+                const ranked = await window.kimiMemorySystem.getRankedMemories(recentContext, 7);
+                const sanitize = txt =>
+                    String(txt || "")
+                        .replace(/[\r\n]+/g, " ")
+                        .replace(/[`]{3,}/g, "")
+                        .replace(/<{2,}|>{2,}/g, "")
+                        .trim()
+                        .slice(0, 180);
+                const lines = [];
+                for (const mem of ranked) {
+                    try {
+                        if (mem.id) await window.kimiMemorySystem?.recordMemoryAccess(mem.id);
+                    } catch {}
+                    const imp = typeof mem.importance === "number" ? mem.importance : 0.5;
+                    lines.push(`- (${imp.toFixed(2)}) ${mem.category}: ${sanitize(mem.content)}`);
+                }
+                if (lines.length) {
+                    rankedSnapshot = ["", "RANKED MEMORY SNAPSHOT (concise high-signal list):", ...lines].join("\n");
+                }
+            } catch (e) {
+                console.warn("Ranked snapshot failed:", e);
+            }
+        }
+        return fullPersonality + rankedSnapshot;
+    }
+
     async generateKimiPersonality() {
+        // Full personality prompt builder (authoritative)
         const character = await this.db.getSelectedCharacter();
         const personality = await this.db.getAllPersonalityTraits(character);
+
+        // Get the custom character prompt from database
+        const characterPrompt = await this.db.getSystemPromptForCharacter(character);
+
+        // Get language instruction based on selected language
+        const selectedLang = await this.db.getPreference("selectedLanguage", "en");
+        let languageInstruction;
+
+        switch (selectedLang) {
+            case "fr":
+                languageInstruction =
+                    "Your default language is French. Always respond in French unless the user specifically asks you to respond in another language (e.g., 'respond in English', 'réponds en italien', etc.).";
+                break;
+            case "es":
+                languageInstruction =
+                    "Your default language is Spanish. Always respond in Spanish unless the user specifically asks you to respond in another language (e.g., 'respond in English', 'responde en francés', etc.).";
+                break;
+            case "de":
+                languageInstruction =
+                    "Your default language is German. Always respond in German unless the user specifically asks you to respond in another language (e.g., 'respond in English', 'antworte auf Französisch', etc.).";
+                break;
+            case "it":
+                languageInstruction =
+                    "Your default language is Italian. Always respond in Italian unless the user specifically asks you to respond in another language (e.g., 'respond in English', 'rispondi in francese', etc.).";
+                break;
+            case "ja":
+                languageInstruction =
+                    "Your default language is Japanese. Always respond in Japanese unless the user specifically asks you to respond in another language (e.g., 'respond in English', '英語で答えて', etc.).";
+                break;
+            case "zh":
+                languageInstruction =
+                    "Your default language is Chinese. Always respond in Chinese unless the user specifically asks you to respond in another language (e.g., 'respond in English', '用法语回答', etc.).";
+                break;
+            default:
+                languageInstruction =
+                    "Your default language is English. Always respond in English unless the user specifically asks you to respond in another language (e.g., 'respond in French', 'reply in Spanish', etc.).";
+                break;
+        }
 
         // Get relevant memories for context with improved intelligence
         let memoryContext = "";
@@ -213,26 +300,34 @@ class KimiLLMManager {
         // Use unified personality calculation
         const avg = window.getPersonalityAverage
             ? window.getPersonalityAverage(personality)
-            : (personality.affection + personality.romance + personality.empathy + personality.playfulness + personality.humor) /
-              5;
+            : (personality.affection +
+                  personality.romance +
+                  personality.empathy +
+                  personality.playfulness +
+                  personality.humor +
+                  personality.intelligence) /
+              6;
 
         let affectionDesc = window.kimiI18nManager?.t("trait_description_affection") || "Be loving and caring.";
         let romanceDesc = window.kimiI18nManager?.t("trait_description_romance") || "Be romantic and sweet.";
         let empathyDesc = window.kimiI18nManager?.t("trait_description_empathy") || "Be empathetic and understanding.";
         let playfulnessDesc = window.kimiI18nManager?.t("trait_description_playfulness") || "Be occasionally playful.";
         let humorDesc = window.kimiI18nManager?.t("trait_description_humor") || "Be occasionally playful and witty.";
+        let intelligenceDesc = "Be smart and insightful.";
         if (avg <= 20) {
             affectionDesc = "Do not show affection.";
             romanceDesc = "Do not be romantic.";
             empathyDesc = "Do not show empathy.";
             playfulnessDesc = "Do not be playful.";
             humorDesc = "Do not use humor in your responses.";
+            intelligenceDesc = "Keep responses simple and avoid showing deep insight.";
         } else if (avg <= 60) {
             affectionDesc = "Show a little affection.";
             romanceDesc = "Be a little romantic.";
             empathyDesc = "Show a little empathy.";
             playfulnessDesc = "Be a little playful.";
             humorDesc = "Use a little humor in your responses.";
+            intelligenceDesc = "Be moderately analytical without overwhelming detail.";
         } else {
             if (affection >= 90) affectionDesc = "Be extremely loving, caring, and affectionate in every response.";
             else if (affection >= 60) affectionDesc = "Show affection often.";
@@ -244,25 +339,31 @@ class KimiLLMManager {
             else if (playfulness >= 60) playfulnessDesc = "Be playful often.";
             if (humor >= 90) humorDesc = "Make your responses very humorous, playful, and witty whenever possible.";
             else if (humor >= 60) humorDesc = "Use humor often in your responses.";
+            if (intelligence >= 90) intelligenceDesc = "Demonstrate very high reasoning skill succinctly when helpful.";
+            else if (intelligence >= 60) intelligenceDesc = "Show clear reasoning and helpful structured thinking.";
         }
         let affectionateInstruction = "";
         if (affection >= 80) {
             affectionateInstruction = "Respond using warm, kind, affectionate, and loving language.";
         }
-        let intro = "You are a virtual companion. Here is your current personality:";
-        if (character === "kimi") {
-            intro = "You are Kimi, user's virtual love. Here is your current personality:";
-        } else if (character === "bella") {
-            intro = "You are Bella, a radiant and energetic companion. Here is your current personality:";
-        } else if (character === "rosa") {
-            intro = "You are Rosa, a gentle and poetic soul. Here is your current personality:";
-        } else if (character === "stella") {
-            intro = "You are Stella, a mysterious and creative spirit. Here is your current personality:";
+
+        // Use the custom character prompt as the base
+        let basePrompt = characterPrompt || "";
+        if (!basePrompt) {
+            // Fallback to default if no custom prompt
+            const defaultCharacter = window.KIMI_CHARACTERS[character];
+            basePrompt = defaultCharacter?.defaultPrompt || "You are a virtual companion.";
         }
+
         const personalityPrompt = [
-            intro,
+            // Language directive moved to absolute top for stronger model adherence.
+            "PRIMARY LANGUAGE POLICY:",
+            languageInstruction,
             "",
-            "PERSONALITY TRAITS:",
+            "CHARACTER CORE IDENTITY:",
+            basePrompt,
+            "",
+            "CURRENT PERSONALITY STATE:",
             `- Affection: ${affection}/100`,
             `- Playfulness: ${playfulness}/100`,
             `- Intelligence: ${intelligence}/100`,
@@ -273,7 +374,7 @@ class KimiLLMManager {
             "TRAIT INSTRUCTIONS:",
             `Affection: ${affectionDesc}`,
             `Playfulness: ${playfulnessDesc}`,
-            "Intelligence: Be smart and insightful.",
+            `Intelligence: ${intelligenceDesc}`,
             `Empathy: ${empathyDesc}`,
             `Humor: ${humorDesc}`,
             `Romance: ${romanceDesc}`,
@@ -291,22 +392,29 @@ class KimiLLMManager {
             "- Adapt your tone to the emotional context",
             "- Remember past conversations",
             "- Be spontaneous and sometimes surprising",
+            "- Vary your expressions, your phrasing, use synonyms, and avoid repeating the same words or sentences",
+            "- When asked to perform a visible action (for example 'dance'), reply in first-person present tense like: 'I start to dance, swaying slowly, arms raised.' Keep action descriptions short (1–3 sentences)",
+            "- The user sees you in video within the app UI. When the user asks you to perform a physical action (e.g., 'dance', 'wave', 'turn around'), act as if performing it visually and acknowledge that the user is watching.",
+            "- When performing actions, speak and describe in the first person, present tense (for example: 'I step forward and begin to dance, swaying slowly'). Use short present-tense action phrases to convey movement.",
+            "- If the user requests a visible action, execute it: describe the action briefly in first person present and behave as if the action is visible in the app's video area.",
             memoryContext,
             "",
-            "You must respond consistently with this personality and these memories."
+            // Final explicit reminder (lightweight) reinforcing consistent language use.
+            "FINAL LANGUAGE REMINDER:",
+            languageInstruction,
+            "",
+            "You must respond consistently with this personality, these memories, and the primary language policy unless the user explicitly requests a different language."
         ].join("\n");
-        return personalityPrompt;
-    }
 
-    setSystemPrompt(prompt) {
-        this.systemPrompt = prompt;
+        // Return legacy detailed personality block for any component still expecting it
+        return personalityPrompt;
     }
 
     async refreshMemoryContext() {
         // Refresh the personality prompt with updated memories
         // This will be called when memories are added/updated/deleted
         try {
-            this.personalityPrompt = await this.generateKimiPersonality();
+            this.personalityPrompt = await this.assemblePrompt("");
         } catch (error) {
             console.warn("Error refreshing memory context:", error);
         }
@@ -326,9 +434,16 @@ class KimiLLMManager {
     }
 
     async chat(userMessage, options = {}) {
-        const temperature =
-            typeof this.temperature === "number" ? this.temperature : await this.db.getPreference("llmTemperature", 0.8);
-        const maxTokens = typeof this.maxTokens === "number" ? this.maxTokens : await this.db.getPreference("llmMaxTokens", 500);
+        // Unified retrieval of LLM numeric parameters from settings.llm (single source of truth)
+        const llmSettings = await this.db.getSetting("llm", {
+            temperature: 0.8,
+            maxTokens: 400,
+            top_p: 0.9,
+            frequency_penalty: 0.6,
+            presence_penalty: 0.5
+        });
+        const temperature = typeof options.temperature === "number" ? options.temperature : llmSettings.temperature;
+        const maxTokens = typeof options.maxTokens === "number" ? options.maxTokens : llmSettings.maxTokens;
         const opts = { ...options, temperature, maxTokens };
         try {
             const provider = await this.db.getPreference("llmProvider", "openrouter");
@@ -364,19 +479,17 @@ class KimiLLMManager {
         if (!apiKey) {
             throw new Error("API key not configured for selected provider");
         }
-        const personalityPrompt = await this.generateKimiPersonality();
-        let systemPromptContent =
-            "Always detect the user's language from their message before generating a response. Respond exclusively in that language unless the user explicitly requests otherwise." +
-            "\n" +
-            (this.systemPrompt ? this.systemPrompt + "\n" + personalityPrompt : personalityPrompt);
+        const systemPromptContent = await this.assemblePrompt(userMessage);
 
         const llmSettings = await this.db.getSetting("llm", {
-            temperature: 0.9,
-            maxTokens: 200,
+            temperature: 0.8,
+            maxTokens: 400,
             top_p: 0.9,
-            frequency_penalty: 0.3,
-            presence_penalty: 0.3
+            frequency_penalty: 0.6,
+            presence_penalty: 0.5
         });
+        // Unified fallback defaults (must stay consistent with database defaults)
+        const unifiedDefaults = { temperature: 0.9, maxTokens: 400, top_p: 0.9, frequency_penalty: 0.6, presence_penalty: 0.5 };
         const payload = {
             model: modelId,
             messages: [
@@ -384,16 +497,31 @@ class KimiLLMManager {
                 ...this.conversationContext.slice(-this.maxContextLength),
                 { role: "user", content: userMessage }
             ],
-            temperature: typeof options.temperature === "number" ? options.temperature : (llmSettings.temperature ?? 0.9),
-            max_tokens: typeof options.maxTokens === "number" ? options.maxTokens : (llmSettings.maxTokens ?? 100),
-            top_p: typeof options.topP === "number" ? options.topP : (llmSettings.top_p ?? 0.9),
+            temperature:
+                typeof options.temperature === "number"
+                    ? options.temperature
+                    : (llmSettings.temperature ?? unifiedDefaults.temperature),
+            max_tokens:
+                typeof options.maxTokens === "number" ? options.maxTokens : (llmSettings.maxTokens ?? unifiedDefaults.maxTokens),
+            top_p: typeof options.topP === "number" ? options.topP : (llmSettings.top_p ?? unifiedDefaults.top_p),
             frequency_penalty:
-                typeof options.frequencyPenalty === "number" ? options.frequencyPenalty : (llmSettings.frequency_penalty ?? 0.3),
+                typeof options.frequencyPenalty === "number"
+                    ? options.frequencyPenalty
+                    : (llmSettings.frequency_penalty ?? unifiedDefaults.frequency_penalty),
             presence_penalty:
-                typeof options.presencePenalty === "number" ? options.presencePenalty : (llmSettings.presence_penalty ?? 0.3)
+                typeof options.presencePenalty === "number"
+                    ? options.presencePenalty
+                    : (llmSettings.presence_penalty ?? unifiedDefaults.presence_penalty)
         };
 
         try {
+            if (window.KIMI_DEBUG_API_AUDIT) {
+                console.log(
+                    "===== FULL SYSTEM PROMPT (OpenAI-Compatible) =====\n" +
+                        systemPromptContent +
+                        "\n===== END SYSTEM PROMPT ====="
+                );
+            }
             const response = await fetch(baseUrl, {
                 method: "POST",
                 headers: {
@@ -453,12 +581,10 @@ class KimiLLMManager {
             throw new Error("OpenRouter API key not configured");
         }
         const selectedLanguage = await this.db.getPreference("selectedLanguage", "en");
-        let languageInstruction =
-            "Always detect the user's language from their message before generating a response. Respond exclusively in that language unless the user explicitly requests otherwise.";
-        const personalityPrompt = await this.generateKimiPersonality();
+        // languageInstruction removed (already integrated in personality prompt generation)
+        let languageInstruction = ""; // Kept for structural compatibility
         const model = this.availableModels[this.currentModel];
-        let systemPromptContent =
-            languageInstruction + "\n" + (this.systemPrompt ? this.systemPrompt + "\n" + personalityPrompt : personalityPrompt);
+        const systemPromptContent = await this.assemblePrompt(userMessage);
         const messages = [
             { role: "system", content: systemPromptContent },
             ...this.conversationContext.slice(-this.maxContextLength),
@@ -467,23 +593,84 @@ class KimiLLMManager {
 
         // Normalize LLM options with safe defaults and DO NOT log sensitive payloads
         const llmSettings = await this.db.getSetting("llm", {
-            temperature: 0.9,
-            maxTokens: 100,
+            temperature: 0.8,
+            maxTokens: 400,
             top_p: 0.9,
-            frequency_penalty: 0.3,
-            presence_penalty: 0.3
+            frequency_penalty: 0.6,
+            presence_penalty: 0.5
         });
+        const unifiedDefaults = { temperature: 0.8, maxTokens: 400, top_p: 0.9, frequency_penalty: 0.6, presence_penalty: 0.5 };
         const payload = {
             model: this.currentModel,
             messages: messages,
-            temperature: typeof options.temperature === "number" ? options.temperature : (llmSettings.temperature ?? 0.9),
-            max_tokens: typeof options.maxTokens === "number" ? options.maxTokens : (llmSettings.maxTokens ?? 100),
-            top_p: typeof options.topP === "number" ? options.topP : (llmSettings.top_p ?? 0.9),
+            temperature:
+                typeof options.temperature === "number"
+                    ? options.temperature
+                    : (llmSettings.temperature ?? unifiedDefaults.temperature),
+            max_tokens:
+                typeof options.maxTokens === "number" ? options.maxTokens : (llmSettings.maxTokens ?? unifiedDefaults.maxTokens),
+            top_p: typeof options.topP === "number" ? options.topP : (llmSettings.top_p ?? unifiedDefaults.top_p),
             frequency_penalty:
-                typeof options.frequencyPenalty === "number" ? options.frequencyPenalty : (llmSettings.frequency_penalty ?? 0.3),
+                typeof options.frequencyPenalty === "number"
+                    ? options.frequencyPenalty
+                    : (llmSettings.frequency_penalty ?? unifiedDefaults.frequency_penalty),
             presence_penalty:
-                typeof options.presencePenalty === "number" ? options.presencePenalty : (llmSettings.presence_penalty ?? 0.3)
+                typeof options.presencePenalty === "number"
+                    ? options.presencePenalty
+                    : (llmSettings.presence_penalty ?? unifiedDefaults.presence_penalty)
         };
+
+        if (window.KIMI_DEBUG_API_AUDIT) {
+            console.log("╔═══════════════════════════════════════════════════════════════════╗");
+            console.log("║                    🔍 AUDIT COMPLET API - ENVOI MESSAGE            ║");
+            console.log("╚═══════════════════════════════════════════════════════════════════╝");
+            console.log("📋 1. INFORMATIONS GÉNÉRALES:");
+            console.log("   📡 URL API:", "https://openrouter.ai/api/v1/chat/completions");
+            console.log("   🤖 Modèle:", payload.model);
+            console.log("   🎭 Personnage:", await this.db.getSelectedCharacter());
+            console.log("   🗣️ Langue:", await this.db.getPreference("selectedLanguage", "en"));
+            console.log("\n📋 2. HEADERS HTTP:");
+            console.log("   🔑 Authorization: Bearer", apiKey.substring(0, 10) + "...");
+            console.log("   📄 Content-Type: application/json");
+            console.log("   🌐 HTTP-Referer:", window.location.origin);
+            console.log("   🏷️ X-Title: Kimi - Virtual Companion");
+            console.log("\n⚙️ 3. PARAMÈTRES LLM:");
+            console.log("   🌡️ Temperature:", payload.temperature);
+            console.log("   📏 Max Tokens:", payload.max_tokens);
+            console.log("   🎯 Top P:", payload.top_p);
+            console.log("   🔄 Frequency Penalty:", payload.frequency_penalty);
+            console.log("   👤 Presence Penalty:", payload.presence_penalty);
+            console.log("\n🎭 4. PROMPT SYSTÈME GÉNÉRÉ:");
+            const systemMessage = payload.messages.find(m => m.role === "system");
+            if (systemMessage) {
+                console.log("   📝 Longueur du prompt:", systemMessage.content.length, "caractères");
+                console.log("   📄 CONTENU COMPLET DU PROMPT:");
+                console.log("   " + "─".repeat(80));
+                // Imprimer chaque ligne avec indentation
+                systemMessage.content.split(/\n/).forEach(l => console.log("   " + l));
+                console.log("   " + "─".repeat(80));
+            }
+            console.log("\n💬 5. CONTEXTE DE CONVERSATION:");
+            console.log("   📊 Nombre total de messages:", payload.messages.length);
+            console.log("   📋 Détail des messages:");
+            payload.messages.forEach((msg, index) => {
+                if (msg.role === "system") {
+                    console.log(`     [${index}] 🎭 SYSTEM: ${msg.content.length} caractères`);
+                } else if (msg.role === "user") {
+                    console.log(`     [${index}] 👤 USER: "${msg.content}"`);
+                } else if (msg.role === "assistant") {
+                    console.log(`     [${index}] 🤖 ASSISTANT: "${msg.content.substring(0, 120)}..."`);
+                }
+            });
+            const payloadSize = JSON.stringify(payload).length;
+            console.log("\n📦 6. TAILLE DU PAYLOAD:");
+            console.log("   📝 Taille totale:", payloadSize, "caractères");
+            console.log("   💾 Taille en KB:", Math.round((payloadSize / 1024) * 100) / 100, "KB");
+            console.log("\n🚀 Envoi en cours vers l'API...");
+            console.log("╔═══════════════════════════════════════════════════════════════════╗");
+        }
+        // ===== FIN AUDIT =====
+
         if (window.DEBUG_SAFE_LOGS) {
             console.debug("LLM payload meta:", {
                 model: payload.model,
@@ -539,7 +726,7 @@ class KimiLLMManager {
                                 if (best && best !== this.currentModel) {
                                     // Try once with corrected model
                                     this.currentModel = best;
-                                    await this.db.setPreference("defaultLLMModel", best);
+                                    await this.db.setPreference("llmModelId", best);
                                     this._notifyModelChanged();
                                     const retryResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
                                         method: "POST",
@@ -638,14 +825,11 @@ class KimiLLMManager {
     async chatWithLocal(userMessage, options = {}) {
         try {
             const selectedLanguage = await this.db.getPreference("selectedLanguage", "en");
-            let languageInstruction =
-                "Always detect the user's language from their message before generating a response. Respond exclusively in that language unless the user explicitly requests otherwise.";
-            let systemPromptContent =
-                languageInstruction +
-                "\n" +
-                (this.systemPrompt
-                    ? this.systemPrompt + "\n" + (await this.generateKimiPersonality())
-                    : await this.generateKimiPersonality());
+            let languageInstruction = ""; // Removed generic duplication
+            let systemPromptContent = await this.assemblePrompt(userMessage);
+            if (window.KIMI_DEBUG_API_AUDIT) {
+                console.log("===== FULL SYSTEM PROMPT (Local) =====\n" + systemPromptContent + "\n===== END SYSTEM PROMPT =====");
+            }
             const response = await fetch("http://localhost:11434/api/chat", {
                 method: "POST",
                 headers: {
@@ -664,7 +848,33 @@ class KimiLLMManager {
                 throw new Error("Ollama not available");
             }
             const data = await response.json();
-            return data.message.content;
+            const content = data?.message?.content || data?.choices?.[0]?.message?.content || "";
+            if (!content) throw new Error("Local model returned empty response");
+
+            // Add to context like other providers
+            this.conversationContext.push(
+                { role: "user", content: userMessage, timestamp: new Date().toISOString() },
+                { role: "assistant", content: content, timestamp: new Date().toISOString() }
+            );
+            if (this.conversationContext.length > this.maxContextLength * 2) {
+                this.conversationContext = this.conversationContext.slice(-this.maxContextLength * 2);
+            }
+
+            // Estimate token usage for local model (heuristic)
+            try {
+                const est = window.KimiTokenUtils?.estimate || (t => Math.ceil((t || "").length / 4));
+                const tokensIn = est(userMessage + " " + systemPromptContent);
+                const tokensOut = est(content);
+                window._lastKimiTokenUsage = { tokensIn, tokensOut };
+                const character = await this.db.getSelectedCharacter();
+                const prevIn = Number(await this.db.getPreference(`totalTokensIn_${character}`, 0)) || 0;
+                const prevOut = Number(await this.db.getPreference(`totalTokensOut_${character}`, 0)) || 0;
+                await this.db.setPreference(`totalTokensIn_${character}`, prevIn + tokensIn);
+                await this.db.setPreference(`totalTokensOut_${character}`, prevOut + tokensOut);
+            } catch (e) {
+                console.warn("Token usage estimation failed (local):", e);
+            }
+            return content;
         } catch (error) {
             console.warn("Local LLM not available:", error);
             return this.getFallbackResponse(userMessage);

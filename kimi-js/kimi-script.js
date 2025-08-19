@@ -42,12 +42,6 @@ document.addEventListener("DOMContentLoaded", async function () {
         if (chatHeaderName && window.KIMI_CHARACTERS && window.KIMI_CHARACTERS[selectedCharacter]) {
             chatHeaderName.setAttribute("data-i18n", `chat_with_${selectedCharacter}`);
         }
-        const systemPromptInput = window.KimiDOMUtils.get("#system-prompt");
-        if (systemPromptInput && kimiDB.getSystemPromptForCharacter) {
-            const prompt = await kimiDB.getSystemPromptForCharacter(selectedCharacter);
-            systemPromptInput.value = prompt;
-            if (kimiLLM && kimiLLM.setSystemPrompt) kimiLLM.setSystemPrompt(prompt);
-        }
         kimiLLM = new KimiLLMManager(kimiDB);
         window.kimiLLM = kimiLLM;
         await kimiLLM.init();
@@ -162,7 +156,14 @@ document.addEventListener("DOMContentLoaded", async function () {
             ApiUi.setPresence(storedKey ? "#4caf50" : "#9e9e9e");
             ApiUi.setTestPresence("#9e9e9e");
             const savedBadge = ApiUi.savedBadge();
-            if (savedBadge) savedBadge.style.display = storedKey ? "inline" : "none";
+            if (savedBadge) {
+                // Show only if provider requires a key and key exists
+                if (provider !== "ollama" && storedKey) {
+                    savedBadge.style.display = "inline";
+                } else {
+                    savedBadge.style.display = "none";
+                }
+            }
             ApiUi.clearStatus();
             // Enable/disable Test button according to validation (Ollama does not require API key)
             const valid = !!(window.KIMI_VALIDATORS && window.KIMI_VALIDATORS.validateApiKey(storedKey || ""));
@@ -178,6 +179,17 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
     // Hydrate API config UI from DB after ApiUi is defined and function declared
     initializeApiConfigUI();
+
+    // Listen for model changes and update the UI only for OpenRouter
+    window.addEventListener("llmModelChanged", function (event) {
+        const modelIdInput = ApiUi.modelIdInput();
+        const providerSelect = ApiUi.providerSelect();
+
+        // Only update the field if current provider is OpenRouter
+        if (modelIdInput && event.detail && event.detail.id && providerSelect && providerSelect.value === "openrouter") {
+            modelIdInput.value = event.detail.id;
+        }
+    });
 
     const providerSelectEl = document.getElementById("llm-provider");
     if (providerSelectEl) {
@@ -232,7 +244,8 @@ document.addEventListener("DOMContentLoaded", async function () {
             if (apiKeyInput) apiKeyInput.placeholder = p.keyPh;
             if (modelIdInput) {
                 modelIdInput.placeholder = p.model;
-                // Value only for OpenRouter; others cleared to encourage provider-specific model naming
+                // Only populate the field for OpenRouter since those are the models we have in the list
+                // For other providers, user must manually enter the provider-specific model ID
                 modelIdInput.value = provider === "openrouter" && window.kimiLLM ? window.kimiLLM.currentModel : "";
             }
             if (window.kimiDB) {
@@ -264,6 +277,23 @@ document.addEventListener("DOMContentLoaded", async function () {
                 ApiUi.clearStatus();
             }
         });
+
+        // Listen for model ID changes and update the current model
+        const modelIdInput = ApiUi.modelIdInput();
+        if (modelIdInput) {
+            modelIdInput.addEventListener("blur", async function (e) {
+                const newModelId = e.target.value.trim();
+                if (newModelId && window.kimiLLM && newModelId !== window.kimiLLM.currentModel) {
+                    try {
+                        await window.kimiLLM.setCurrentModel(newModelId);
+                    } catch (error) {
+                        console.warn("Failed to set model:", error.message);
+                        // Reset to current model if setting failed
+                        e.target.value = window.kimiLLM.currentModel || "";
+                    }
+                }
+            });
+        }
     }
 
     const loadingScreen = document.getElementById("loading-screen");
@@ -325,11 +355,8 @@ document.addEventListener("DOMContentLoaded", async function () {
                 const selectedCard = characterGrid ? characterGrid.querySelector(".character-card.selected") : null;
                 if (!selectedCard) return;
                 const charKey = selectedCard.dataset.character;
-                const savedBadge = document.getElementById("api-key-saved");
-                if (savedBadge) {
-                    savedBadge.textContent = (window.kimiI18nManager && window.kimiI18nManager.t("saved_short")) || "Saved";
-                    savedBadge.style.display = "inline";
-                }
+                // Removed incorrect usage of the API key saved badge here.
+                // Character save should not toggle the API key saved indicator.
                 const promptInput = window.KimiDOMUtils.get(`#prompt-${charKey}`);
                 const prompt = promptInput ? promptInput.value : "";
 
@@ -344,26 +371,7 @@ document.addEventListener("DOMContentLoaded", async function () {
                 if (window.voiceManager && window.voiceManager.updateSelectedCharacter) {
                     await window.voiceManager.updateSelectedCharacter();
                 }
-                if (window.kimiLLM && window.kimiLLM.setSystemPrompt) {
-                    // Only manage system prompt here. API key editing is handled globally to avoid duplicates.
 
-                    // Clear API status when Base URL or Model ID change
-                    const baseUrlInputEl = ApiUi.baseUrlInput();
-                    if (baseUrlInputEl) {
-                        baseUrlInputEl.addEventListener("input", () => {
-                            ApiUi.clearStatus();
-                        });
-                    }
-                    const modelIdInputEl = ApiUi.modelIdInput();
-                    if (modelIdInputEl) {
-                        modelIdInputEl.addEventListener("input", () => {
-                            ApiUi.clearStatus();
-                        });
-                    }
-                    window.kimiLLM.setSystemPrompt(prompt);
-                }
-                const systemPromptInput = window.KimiDOMUtils.get("#system-prompt");
-                if (systemPromptInput) systemPromptInput.value = prompt;
                 await window.loadCharacterSection();
                 if (settingsPanel && scrollTop !== null) {
                     requestAnimationFrame(() => {
@@ -506,14 +514,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     // Initialisation unifiée de la gestion des tabs
     window.kimiTabManager = new window.KimiTabManager({
         onTabChange: async tabName => {
-            if (tabName === "llm" || tabName === "api") {
-                if (window.kimiDB) {
-                    const selectedCharacter = await window.kimiDB.getSelectedCharacter();
-                    const prompt = await window.kimiDB.getSystemPromptForCharacter(selectedCharacter);
-                    const systemPromptInput = document.getElementById("system-prompt");
-                    if (systemPromptInput) systemPromptInput.value = prompt;
-                }
-            }
             if (tabName === "personality") {
                 await window.loadCharacterSection();
             }
@@ -522,75 +522,6 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     window.kimiUIEventManager = new window.KimiUIEventManager();
     window.kimiUIEventManager.addEvent(window, "resize", window.updateTabsScrollIndicator);
-
-    const saveSystemPromptButton = document.getElementById("save-system-prompt");
-    if (saveSystemPromptButton) {
-        saveSystemPromptButton.addEventListener("click", async () => {
-            const selectedCharacter = await window.kimiDB.getPreference("selectedCharacter", "kimi");
-            const systemPromptInput = document.getElementById("system-prompt");
-            if (systemPromptInput && window.kimiDB.setSystemPromptForCharacter) {
-                await window.kimiDB.setSystemPromptForCharacter(selectedCharacter, systemPromptInput.value);
-                if (window.kimiLLM && window.kimiLLM.setSystemPrompt) window.kimiLLM.setSystemPrompt(systemPromptInput.value);
-                const originalText = saveSystemPromptButton.textContent;
-                saveSystemPromptButton.textContent = "Saved!";
-                saveSystemPromptButton.classList.add("success");
-                saveSystemPromptButton.disabled = true;
-                setTimeout(() => {
-                    saveSystemPromptButton.setAttribute("data-i18n", "save");
-                    applyTranslations();
-                    // Re-enable the button after the success feedback
-                    saveSystemPromptButton.disabled = false;
-                    saveSystemPromptButton.classList.remove("success");
-                    // Ensure text reflects i18n "save" state
-                    // (applyTranslations above will set the text from locale)
-                }, 1500);
-            }
-        });
-    }
-    const resetSystemPromptButton = document.getElementById("reset-system-prompt");
-    const systemPromptInput = document.getElementById("system-prompt");
-    if (resetSystemPromptButton) {
-        resetSystemPromptButton.addEventListener("click", async () => {
-            const selectedCharacter = await window.kimiDB.getPreference("selectedCharacter", "kimi");
-            const characterDefault =
-                (window.KIMI_CHARACTERS && window.KIMI_CHARACTERS[selectedCharacter]?.defaultPrompt) ||
-                DEFAULT_SYSTEM_PROMPT ||
-                "";
-            if (systemPromptInput && window.kimiDB && window.kimiLLM) {
-                await window.kimiDB.setSystemPromptForCharacter(selectedCharacter, characterDefault);
-                systemPromptInput.value = characterDefault;
-                window.kimiLLM.setSystemPrompt(characterDefault);
-                resetSystemPromptButton.textContent = "Reset!";
-                resetSystemPromptButton.classList.add("animated");
-                resetSystemPromptButton.setAttribute("data-i18n", "reset_done");
-                applyTranslations();
-                setTimeout(() => {
-                    resetSystemPromptButton.setAttribute("data-i18n", "reset_to_default");
-                    applyTranslations();
-                }, 1500);
-
-                // After a reset, allow saving again
-                if (saveSystemPromptButton) {
-                    saveSystemPromptButton.disabled = false;
-                    saveSystemPromptButton.classList.remove("success");
-                    saveSystemPromptButton.setAttribute("data-i18n", "save");
-                    applyTranslations();
-                }
-            }
-        });
-    }
-
-    // Enable the Save button whenever the prompt content changes
-    if (systemPromptInput && saveSystemPromptButton) {
-        systemPromptInput.addEventListener("input", () => {
-            if (saveSystemPromptButton.disabled) {
-                saveSystemPromptButton.disabled = false;
-            }
-            saveSystemPromptButton.classList.remove("success");
-            saveSystemPromptButton.setAttribute("data-i18n", "save");
-            applyTranslations();
-        });
-    }
 
     window.kimiFormManager = new window.KimiFormManager({ db: window.kimiDB, memory: window.kimiMemory });
 
@@ -686,11 +617,18 @@ document.addEventListener("DOMContentLoaded", async function () {
                     if (result.success) {
                         statusSpan.textContent = "Connection successful!";
                         statusSpan.style.color = "#4caf50";
+                        // Only show saved badge if an actual non-empty API key is stored and provider requires one
                         const savedBadge = ApiUi.savedBadge();
                         if (savedBadge) {
-                            savedBadge.textContent =
-                                (window.kimiI18nManager && window.kimiI18nManager.t("saved_short")) || "Saved";
-                            savedBadge.style.display = "inline";
+                            const apiKeyInputEl = ApiUi.apiKeyInput();
+                            const hasKey = apiKeyInputEl && apiKeyInputEl.value.trim().length > 0;
+                            if (provider !== "ollama" && hasKey) {
+                                savedBadge.textContent =
+                                    (window.kimiI18nManager && window.kimiI18nManager.t("saved_short")) || "Saved";
+                                savedBadge.style.display = "inline";
+                            } else {
+                                savedBadge.style.display = "none";
+                            }
                         }
 
                         if (result.response) {
@@ -746,9 +684,13 @@ document.addEventListener("DOMContentLoaded", async function () {
                         await window.kimiDB.setPreference(keyPref, value);
                         const savedBadge = ApiUi.savedBadge();
                         if (savedBadge) {
-                            savedBadge.textContent =
-                                (window.kimiI18nManager && window.kimiI18nManager.t("saved_short")) || "Saved";
-                            savedBadge.style.display = value ? "inline" : "none";
+                            if (value) {
+                                savedBadge.textContent =
+                                    (window.kimiI18nManager && window.kimiI18nManager.t("saved_short")) || "Saved";
+                                savedBadge.style.display = "inline";
+                            } else {
+                                savedBadge.style.display = "none";
+                            }
                         }
                         ApiUi.setPresence(value ? "#4caf50" : "#9e9e9e");
                         // Any key change invalidates previous test state
@@ -906,43 +848,9 @@ document.addEventListener("DOMContentLoaded", async function () {
                     await window.voiceManager.handleLanguageChange({ target: { value: selectedLang } });
                 }
 
-                if (window.kimiLLM && window.kimiLLM.setSystemPrompt && kimiDB) {
-                    const selectedCharacter = await kimiDB.getPreference("selectedCharacter", "kimi");
-                    let prompt = await kimiDB.getSystemPromptForCharacter(selectedCharacter);
-                    let langInstruction;
-
-                    switch (selectedLang) {
-                        case "fr":
-                            langInstruction = "Always reply exclusively in French. Do not mix languages.";
-                            break;
-                        case "es":
-                            langInstruction = "Always reply exclusively in Spanish. Do not mix languages.";
-                            break;
-                        case "de":
-                            langInstruction = "Always reply exclusively in German. Do not mix languages.";
-                            break;
-                        case "it":
-                            langInstruction = "Always reply exclusively in Italian. Do not mix languages.";
-                            break;
-                        case "ja":
-                            langInstruction = "Always reply exclusively in Japanese. Do not mix languages.";
-                            break;
-                        case "zh":
-                            langInstruction = "Always reply exclusively in Chinese. Do not mix languages.";
-                            break;
-                        default:
-                            langInstruction = "Always reply exclusively in English. Do not mix languages.";
-                            break;
-                    }
-
-                    if (prompt) {
-                        prompt = langInstruction + "\n" + prompt;
-                    } else {
-                        prompt = langInstruction;
-                    }
-                    window.kimiLLM.setSystemPrompt(prompt);
-                    const systemPromptInput = document.getElementById("system-prompt");
-                    if (systemPromptInput) systemPromptInput.value = prompt;
+                // Refresh the personality prompt to include new language instruction
+                if (window.kimiLLM && window.kimiLLM.refreshMemoryContext) {
+                    await window.kimiLLM.refreshMemoryContext();
                 }
             });
         }

@@ -643,17 +643,20 @@ class KimiMemorySystem {
             }
 
             // Add memory with metadata (let DB auto-generate ID)
+            const now = new Date();
             const memory = {
                 category: memoryData.category || "personal",
                 type: memoryData.type || "manual",
                 content: memoryData.content,
                 sourceText: memoryData.sourceText || "",
                 confidence: memoryData.confidence || 1.0,
-                timestamp: memoryData.timestamp || new Date(),
+                timestamp: memoryData.timestamp || now,
                 character: memoryData.character || this.selectedCharacter,
                 isActive: true,
                 tags: [...new Set([...(memoryData.tags || []), ...this.deriveMemoryTags(memoryData)])],
-                lastModified: new Date(),
+                lastModified: now,
+                createdAt: now,
+                lastAccess: now,
                 accessCount: 0,
                 importance: this.calculateImportance(memoryData)
             };
@@ -1406,12 +1409,53 @@ class KimiMemorySystem {
             const memory = await this.db.db.memories.get(memoryId);
             if (memory) {
                 memory.accessCount = (memory.accessCount || 0) + 1;
-                memory.lastAccessed = new Date();
+                memory.lastAccess = new Date();
                 await this.db.db.memories.put(memory);
             }
         } catch (error) {
             console.error("Error recording memory access:", error);
         }
+    }
+
+    // ===== MEMORY SCORING & RANKING =====
+    scoreMemory(memory) {
+        // Factors: importance (0-1), recency, frequency, confidence
+        const now = Date.now();
+        const created = memory.createdAt
+            ? new Date(memory.createdAt).getTime()
+            : memory.timestamp
+              ? new Date(memory.timestamp).getTime()
+              : now;
+        const lastAccess = memory.lastAccess ? new Date(memory.lastAccess).getTime() : created;
+        const ageMs = Math.max(1, now - created);
+        const sinceLastAccessMs = Math.max(1, now - lastAccess);
+        // Recency: exponential decay
+        const recency = Math.exp(-sinceLastAccessMs / (1000 * 60 * 60 * 24 * 14)); // 14-day half-life approx
+        const freshness = Math.exp(-ageMs / (1000 * 60 * 60 * 24 * 60)); // 60-day aging
+        const freq = Math.log10((memory.accessCount || 0) + 1) / Math.log10(50); // normalized frequency (cap ~50)
+        const importance = typeof memory.importance === "number" ? memory.importance : 0.5;
+        const confidence = typeof memory.confidence === "number" ? memory.confidence : 0.5;
+        // Weighted sum
+        const score = importance * 0.35 + recency * 0.2 + freq * 0.15 + confidence * 0.2 + freshness * 0.1;
+        return Number(score.toFixed(6));
+    }
+
+    async getRankedMemories(contextText = "", limit = 7) {
+        const all = await this.getAllMemories();
+        if (!all.length) return [];
+        // Optional basic context relevance boost
+        const ctxLower = (contextText || "").toLowerCase();
+        return all
+            .map(m => {
+                let baseScore = this.scoreMemory(m);
+                if (ctxLower && m.content && ctxLower.includes(m.content.toLowerCase().split(" ")[0])) {
+                    baseScore += 0.05; // tiny relevance boost
+                }
+                return { memory: m, score: baseScore };
+            })
+            .sort((a, b) => b.score - a.score)
+            .slice(0, limit)
+            .map(r => r.memory);
     }
 
     // MEMORY STATISTICS

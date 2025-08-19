@@ -435,21 +435,6 @@
                                 </div>
                             </div>
                         </div>
-
-                        <div class="config-row">
-                            <label class="config-label" data-i18n="system_prompt">System Prompt</label>
-                            <div class="config-control">
-                                <textarea class="kimi-input" id="system-prompt" rows="6"
-                                    placeholder="Add your custom system prompt here..."
-                                    data-i18n-placeholder="system_prompt_placeholder" autocomplete="off"
-                                    autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="text"
-                                    aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true"
-                                    data-bwignore="true"></textarea>
-                                <button class="kimi-button" id="save-system-prompt" data-i18n="save">Save</button>
-                                <button class="kimi-button" id="reset-system-prompt" data-i18n="reset_to_default">Reset
-                                    to Default</button>
-                            </div>
-                        </div>
                     </div>
 
                     <div class="config-section">
@@ -461,8 +446,8 @@
                             <div class="config-control">
                                 <div class="slider-container">
                                     <input type="range" class="kimi-slider" id="llm-temperature" min="0.0" max="1"
-                                        step="0.1" value="0.9" />
-                                    <span class="slider-value" id="llm-temperature-value">0.9</span>
+                                        step="0.1" value="0.8" />
+                                    <span class="slider-value" id="llm-temperature-value">0.8</span>
                                 </div>
                             </div>
                         </div>
@@ -472,8 +457,8 @@
                             <div class="config-control">
                                 <div class="slider-container">
                                     <input type="range" class="kimi-slider" id="llm-max-tokens" min="10" max="1000"
-                                        step="10" value="100" />
-                                    <span class="slider-value" id="llm-max-tokens-value">100</span>
+                                        step="10" value="400" />
+                                    <span class="slider-value" id="llm-max-tokens-value">400</span>
                                 </div>
                             </div>
                         </div>
@@ -493,8 +478,8 @@
                             <div class="config-control">
                                 <div class="slider-container">
                                     <input type="range" class="kimi-slider" id="llm-frequency-penalty" min="0" max="2"
-                                        step="0.01" value="0.3" />
-                                    <span class="slider-value" id="llm-frequency-penalty-value">0.3</span>
+                                        step="0.01" value="0.6" />
+                                    <span class="slider-value" id="llm-frequency-penalty-value">0.6</span>
                                 </div>
                             </div>
                         </div>
@@ -503,8 +488,8 @@
                             <div class="config-control">
                                 <div class="slider-container">
                                     <input type="range" class="kimi-slider" id="llm-presence-penalty" min="0" max="2"
-                                        step="0.01" value="0.3" />
-                                    <span class="slider-value" id="llm-presence-penalty-value">0.3</span>
+                                        step="0.01" value="0.5" />
+                                    <span class="slider-value" id="llm-presence-penalty-value">0.5</span>
                                 </div>
                             </div>
                         </div>
