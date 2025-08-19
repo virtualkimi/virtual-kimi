@@ -1,5 +1,14 @@
 # Virtual Kimi Changelog
 
+## [1.0.7] - 2025-08-19
+
+### Changed
+
+- Removed the global system prompt that caused issues and implemented per-character system prompts for each character.
+- Improved voice reading of messages for clearer and more natural audio playback.
+- Fixed various small bugs related to characters' personality traits.
+- Improved detection of words and phrases for memory recording to increase accuracy.
+
 ## [1.0.6] - 2025-08-15
 
 ### Added
