@@ -474,7 +474,7 @@ class KimiLLMManager {
         const provider = await this.db.getPreference("llmProvider", "openai");
         const apiKey = KimiProviderUtils
             ? await KimiProviderUtils.getApiKey(this.db, provider)
-            : await this.db.getPreference("llmApiKey", "");
+            : await this.db.getPreference("providerApiKey", "");
         const modelId = await this.db.getPreference("llmModelId", this.currentModel || "gpt-4o-mini");
         if (!apiKey) {
             throw new Error("API key not configured for selected provider");
@@ -576,7 +576,7 @@ class KimiLLMManager {
     }
 
     async chatWithOpenRouter(userMessage, options = {}) {
-        const apiKey = await this.db.getPreference("openrouterApiKey");
+        const apiKey = await this.db.getPreference("providerApiKey");
         if (!apiKey) {
             throw new Error("OpenRouter API key not configured");
         }
@@ -1018,7 +1018,7 @@ class KimiLLMManager {
         if (this._isRefreshingModels) return;
         this._isRefreshingModels = true;
         try {
-            const apiKey = await this.db.getPreference("openrouterApiKey", "");
+            const apiKey = await this.db.getPreference("providerApiKey", "");
             const res = await fetch("https://openrouter.ai/api/v1/models", {
                 method: "GET",
                 headers: {

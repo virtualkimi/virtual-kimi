@@ -747,11 +747,10 @@ async function loadSettingsData() {
             "voicePitch",
             "voiceVolume",
             "selectedLanguage",
-            "openrouterApiKey",
+            "providerApiKey",
             "llmProvider",
             "llmBaseUrl",
             "llmModelId",
-            "llmApiKey",
             "selectedCharacter",
             "llmTemperature",
             "llmMaxTokens",
@@ -766,11 +765,10 @@ async function loadSettingsData() {
         const voicePitch = preferences.voicePitch !== undefined ? preferences.voicePitch : 1.1;
         const voiceVolume = preferences.voiceVolume !== undefined ? preferences.voiceVolume : 0.8;
         const selectedLanguage = preferences.selectedLanguage || "en";
-        const apiKey = preferences.openrouterApiKey || "";
+        const apiKey = preferences.providerApiKey || "";
         const provider = preferences.llmProvider || "openrouter";
         const baseUrl = preferences.llmBaseUrl || "https://openrouter.ai/api/v1/chat/completions";
         const modelId = preferences.llmModelId || (window.kimiLLM ? window.kimiLLM.currentModel : "");
-        const genericKey = preferences.llmApiKey || "";
         const selectedCharacter = preferences.selectedCharacter || "kimi";
         const llmTemperature = preferences.llmTemperature !== undefined ? preferences.llmTemperature : 0.8;
         const llmMaxTokens = preferences.llmMaxTokens !== undefined ? preferences.llmMaxTokens : 400;
@@ -1341,10 +1339,17 @@ async function sendMessage() {
 
     try {
         const response = await analyzeAndReact(message);
+        let finalResponse = response;
+        // Si la réponse du LLM est vide, nulle ou trop courte, utilise le fallback émotionnel
+        if (!finalResponse || typeof finalResponse !== "string" || finalResponse.trim().length < 2) {
+            finalResponse = window.getLocalizedEmotionalResponse
+                ? window.getLocalizedEmotionalResponse("neutral")
+                : "I'm here for you!";
+        }
         setTimeout(() => {
-            addMessageToChat("kimi", response);
+            addMessageToChat("kimi", finalResponse);
             if (window.voiceManager && !message.startsWith("Vous:")) {
-                window.voiceManager.speak(response);
+                window.voiceManager.speak(finalResponse);
             }
             if (waitingIndicator) waitingIndicator.style.display = "none";
         }, 1000);
@@ -1611,7 +1616,7 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
             if (kimiDB) await kimiDB.setPreference("colorTheme", e.target.value);
             if (window.kimiAppearanceManager && window.kimiAppearanceManager.changeTheme)
                 await window.kimiAppearanceManager.changeTheme(e.target.value);
-            if (window.KimiPluginManager && window.KimiPluginManager.loadPlugins) await window.KimiPluginManager.loadPlugins();
+            // Removed plugin reload for strict isolation
         };
         colorThemeSelect.addEventListener("change", window._kimiColorThemeListener);
     }
