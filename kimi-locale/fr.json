@@ -143,7 +143,7 @@
     "character_summary_bella": "Joyeuse, bienveillante, voit les gens comme des plantes ayant besoin de soins",
     "character_summary_rosa": "Chaotique, en quête d'attention, prospère dans le chaos contrôlé",
     "character_summary_stella": "Fantaisiste, artistique, imaginative, joueuse, transforme le chaos en art",
-    "fallback_api_missing": "Pour vraiment discuter avec moi, ajoute ta clé API OpenRouter dans les paramètres ! 💕",
+    "fallback_api_missing": "Pour vraiment discuter avec moi, ajoute ta clé API dans les paramètres ! 💕",
     "fallback_api_error": "Désolée, le service IA est temporairement indisponible. Veuillez réessayer plus tard.",
     "fallback_model_error": "Désolée, le modèle sélectionné n'est pas disponible. Veuillez choisir un autre modèle ou vérifier votre configuration.",
     "fallback_network_error": "Désolée, je ne peux pas répondre car il n'y a pas de connexion internet.",

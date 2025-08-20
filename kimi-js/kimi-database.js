@@ -126,14 +126,7 @@ class KimiDatabase {
             { key: "llmProvider", value: "openrouter" },
             { key: "llmBaseUrl", value: "https://openrouter.ai/api/v1/chat/completions" },
             { key: "llmModelId", value: "mistralai/mistral-small-3.2-24b-instruct" },
-            { key: "llmApiKey", value: "" },
-            // Explicit default for OpenRouter key to avoid missing key errors
-            { key: "openrouterApiKey", value: "" },
-            { key: "apiKey_openai", value: "" },
-            { key: "apiKey_groq", value: "" },
-            { key: "apiKey_together", value: "" },
-            { key: "apiKey_deepseek", value: "" },
-            { key: "apiKey_custom", value: "" }
+            { key: "providerApiKey", value: "" }
         ];
     }
 
@@ -365,7 +358,7 @@ class KimiDatabase {
     }
 
     async setPreference(key, value) {
-        if (key === "openrouterApiKey" || key === "llmApiKey" || key.startsWith("apiKey_")) {
+        if (key === "providerApiKey") {
             const isValid = window.KIMI_VALIDATORS?.validateApiKey(value) || window.KimiSecurityUtils?.validateApiKey(value);
             if (!isValid && value.length > 0) {
                 throw new Error("Invalid API key format");

@@ -80,7 +80,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     const ApiUi = {
         presenceDot: () => document.getElementById("api-key-presence"),
         presenceDotTest: () => document.getElementById("api-key-presence-test"),
-        apiKeyInput: () => document.getElementById("openrouter-api-key"),
+        apiKeyInput: () => document.getElementById("provider-api-key"),
         toggleBtn: () => document.getElementById("toggle-api-key"),
         providerSelect: () => document.getElementById("llm-provider"),
         baseUrlInput: () => document.getElementById("llm-base-url"),
@@ -150,7 +150,9 @@ document.addEventListener("DOMContentLoaded", async function () {
                 }
             }
             // Load the provider-specific key
-            const keyPref = window.KimiProviderUtils ? window.KimiProviderUtils.getKeyPrefForProvider(provider) : "llmApiKey";
+            const keyPref = window.KimiProviderUtils
+                ? window.KimiProviderUtils.getKeyPrefForProvider(provider)
+                : "providerApiKey";
             const storedKey = await window.kimiDB.getPreference(keyPref, "");
             if (apiKeyInput) apiKeyInput.value = storedKey || "";
             ApiUi.setPresence(storedKey ? "#4caf50" : "#9e9e9e");
@@ -241,7 +243,18 @@ document.addEventListener("DOMContentLoaded", async function () {
                 baseUrlInput.placeholder = p.url;
                 baseUrlInput.value = provider === "openrouter" ? placeholders.openrouter.url : p.url;
             }
-            if (apiKeyInput) apiKeyInput.placeholder = p.keyPh;
+            if (apiKeyInput) {
+                apiKeyInput.placeholder = p.keyPh;
+                // Masquer/désactiver le champ pour Ollama/local
+                if (provider === "ollama") {
+                    apiKeyInput.value = "";
+                    apiKeyInput.disabled = true;
+                    apiKeyInput.style.display = "none";
+                } else {
+                    apiKeyInput.disabled = false;
+                    apiKeyInput.style.display = "";
+                }
+            }
             if (modelIdInput) {
                 modelIdInput.placeholder = p.model;
                 // Only populate the field for OpenRouter since those are the models we have in the list
@@ -253,9 +266,11 @@ document.addEventListener("DOMContentLoaded", async function () {
                 await window.kimiDB.setPreference("llmBaseUrl", provider === "openrouter" ? placeholders.openrouter.url : p.url);
                 const apiKeyLabel = document.getElementById("api-key-label");
                 // Load provider-specific key into the input for clarity
-                const keyPref = window.KimiProviderUtils ? window.KimiProviderUtils.getKeyPrefForProvider(provider) : "llmApiKey";
-                const storedKey = await window.kimiDB.getPreference(keyPref, "");
-                if (apiKeyInput) apiKeyInput.value = storedKey || "";
+                const keyPref = window.KimiProviderUtils
+                    ? window.KimiProviderUtils.getKeyPrefForProvider(provider)
+                    : "providerApiKey";
+                const storedKey = await window.kimiDB.getPreference("providerApiKey", "");
+                if (apiKeyInput && provider !== "ollama") apiKeyInput.value = storedKey || "";
                 const color = provider === "ollama" ? "#9e9e9e" : storedKey && storedKey.length > 0 ? "#4caf50" : "#9e9e9e";
                 ApiUi.setPresence(color);
                 // Changing provider invalidates previous test state
@@ -273,7 +288,13 @@ document.addEventListener("DOMContentLoaded", async function () {
                         : "API Key";
                 }
                 const savedBadge = ApiUi.savedBadge();
-                if (savedBadge) savedBadge.style.display = "none";
+                if (savedBadge) {
+                    if (provider !== "ollama" && storedKey) {
+                        savedBadge.style.display = "inline";
+                    } else {
+                        savedBadge.style.display = "none";
+                    }
+                }
                 ApiUi.clearStatus();
             }
         });
@@ -362,6 +383,10 @@ document.addEventListener("DOMContentLoaded", async function () {
 
                 await window.kimiDB.setSelectedCharacter(charKey);
                 await window.kimiDB.setSystemPromptForCharacter(charKey, prompt);
+                // Ensure memory system uses the correct character
+                if (window.kimiMemorySystem) {
+                    window.kimiMemorySystem.selectedCharacter = charKey;
+                }
                 if (window.kimiVideo && window.kimiVideo.setCharacter) {
                     window.kimiVideo.setCharacter(charKey);
                     if (window.kimiVideo.switchToContext) {
@@ -377,6 +402,10 @@ document.addEventListener("DOMContentLoaded", async function () {
                     requestAnimationFrame(() => {
                         settingsPanel.scrollTop = scrollTop;
                     });
+                }
+                // Refresh memory tab after character selection
+                if (window.kimiMemoryUI && typeof window.kimiMemoryUI.updateMemoryStats === "function") {
+                    await window.kimiMemoryUI.updateMemoryStats();
                 }
                 saveCharacterBtn.setAttribute("data-i18n", "saved");
                 saveCharacterBtn.classList.add("success");
@@ -557,19 +586,59 @@ document.addEventListener("DOMContentLoaded", async function () {
     if (testApiButton) {
         testApiButton.addEventListener("click", async () => {
             const statusSpan = ApiUi.statusSpan();
+            const apiKeyInput = ApiUi.apiKeyInput();
+            const apiKey = apiKeyInput ? apiKeyInput.value.trim() : "";
             const providerSelect = ApiUi.providerSelect();
-            const provider = providerSelect ? providerSelect.value : "openrouter";
+            const baseUrlInput = ApiUi.baseUrlInput();
             const modelIdInput = ApiUi.modelIdInput();
-            const modelId = modelIdInput ? modelIdInput.value.trim() : window.kimiLLM ? window.kimiLLM.currentModel : "model-id";
+            const provider = providerSelect ? providerSelect.value : "openrouter";
+            const baseUrl = baseUrlInput ? baseUrlInput.value.trim() : "";
+            const modelId = modelIdInput ? modelIdInput.value.trim() : "";
+
             if (!statusSpan) return;
+
+            if (provider !== "ollama" && !apiKey) {
+                statusSpan.textContent = window.kimiI18nManager?.t("api_key_missing") || "API key missing";
+                statusSpan.style.color = "#ff6b6b";
+                return;
+            }
+
+            // Validate API key format before saving/testing
+            if (provider !== "ollama") {
+                const isValid = (window.KIMI_VALIDATORS && window.KIMI_VALIDATORS.validateApiKey(apiKey)) || false;
+                if (!isValid) {
+                    statusSpan.textContent =
+                        window.kimiI18nManager?.t("api_key_invalid_format") ||
+                        "Invalid API key format (must start with sk-or-v1-)";
+                    statusSpan.style.color = "#ff6b6b";
+                    return;
+                }
+            }
+
+            if (window.kimiDB) {
+                // Save API key under provider-specific preference key (skip for Ollama)
+                if (provider !== "ollama") {
+                    const keyPref = window.KimiProviderUtils
+                        ? window.KimiProviderUtils.getKeyPrefForProvider(provider)
+                        : "providerApiKey";
+                    await window.kimiDB.setPreference(keyPref, apiKey);
+                }
+                await window.kimiDB.setPreference("llmProvider", provider);
+                if (baseUrl) await window.kimiDB.setPreference("llmBaseUrl", baseUrl);
+                if (modelId) await window.kimiDB.setPreference("llmModelId", modelId);
+            }
+
             statusSpan.textContent = "Testing in progress...";
             statusSpan.style.color = "#ffa726";
+
             try {
                 if (window.kimiLLM) {
+                    // Test API minimal et centralisé pour tous les providers
                     const result = await window.kimiLLM.testApiKeyMinimal(modelId);
                     if (result.success) {
                         statusSpan.textContent = "Connection successful!";
                         statusSpan.style.color = "#4caf50";
+                        // Only show saved badge if an actual non-empty API key is stored and provider requires one
                         const savedBadge = ApiUi.savedBadge();
                         if (savedBadge) {
                             const apiKeyInputEl = ApiUi.apiKeyInput();
@@ -582,16 +651,21 @@ document.addEventListener("DOMContentLoaded", async function () {
                                 savedBadge.style.display = "none";
                             }
                         }
+
                         if (result.response) {
                             setTimeout(() => {
                                 statusSpan.textContent = `Test response: \"${result.response.substring(0, 50)}...\"`;
                             }, 1000);
                         }
+                        // Mark test success explicitly
                         ApiUi.setTestPresence("#4caf50");
                     } else {
                         statusSpan.textContent = `${result.error}`;
                         statusSpan.style.color = "#ff6b6b";
                         ApiUi.setTestPresence("#9e9e9e");
+                        if (result.error.includes("similaires disponibles")) {
+                            setTimeout(() => {}, 1000);
+                        }
                     }
                 } else {
                     statusSpan.textContent = "LLM manager not initialized";
@@ -603,6 +677,10 @@ document.addEventListener("DOMContentLoaded", async function () {
                 statusSpan.textContent = `Error: ${error.message}`;
                 statusSpan.style.color = "#ff6b6b";
                 ApiUi.setTestPresence("#9e9e9e");
+
+                if (error.message.includes("non disponible")) {
+                    setTimeout(() => {}, 1000);
+                }
             }
         });
     }
@@ -617,7 +695,9 @@ document.addEventListener("DOMContentLoaded", async function () {
             t = setTimeout(async () => {
                 const providerEl = ApiUi.providerSelect();
                 const provider = providerEl ? providerEl.value : "openrouter";
-                const keyPref = window.KimiProviderUtils ? window.KimiProviderUtils.getKeyPrefForProvider(provider) : "llmApiKey";
+                const keyPref = window.KimiProviderUtils
+                    ? window.KimiProviderUtils.getKeyPrefForProvider(provider)
+                    : "providerApiKey";
                 const value = input.value.trim();
                 // Update Test button state immediately
                 const validNow = !!(window.KIMI_VALIDATORS && window.KIMI_VALIDATORS.validateApiKey(value));

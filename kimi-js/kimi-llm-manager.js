@@ -474,7 +474,7 @@ class KimiLLMManager {
         const provider = await this.db.getPreference("llmProvider", "openai");
         const apiKey = KimiProviderUtils
             ? await KimiProviderUtils.getApiKey(this.db, provider)
-            : await this.db.getPreference("llmApiKey", "");
+            : await this.db.getPreference("providerApiKey", "");
         const modelId = await this.db.getPreference("llmModelId", this.currentModel || "gpt-4o-mini");
         if (!apiKey) {
             throw new Error("API key not configured for selected provider");
@@ -576,7 +576,7 @@ class KimiLLMManager {
     }
 
     async chatWithOpenRouter(userMessage, options = {}) {
-        const apiKey = await this.db.getPreference("openrouterApiKey");
+        const apiKey = await this.db.getPreference("providerApiKey");
         if (!apiKey) {
             throw new Error("OpenRouter API key not configured");
         }
@@ -975,45 +975,15 @@ class KimiLLMManager {
     }
 
     async testModel(modelId, testMessage = "Test API ok?") {
-        const originalModel = this.currentModel;
-        try {
-            await this.setCurrentModel(modelId);
-            const response = await this.chat(testMessage, { maxTokens: 2 });
-            return { success: true, response: response };
-        } catch (error) {
-            return { success: false, error: error.message };
-        } finally {
-            await this.setCurrentModel(originalModel);
-        }
-    }
-
-    // Complete model diagnosis
-    async diagnoseModel(modelId) {
-        const model = this.availableModels[modelId];
-        if (!model) {
-            return {
-                available: false,
-                error: "Model not found in local list"
-            };
-        }
-
-        // Check availability on OpenRouter
-        try {
-            // getAvailableModelsFromAPI removed
-            return { available: true, model, pricing: model.pricing };
-        } catch (error) {
-            return {
-                available: false,
-                error: `Unable to check: ${error.message}`
-            };
-        }
+        // Ancienne méthode de test (non minimaliste)
+        return await this.testApiKeyMinimal(modelId);
     }
 
     /**
-     * Minimal API test for any provider. Sends only a short system prompt and a single user message in the chosen language.
-     * No context, no memory, no previous messages, no extra parameters.
-     * @param {string} provider - Provider name (e.g. 'openrouter', 'openai', 'ollama', etc.)
-     * @param {string} language - Language code (e.g. 'en', 'fr', 'es', etc.)
+     * Test API minimaliste et centralisé pour tous les providers compatibles.
+     * Envoie uniquement un prompt système court et un message utilisateur dans la langue choisie.
+     * Aucun contexte, aucune mémoire, aucun paramètre superflu.
+     * @param {string} modelId - ID du modèle à tester
      * @returns {Promise<{success: boolean, response?: string, error?: string}>}
      */
     async testApiKeyMinimal(modelId) {
@@ -1062,7 +1032,7 @@ class KimiLLMManager {
                 headers["Authorization"] = `Bearer ${apiKey}`;
                 headers["HTTP-Referer"] = window.location.origin;
                 headers["X-Title"] = "Kimi - Virtual Companion";
-            } else if (["openai", "groq", "together", "deepseek"].includes(provider)) {
+            } else if (["openai", "groq", "together", "deepseek", "openai-compatible"].includes(provider)) {
                 baseUrl = await this.db.getPreference("llmBaseUrl", "https://api.openai.com/v1/chat/completions");
                 headers["Authorization"] = `Bearer ${apiKey}`;
             } else if (provider === "ollama") {
@@ -1102,12 +1072,38 @@ class KimiLLMManager {
         }
     }
 
+    // Complete model diagnosis
+    async diagnoseModel(modelId) {
+        const model = this.availableModels[modelId];
+        if (!model) {
+            return {
+                available: false,
+                error: "Model not found in local list"
+            };
+        }
+
+        // Check availability on OpenRouter
+        try {
+            // getAvailableModelsFromAPI removed
+            return {
+                available: true,
+                model: model,
+                pricing: model.pricing
+            };
+        } catch (error) {
+            return {
+                available: false,
+                error: `Unable to check: ${error.message}`
+            };
+        }
+    }
+
     // Fetch models from OpenRouter API and merge into availableModels
     async refreshRemoteModels() {
         if (this._isRefreshingModels) return;
         this._isRefreshingModels = true;
         try {
-            const apiKey = await this.db.getPreference("openrouterApiKey", "");
+            const apiKey = await this.db.getPreference("providerApiKey", "");
             const res = await fetch("https://openrouter.ai/api/v1/models", {
                 method: "GET",
                 headers: {

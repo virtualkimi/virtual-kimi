@@ -1,5 +1,15 @@
 # Virtual Kimi Changelog
 
+# [1.0.8] - 2025-08-19
+
+### Changed
+
+- Improved fallback logic for LLM responses: now uses localized emotional responses if the LLM reply is empty or invalid.
+- Made emotional response selection dynamic and robust, based on available variants.
+- Enhanced error handling for missing API keys, network issues, and API errors, ensuring the user always receives a meaningful message.
+- Refactored code patching to avoid accidental code removal or misplaced edits.
+- Clarified and documented emotional response logic for maintainability.
+
 ## [1.0.7] - 2025-08-19
 
 ### Changed

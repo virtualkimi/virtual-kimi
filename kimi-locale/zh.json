@@ -143,7 +143,7 @@
     "character_summary_bella": "开朗、体贴，将人视为需要关爱的植物",
     "character_summary_rosa": "混乱、寻求关注，在受控混乱中蓬勃发展",
     "character_summary_stella": "古怪、艺术、富有想象力、顽皮，将混乱转化为艺术",
-    "fallback_api_missing": "要真正与我聊天，请在设置中添加您的OpenRouter API密钥！ 💕",
+    "fallback_api_missing": "要真正与我聊天，请在设置中添加您的 API密钥！ 💕",
     "fallback_api_error": "抱歉，AI服务暂时不可用。请稍后再试。",
     "fallback_model_error": "抱歉，所选模型不可用。请选择其他模型或检查您的配置。",
     "fallback_network_error": "抱歉，由于没有互联网连接，我无法回应。",
