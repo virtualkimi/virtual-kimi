@@ -2,212 +2,88 @@
 
 window.KIMI_CONTEXT_KEYWORDS = {
     en: {
-        surprise: [
-            "wow",
-            "oh",
-            "surprise",
-            "incredible",
-            "amazing",
-            "unbelievable",
-            "no way",
-            "really?",
-            "whoa",
-            "gosh",
-            "astonishing"
-        ],
-        laughing: [
-            "haha",
-            "lol",
-            "laugh",
-            "funny",
-            "hilarious",
-            "rofl",
-            "lmao",
-            "giggle",
-            "chuckle",
-            "snicker",
-            "you’re kidding"
-        ],
-        shy: [
-            "shy",
-            "embarrassed",
-            "blush",
-            "bashful",
-            "intimidated",
-            "awkward",
-            "nervous",
-            "timid",
-            "reserved",
-            "self-conscious"
-        ],
-        confident: [
-            "confidence",
-            "proud",
-            "confident",
-            "strong",
-            "determined",
-            "assertive",
-            "bold",
-            "fearless",
-            "self-assured",
-            "leader"
-        ],
-        romantic: [
-            "love",
-            "romantic",
-            "tender",
-            "hug",
-            "kiss",
-            "sweetheart",
-            "darling",
-            "my love",
-            "beloved",
-            "heart",
-            "passionate"
-        ],
-        flirtatious: [
-            "flirty",
-            "teasing",
-            "seduce",
-            "charm",
-            "flirt",
-            "wink",
-            "sassy",
-            "saucy",
-            "playful",
-            "seductive",
-            "come hither"
-        ],
-        goodbye: [
-            "goodbye",
-            "bye",
-            "see you",
-            "see you soon",
-            "ciao",
-            "take care",
-            "farewell",
-            "see ya",
-            "later",
-            "catch you later"
-        ],
-        kiss: ["kiss", "kisses", "embrace", "smooch", "peck", "lip lock", "kissy", "mwah"],
-        dancing: ["dance", "dancing", "move", "groove", "step", "boogie", "twirl", "spin", "shake", "jig"],
-        listening: [
-            "listen",
-            "listening",
-            "hear",
-            "question",
-            "ask",
-            "tell me",
-            "pay attention",
-            "hear me out",
-            "focus",
-            "tune in",
-            "lend an ear"
-        ]
+        surprise: ["wow", "oh", "surprise", "incredible", "amazing"],
+        laughing: ["haha", "lol", "laugh", "funny", "hilarious"],
+        shy: ["shy", "embarrassed", "blush", "bashful", "intimidated"],
+        confident: ["confidence", "proud", "confident", "strong", "determined"],
+        romantic: ["love", "romantic", "tender", "hug", "kiss", "dear"],
+        flirtatious: ["flirty", "teasing", "seduce", "charm", "flirt"],
+        goodbye: ["goodbye", "bye", "see you", "see you soon", "ciao"],
+        kiss: ["kiss", "kisses", "embrace", "bise"],
+        dancing: ["dance", "dancing", "move", "groove", "step"],
+        listening: ["listen", "listening", "hear", "talk", "speak", "question", "ask", "tell me"]
     },
     fr: {
-        surprise: ["oh", "surprise", "incroyable", "wahou", "étonnant", "épatant", "stupéfiant", "vraiment?", "oh là là"],
-        laughing: ["haha", "mdr", "rire", "drôle", "hilarant", "mort de rire", "ptdr", "rigole", "sourit", "tu plaisantes"],
-        shy: ["timide", "gêné", "rougir", "honteux", "intimidé", "mal à l’aise", "réservé", "introverti", "timidité"],
-        confident: ["confiance", "fier", "sûr", "fort", "déterminé", "assuré", "audacieux", "leader", "sans peur", "affirmé"],
-        romantic: ["amour", "romantique", "tendre", "câlin", "bisou", "mon cœur", "chéri", "ma belle", "passionné", "adoré"],
-        flirtatious: [
-            "flirt",
-            "taquin",
-            "séduire",
-            "charme",
-            "aguiche",
-            "clin d’œil",
-            "coquin",
-            "séducteur",
-            "taquine",
-            "aguicheur"
-        ],
-        goodbye: ["au revoir", "bye", "à bientôt", "ciao", "salut", "prends soin de toi", "à plus", "à la prochaine", "bye bye"],
-        kiss: ["bisou", "baiser", "embrasser", "smack", "bisou bisou", "bécot", "embrassade"],
-        dancing: ["danse", "bouge", "remue", "tourne", "spin", "danser", "tourbillon", "bouger", "remuer", "gigoter"],
-        listening: [
-            "écoute",
-            "écouter",
-            "parle",
-            "question",
-            "demande",
-            "dis-moi",
-            "écoute-moi",
-            "sois attentif",
-            "prête l’oreille",
-            "concentre-toi"
-        ]
+        surprise: ["oh", "surprise", "incroyable", "wahou", "étonnant"],
+        laughing: ["haha", "mdr", "rire", "drôle", "hilarant"],
+        shy: ["timide", "gêné", "rougir", "honteux", "intimidé"],
+        confident: ["confiance", "fier", "sûr", "fort", "déterminé"],
+        romantic: ["amour", "romantique", "tendre", "câlin", "bisou", "cher"],
+        flirtatious: ["flirt", "taquin", "séduire", "charme", "aguiche"],
+        goodbye: ["au revoir", "bye", "à bientôt", "ciao", "salut"],
+        kiss: ["bisou", "baiser", "embrasser", "câlin"],
+        dancing: ["danse", "bouge", "remue", "tourne", "spin"],
+        listening: ["écoute", "ecoute", "écouter", "parle", "parler", "question", "demande", "dis-moi"]
     },
     es: {
-        surprise: ["wow", "oh", "sorpresa", "increíble", "asombroso", "de verdad?", "vaya", "sorprendente"],
-        laughing: ["jaja", "lol", "reír", "gracioso", "divertido", "carcajada", "sonrisa", "te ríes", "broma", "estás de broma"],
-        shy: ["tímido", "avergonzado", "sonrojar", "tímida", "intimidado", "reservado", "introvertido", "tímidez", "nervioso"],
-        confident: ["confianza", "orgulloso", "seguro", "fuerte", "determinado", "seguro de sí", "valiente", "líder", "atrevido"],
-        romantic: ["amor", "romántico", "tierno", "abrazo", "beso", "mi amor", "cariño", "apasionado", "querido", "corazón"],
-        flirtatious: ["coqueto", "provocar", "seducir", "encanto", "flirtear", "guiño", "coqueto", "seductor", "pícaro"],
-        goodbye: ["adiós", "bye", "hasta pronto", "ciao", "hasta luego", "cuídate", "nos vemos", "hasta la próxima"],
-        kiss: ["beso", "besos", "abrazar", "besito", "abrazo", "besote"],
-        dancing: ["bailar", "baile", "mover", "ritmo", "paso", "girar", "moverse", "sacudir"],
-        listening: [
-            "escucha",
-            "escuchar",
-            "oír",
-            "habla",
-            "pregunta",
-            "preguntar",
-            "dime",
-            "escúchame",
-            "pon atención",
-            "presta oído",
-            "concéntrate"
-        ]
+        surprise: ["wow", "oh", "sorpresa", "increíble", "asombroso"],
+        laughing: ["jaja", "lol", "reír", "gracioso", "divertido"],
+        shy: ["tímido", "avergonzado", "sonrojar", "tímida", "intimidado"],
+        confident: ["confianza", "orgulloso", "seguro", "fuerte", "determinado"],
+        romantic: ["amor", "romántico", "tierno", "abrazo", "beso", "querido"],
+        flirtatious: ["coqueto", "provocar", "seducir", "encanto", "flirtear"],
+        goodbye: ["adiós", "bye", "hasta pronto", "ciao", "hasta luego"],
+        kiss: ["beso", "besos", "abrazar"],
+        dancing: ["bailar", "baile", "mover", "ritmo", "paso"],
+        listening: ["escucha", "escuchar", "oír", "habla", "hablar", "pregunta", "preguntar", "dime"]
     },
     de: {
-        surprise: ["wow", "oh", "überraschung", "unglaublich", "erstaunlich", "wirklich?", "überrascht", "staunend"],
-        laughing: ["haha", "lol", "lachen", "lustig", "witzig", "kicher", "grinsen", "du machst Witze"],
-        shy: ["schüchtern", "verlegen", "erröten", "beschämt", "eingeschüchtert", "zurückhaltend", "nervös", "schüchternheit"],
-        confident: ["vertrauen", "stolz", "sicher", "stark", "entschlossen", "selbstbewusst", "mutig", "führer"],
-        romantic: ["liebe", "romantisch", "zärtlich", "umarmung", "kuss", "mein Schatz", "Liebling", "leidenschaftlich", "Herz"],
-        flirtatious: ["flirten", "necken", "verführen", "charme", "flirt", "zwinkern", "frech", "verführerisch"],
-        goodbye: ["auf wiedersehen", "bye", "bis bald", "ciao", "bis später", "pass auf dich auf", "bis dann", "tschüss"],
-        kiss: ["kuss", "küsse", "umarmen", "Küsschen", "Schmatzer"],
-        dancing: ["tanzen", "tanz", "bewegen", "groove", "schritt", "drehen", "schwingen"],
-        listening: [
-            "hör",
-            "hören",
-            "zuhören",
-            "sprich",
-            "frage",
-            "fragen",
-            "sag mir",
-            "hör zu",
-            "sei aufmerksam",
-            "konzentriere dich"
-        ]
+        surprise: ["wow", "oh", "überraschung", "unglaublich", "erstaunlich"],
+        laughing: ["haha", "lol", "lachen", "lustig", "witzig"],
+        shy: ["schüchtern", "verlegen", "erröten", "beschämt", "eingeschüchtert"],
+        confident: ["vertrauen", "stolz", "sicher", "stark", "entschlossen"],
+        romantic: ["liebe", "romantisch", "zärtlich", "umarmung", "kuss", "lieber"],
+        flirtatious: ["flirten", "necken", "verführen", "charme", "flirt"],
+        goodbye: ["auf wiedersehen", "bye", "bis bald", "ciao", "bis später"],
+        kiss: ["kuss", "küsse", "umarmen", "küsschen"],
+        dancing: ["tanzen", "tanz", "bewegen", "groove", "schritt"],
+        listening: ["hör", "hören", "zuhören", "sprich", "sprechen", "frage", "fragen", "sag mir"]
     },
     it: {
-        surprise: ["wow", "oh", "sorpresa", "incredibile", "stupefacente", "davvero?", "sbalorditivo", "sorpreso"],
-        laughing: ["haha", "lol", "ridere", "divertente", "esilarante", "sorriso", "ridacchiare", "stai scherzando"],
-        shy: [
-            "timido",
-            "imbarazzato",
-            "arrossire",
-            "vergognoso",
-            "intimidito",
-            "riservato",
-            "introverso",
-            "timidezza",
-            "imbarazzo"
-        ],
-        confident: ["fiducia", "orgoglioso", "sicuro", "forte", "determinato", "sicuro di sé", "coraggioso", "leader", "audace"],
-        romantic: ["amore", "romantico", "tenero", "abbraccio", "bacio", "amore mio", "tesoro", "appassionato", "cuore"],
-        flirtatious: ["civettare", "provocare", "sedurre", "fascino", "flirtare", "occhiolino", "malizioso", "seducente"],
-        goodbye: ["arrivederci", "bye", "a presto", "ciao", "abbi cura di te", "a dopo", "ciao ciao"],
-        kiss: ["bacio", "baci", "abbracciare", "bacino", "abbraccio", "baciotto"],
-        dancing: ["ballare", "girare", "muoversi", "scuotere"],
-        listening: ["ascoltami", "fai attenzione", "presta orecchio", "concentrati", "ascolta", "parla", "domanda", "dimmi"]
+        surprise: ["wow", "oh", "sorpresa", "incredibile", "stupefacente"],
+        laughing: ["haha", "lol", "ridere", "divertente", "esilarante"],
+        shy: ["timido", "imbarazzato", "arrossire", "vergognoso", "intimidito"],
+        confident: ["fiducia", "orgoglioso", "sicuro", "forte", "determinato"],
+        romantic: ["amore", "romantico", "tenero", "abbraccio", "bacio", "caro"],
+        flirtatious: ["civettare", "provocare", "sedurre", "fascino", "flirtare"],
+        goodbye: ["arrivederci", "bye", "a presto", "ciao"],
+        kiss: ["bacio", "baci", "abbracciare", "bacetto"],
+        dancing: ["ballare", "ballo", "muovere", "ritmo", "passo"],
+        listening: ["ascolta", "ascoltare", "senti", "parla", "parlare", "domanda", "chiedere", "dimmi"]
+    },
+    ja: {
+        surprise: ["わお", "おお", "驚き", "信じられない", "すごい"],
+        laughing: ["はは", "笑", "笑う", "面白い", "愉快"],
+        shy: ["恥ずかしい", "照れる", "赤面", "内気", "遠慮"],
+        confident: ["自信", "誇り", "確信", "強い", "決意"],
+        romantic: ["愛", "ロマンチック", "優しい", "抱擁", "キス", "愛しい"],
+        flirtatious: ["いちゃつく", "からかう", "誘惑", "魅力", "フリート"],
+        goodbye: ["さようなら", "バイバイ", "また今度", "チャオ", "またね"],
+        kiss: ["キス", "抱擁", "チュー"],
+        dancing: ["踊る", "ダンス", "動く", "グルーブ", "ステップ"],
+        listening: ["聞いて", "聞く", "聞いてください", "話して", "話す", "質問", "尋ねる", "教えて"]
+    },
+    zh: {
+        surprise: ["哇", "哦", "惊喜", "难以置信", "惊人"],
+        laughing: ["哈哈", "笑", "大笑", "有趣", "搞笑"],
+        shy: ["害羞", "尴尬", "脸红", "羞涩", "胆怯"],
+        confident: ["自信", "骄傲", "确信", "强壮", "坚定"],
+        romantic: ["爱", "浪漫", "温柔", "拥抱", "吻", "亲爱的"],
+        flirtatious: ["调情", "挑逗", "诱惑", "魅力", "撒娇"],
+        goodbye: ["再见", "拜拜", "回头见", "拜", "下次见"],
+        kiss: ["吻", "亲吻", "拥抱", "亲"],
+        dancing: ["跳舞", "舞蹈", "移动", "律动", "步伐"],
+        listening: ["听", "听听", "倾听", "说", "说话", "问题", "提问", "告诉我"]
     }
 };
 
@@ -709,28 +585,16 @@ window.KIMI_PERSONALITY_KEYWORDS = {
         }
     },
     ja: {
-        surprise: ["わお", "おお", "驚き", "信じられない", "すごい"],
-        laughing: ["はは", "笑", "笑う", "面白い", "愉快"],
-        shy: ["恥ずかしい", "照れる", "赤面", "内気", "遠慮"],
-        confident: ["自信", "誇り", "確信", "強い", "決意"],
-        romantic: ["愛", "ロマンチック", "優しい", "抱擁", "キス", "愛しい"],
-        flirtatious: ["いちゃつく", "からかう", "誘惑", "魅力", "フリート"],
-        goodbye: ["さようなら", "バイバイ", "また今度", "チャオ", "またね"],
-        kiss: ["キス", "抱擁", "チュー"],
-        dancing: ["踊る", "ダンス", "動く", "グルーブ", "ステップ"],
-        listening: ["聞いて", "聞く", "聞いてください", "話して", "話す", "質問", "尋ねる", "教えて"]
+        affection: {
+            positive: ["愛情", "優しさ", "近い", "温かさ", "親切", "思いやり", "抱きしめる", "愛", "敬愛"],
+            negative: ["意地悪", "冷たい", "無関心", "距離がある", "拒絶", "嫌い", "敵対的", "ばか", "くそ", "アホ"]
+        }
     },
     zh: {
-        surprise: ["哇", "哦", "惊喜", "难以置信", "惊人"],
-        laughing: ["哈哈", "笑", "大笑", "有趣", "搞笑"],
-        shy: ["害羞", "尴尬", "脸红", "羞涩", "胆怯"],
-        confident: ["自信", "骄傲", "确信", "强壮", "坚定"],
-        romantic: ["爱", "浪漫", "温柔", "拥抱", "吻", "亲爱的"],
-        flirtatious: ["调情", "挑逗", "诱惑", "魅力", "撒娇"],
-        goodbye: ["再见", "拜拜", "回头见", "拜", "下次见"],
-        kiss: ["吻", "亲吻", "拥抱", "亲"],
-        dancing: ["跳舞", "舞蹈", "移动", "律动", "步伐"],
-        listening: ["听", "听听", "倾听", "说", "说话", "问题", "提问", "告诉我"]
+        affection: {
+            positive: ["感情", "温柔", "亲近", "温暖", "善良", "关怀", "拥抱", "爱", "崇拜"],
+            negative: ["刻薄", "冷漠", "无动于衷", "疏远", "拒绝", "讨厌", "敌对", "笨蛋", "傻", "婊子"]
+        }
     }
 };
 
@@ -850,16 +714,10 @@ window.KIMI_COMMON_WORDS = {
     zh: ["的", "一", "是", "在", "不", "了", "有", "和", "人", "这", "中", "大", "为", "上", "个", "国", "我", "以", "要"]
 };
 
-// Build Set version for fast lookup (must be outside the object)
-window.KIMI_COMMON_WORDS_SET = {};
-Object.keys(window.KIMI_COMMON_WORDS).forEach(lang => {
-    window.KIMI_COMMON_WORDS_SET[lang] = new Set(window.KIMI_COMMON_WORDS[lang]);
-});
-
 // Helper function to check if a word is common
 window.isCommonWord = function (word, language = "en") {
-    const set = window.KIMI_COMMON_WORDS_SET[language] || window.KIMI_COMMON_WORDS_SET.en;
-    return set.has(word.toLowerCase());
+    const commonWords = window.KIMI_COMMON_WORDS[language] || window.KIMI_COMMON_WORDS.en;
+    return commonWords.includes(word.toLowerCase());
 };
 
 // Emotion detection sensitivity configuration (per language and emotion)
@@ -882,42 +740,42 @@ window.KIMI_EMOTION_SENSITIVITY = {
     },
     // Example language-specific overrides (can be adjusted via settings if needed)
     fr: { romantic: 1.1, laughing: 0.95 },
-    es: { romantic: 1.05, laughing: 1.0 },
-    it: { romantic: 1.2, laughing: 0.9 },
-    de: { romantic: 1.0, laughing: 1.0 },
-    en: { romantic: 1.0, laughing: 1.0 },
-    ja: { romantic: 1.0, laughing: 1.0 },
-    zh: { romantic: 1.0, laughing: 1.0 }
+    es: { romantic: 1.05 },
+    en: {},
+    de: {},
+    it: {},
+    ja: {},
+    zh: {}
 };
 
 // Personality trait adjustment multipliers
 // Allows fine-tuning how fast traits evolve globally and per emotion/trait.
 window.KIMI_TRAIT_ADJUSTMENT = {
-    globalGain: 1.2,
-    globalLoss: 0.8,
+    globalGain: 1.0,
+    globalLoss: 1.0,
     // Per-emotion gain scaling (keys must match KimiEmotionSystem.EMOTIONS values)
     emotionGain: {
-        positive: 1.1,
-        negative: 0.9,
-        romantic: 1.3,
-        laughing: 1.15,
-        dancing: 1.05,
-        shy: 0.95,
-        confident: 1.1,
-        flirtatious: 1.2
+        positive: 1.0,
+        negative: 1.0,
+        romantic: 1.0,
+        laughing: 1.0,
+        dancing: 1.0,
+        shy: 1.0,
+        confident: 1.0,
+        flirtatious: 1.0
     },
     // Per-trait scaling
     traitGain: {
-        affection: 1.2,
-        romance: 1.3,
-        empathy: 1.1,
-        playfulness: 1.15,
-        humor: 1.1,
-        intelligence: 1.05
+        affection: 1.0,
+        romance: 1.0,
+        empathy: 1.0,
+        playfulness: 1.0,
+        humor: 1.0,
+        intelligence: 1.0
     },
     traitLoss: {
-        affection: 0.9,
-        romance: 0.9,
+        affection: 1.0,
+        romance: 1.0,
         empathy: 1.0,
         playfulness: 1.0,
         humor: 1.0,
@@ -1112,7 +970,16 @@ window.getLocalizedEmotionalResponse = function (type, index = null) {
             : "";
     }
 
-    const count = window.KIMI_EMOTIONAL_RESPONSES[type]?.length || 1;
+    const responses = {
+        positive: 5,
+        negative: 5,
+        neutral: 5,
+        romantic: 5,
+        dancing: 5,
+        cold: 5
+    };
+
+    const count = responses[type] || 5;
     const randomIndex = index !== null ? index : Math.floor(Math.random() * count) + 1;
 
     return (

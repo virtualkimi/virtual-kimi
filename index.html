@@ -55,7 +55,7 @@
         },
         "dateCreated": "2025-07-16",
         "dateModified": "2025-08-19",
-        "version": "v1.0.8"
+        "version": "v1.0.7"
     }
     </script>
 
@@ -397,7 +397,8 @@
 
                         <div class="config-row">
                             <div class="config-label-group">
-                                <label class="config-label" id="api-key-label" data-i18n="api_key_label">API Key</label>
+                                <label class="config-label" id="api-key-label" data-i18n="openrouter_api_key">OpenRouter
+                                    API Key</label>
                                 <span id="api-key-info" class="help-icon" data-i18n-title="api_key_help_title"
                                     title="Saved = your API key is stored for this provider. Use Test API Key to verify the connection.">
                                     <i class="fas fa-info-circle"></i>
@@ -407,11 +408,11 @@
                                     title="Green = API key saved for current provider. Grey = no key saved."></span>
                             </div>
                             <div class="config-control">
-                                <input type="password" class="kimi-input" id="provider-api-key" name="provider_api_key"
-                                    placeholder="API Key..." autocomplete="new-password" autocapitalize="none"
-                                    autocorrect="off" spellcheck="false" inputmode="text" aria-autocomplete="none"
-                                    data-lpignore="true" data-1p-ignore="true" data-bwignore="true"
-                                    data-form-type="other" />
+                                <input type="password" class="kimi-input" id="openrouter-api-key"
+                                    name="openrouter_api_key" placeholder="sk-or-v1-..." autocomplete="new-password"
+                                    autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="text"
+                                    aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true"
+                                    data-bwignore="true" data-form-type="other" />
                                 <button class="kimi-button" id="toggle-api-key" type="button" aria-pressed="false"
                                     aria-label="Show API key">
                                     <i class="fas fa-eye"></i>
@@ -455,7 +456,7 @@
                             <label class="config-label" data-i18n="max_tokens">Max Tokens</label>
                             <div class="config-control">
                                 <div class="slider-container">
-                                    <input type="range" class="kimi-slider" id="llm-max-tokens" min="10" max="1000"
+                                    <input type="range" class="kimi-slider" id="llm-max-tokens" min="10" max="8192"
                                         step="10" value="400" />
                                     <span class="slider-value" id="llm-max-tokens-value">400</span>
                                 </div>
@@ -1013,8 +1014,7 @@
     </div>
     </div>
 
-    <script src="dexie.min.js"></script>
-    <script src="kimi-locale/i18n.js" defer></script>
+    <script src="kimi-js/dexie.min.js"></script>
     <script type="module" src="kimi-js/kimi-main.js"></script>
     <script type="module" src="kimi-js/kimi-config.js"></script>
     <script type="module" src="kimi-js/kimi-error-manager.js"></script>
@@ -1023,6 +1023,7 @@
     <script type="module" src="kimi-js/kimi-constants.js"></script>
     <script type="module" src="kimi-js/kimi-memory-ui.js"></script>
     <script type="module" src="kimi-js/kimi-appearance.js"></script>
+    <script src="kimi-locale/i18n.js"></script>
     <script type="module" src="kimi-js/kimi-module.js"></script>
     <script type="module" src="kimi-js/kimi-script.js"></script>
     <script type="module" src="kimi-js/kimi-plugin-manager.js"></script>
@@ -1054,7 +1055,7 @@
                 "name": "Jean & Kimi"
             },
             "dateCreated": "2025-07-19",
-                "version": "v1.0.8"
+                "version": "v1.0.7"
         }
     }
     </script>

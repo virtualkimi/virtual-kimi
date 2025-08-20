@@ -25,7 +25,7 @@ window.KIMI_CONFIG = {
         VOICE_VOLUME: { min: 0.0, max: 1.0 },
         INTERFACE_OPACITY: { min: 0.1, max: 1.0 },
         LLM_TEMPERATURE: { min: 0.0, max: 1.0 },
-        LLM_MAX_TOKENS: { min: 10, max: 1000 },
+        LLM_MAX_TOKENS: { min: 10, max: 8192 },
         LLM_TOP_P: { min: 0.0, max: 1.0 },
         LLM_FREQUENCY_PENALTY: { min: 0.0, max: 2.0 },
         LLM_PRESENCE_PENALTY: { min: 0.0, max: 2.0 }

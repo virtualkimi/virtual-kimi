@@ -25,7 +25,7 @@ window.KimiValidationUtils = {
             voicePitch: { min: 0, max: 2, def: 1.0 },
             voiceVolume: { min: 0, max: 1, def: 0.8 },
             llmTemperature: { min: 0, max: 1, def: 0.8 },
-            llmMaxTokens: { min: 1, max: 32000, def: 400 },
+            llmMaxTokens: { min: 1, max: 8192, def: 400 },
             llmTopP: { min: 0, max: 1, def: 0.9 },
             llmFrequencyPenalty: { min: 0, max: 2, def: 0.6 },
             llmPresencePenalty: { min: 0, max: 2, def: 0.5 },
@@ -43,14 +43,26 @@ window.KimiValidationUtils = {
 
 // Provider utilities used across the app
 const KimiProviderUtils = {
+    keyPrefMap: {
+        openrouter: "openrouterApiKey",
+        openai: "apiKey_openai",
+        groq: "apiKey_groq",
+        together: "apiKey_together",
+        deepseek: "apiKey_deepseek",
+        custom: "apiKey_custom",
+        "openai-compatible": "llmApiKey",
+        ollama: null
+    },
     getKeyPrefForProvider(provider) {
-        // Centralized: always use 'providerApiKey' for all providers except Ollama
-        return provider === "ollama" ? null : "providerApiKey";
+        return this.keyPrefMap[provider] || "llmApiKey";
     },
     async getApiKey(db, provider) {
         if (!db) return null;
         if (provider === "ollama") return "__local__";
-        return await db.getPreference("providerApiKey");
+        const pref = this.getKeyPrefForProvider(provider);
+        if (!pref) return null;
+        if (provider === "openrouter") return await db.getPreference("openrouterApiKey");
+        return await db.getPreference(pref);
     },
     getLabelForProvider(provider) {
         const labels = {
@@ -201,6 +213,8 @@ class KimiSecurityUtils {
         }
         return key.trim().length > 10 && (key.startsWith("sk-") || key.startsWith("sk-or-"));
     }
+
+    // Removed unused encrypt/decrypt for clarity; storage should rely on secure contexts if reintroduced
 }
 
 // Cache management for better performance
@@ -370,7 +384,14 @@ class KimiVideoManager {
         this._consecutiveErrorCount = 0;
     }
 
-    //Centralized crossfade transition between two videos.
+    /**
+     * Centralized crossfade transition between two videos.
+     * Ensures both videos are loaded and playing before transition.
+     * @param {HTMLVideoElement} fromVideo - The currently visible video.
+     * @param {HTMLVideoElement} toVideo - The next video to show.
+     * @param {number} duration - Transition duration in ms.
+     * @param {function} [onComplete] - Optional callback after transition.
+     */
     static crossfadeVideos(fromVideo, toVideo, duration = 300, onComplete) {
         // Resolve duration from CSS variable if present
         try {
@@ -418,7 +439,12 @@ class KimiVideoManager {
         if (fromVideo.paused) fromVideo.play().catch(() => {});
     }
 
-    //Centralized video element creation utility.
+    /**
+     * Centralized video element creation utility.
+     * @param {string} id - The id for the video element.
+     * @param {string} [className] - Optional class name.
+     * @returns {HTMLVideoElement}
+     */
     static createVideoElement(id, className = "bg-video") {
         const video = document.createElement("video");
         video.id = id;
@@ -433,7 +459,11 @@ class KimiVideoManager {
         return video;
     }
 
-    //Centralized video selection utility.
+    /**
+     * Centralized video selection utility.
+     * @param {string} selector - CSS selector or id.
+     * @returns {HTMLVideoElement|null}
+     */
     static getVideoElement(selector) {
         if (typeof selector === "string") {
             if (selector.startsWith("#")) {
@@ -961,6 +991,7 @@ class KimiVideoManager {
     }
 
     // keep only the augmented determineCategory above (with traits)
+
     selectOptimalVideo(category, specificVideo = null, traits = null, affection = null, emotion = null) {
         const availableVideos = this.videoCategories[category] || this.videoCategories.neutral;
 
@@ -1181,7 +1212,7 @@ class KimiVideoManager {
         this.isEmotionVideoPlaying = false;
         this.currentEmotionContext = null;
 
-        // Si la voix est encore en cours, relancer une vidéo neutre en boucle
+        // Correction : si la voix est encore en cours, relancer une vidéo neutre en boucle
         const category = "neutral";
         const currentVideoSrc = this.activeVideo.querySelector("source").getAttribute("src");
         const available = this.videoCategories[category] || [];
@@ -1218,6 +1249,7 @@ class KimiVideoManager {
     }
 
     // ADVANCED CONTEXTUAL ANALYSIS
+    // ADVANCED CONTEXTUAL ANALYSIS - SIMPLIFIED
     async analyzeAndSelectVideo(userMessage, kimiResponse, emotionAnalysis, traits = null, affection = null, lang = null) {
         // Do not analyze-switch away while dancing is sticky/playing
         if (this._stickyContext === "dancing" || this.currentContext === "dancing") {

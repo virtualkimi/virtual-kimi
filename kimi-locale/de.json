@@ -143,7 +143,7 @@
     "character_summary_bella": "Fröhlich, fürsorglich, sieht Menschen als Pflanzen, die Pflege brauchen",
     "character_summary_rosa": "Chaotisch, aufmerksamkeitssuchend, gedeiht in kontrolliertem Chaos",
     "character_summary_stella": "Launisch, künstlerisch, fantasievoll, verspielt, verwandelt Chaos in Kunst",
-    "fallback_api_missing": "Um wirklich mit mir zu chatten, füge deinen API-Schlüssel in den Einstellungen hinzu! 💕",
+    "fallback_api_missing": "Um wirklich mit mir zu chatten, füge deinen OpenRouter API-Schlüssel in den Einstellungen hinzu! 💕",
     "fallback_api_error": "Entschuldigung, der KI-Service ist vorübergehend nicht verfügbar. Bitte versuche es später noch einmal.",
     "fallback_model_error": "Entschuldigung, das ausgewählte Modell ist nicht verfügbar. Bitte wähle ein anderes Modell oder überprüfe deine Konfiguration.",
     "fallback_network_error": "Entschuldigung, ich kann nicht antworten, da keine Internetverbindung besteht.",

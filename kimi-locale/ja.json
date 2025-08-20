@@ -143,7 +143,7 @@
     "character_summary_bella": "陽気で、優しく、人を世話が必要な植物として見る",
     "character_summary_rosa": "混沌的で、注目を求め、制御された混沌で繁栄する",
     "character_summary_stella": "気まぐれで、芸術的、想像力豊か、遊び心があり、混沌を芸術に変える",
-    "fallback_api_missing": "本当に私とチャットするには、設定で APIキーを追加してください！ 💕",
+    "fallback_api_missing": "本当に私とチャットするには、設定でOpenRouter APIキーを追加してください！ 💕",
     "fallback_api_error": "申し訳ありませんが、AIサービスが一時的に利用できません。後でもう一度試してください。",
     "fallback_model_error": "申し訳ありませんが、選択されたモデルは利用できません。別のモデルを選択するか、設定を確認してください。",
     "fallback_network_error": "申し訳ありませんが、インターネット接続がないため応答できません。",

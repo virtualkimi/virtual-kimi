@@ -143,7 +143,7 @@
     "character_summary_bella": "Alegre, cariñosa, ve a las personas como plantas que necesitan cuidado",
     "character_summary_rosa": "Caótica, busca atención, prospera en el caos controlado",
     "character_summary_stella": "Caprichosa, artística, imaginativa, juguetona, transforma el caos en arte",
-    "fallback_api_missing": "Para realmente chatear conmigo, ¡agrega tu clave API de en configuración! 💕",
+    "fallback_api_missing": "Para realmente chatear conmigo, ¡agrega tu clave API de OpenRouter en configuración! 💕",
     "fallback_api_error": "Lo siento, el servicio de IA no está disponible temporalmente. Por favor, intenta de nuevo más tarde.",
     "fallback_model_error": "Lo siento, el modelo seleccionado no está disponible. Por favor, elige otro modelo o verifica tu configuración.",
     "fallback_network_error": "Lo siento, no puedo responder porque no hay conexión a internet.",

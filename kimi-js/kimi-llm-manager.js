@@ -474,7 +474,7 @@ class KimiLLMManager {
         const provider = await this.db.getPreference("llmProvider", "openai");
         const apiKey = KimiProviderUtils
             ? await KimiProviderUtils.getApiKey(this.db, provider)
-            : await this.db.getPreference("providerApiKey", "");
+            : await this.db.getPreference("llmApiKey", "");
         const modelId = await this.db.getPreference("llmModelId", this.currentModel || "gpt-4o-mini");
         if (!apiKey) {
             throw new Error("API key not configured for selected provider");
@@ -576,7 +576,7 @@ class KimiLLMManager {
     }
 
     async chatWithOpenRouter(userMessage, options = {}) {
-        const apiKey = await this.db.getPreference("providerApiKey");
+        const apiKey = await this.db.getPreference("openrouterApiKey");
         if (!apiKey) {
             throw new Error("OpenRouter API key not configured");
         }
@@ -1000,11 +1000,7 @@ class KimiLLMManager {
         // Check availability on OpenRouter
         try {
             // getAvailableModelsFromAPI removed
-            return {
-                available: true,
-                model: model,
-                pricing: model.pricing
-            };
+            return { available: true, model, pricing: model.pricing };
         } catch (error) {
             return {
                 available: false,
@@ -1013,12 +1009,105 @@ class KimiLLMManager {
         }
     }
 
+    /**
+     * Minimal API test for any provider. Sends only a short system prompt and a single user message in the chosen language.
+     * No context, no memory, no previous messages, no extra parameters.
+     * @param {string} provider - Provider name (e.g. 'openrouter', 'openai', 'ollama', etc.)
+     * @param {string} language - Language code (e.g. 'en', 'fr', 'es', etc.)
+     * @returns {Promise<{success: boolean, response?: string, error?: string}>}
+     */
+    async testApiKeyMinimal(modelId) {
+        const originalModel = this.currentModel;
+        try {
+            await this.setCurrentModel(modelId);
+            const provider = await this.db.getPreference("llmProvider", "openrouter");
+            const lang = await this.db.getPreference("selectedLanguage", "en");
+            let testWord;
+            switch (lang) {
+                case "fr":
+                    testWord = "Bonjour";
+                    break;
+                case "es":
+                    testWord = "Hola";
+                    break;
+                case "de":
+                    testWord = "Hallo";
+                    break;
+                case "it":
+                    testWord = "Ciao";
+                    break;
+                case "ja":
+                    testWord = "こんにちは";
+                    break;
+                case "zh":
+                    testWord = "你好";
+                    break;
+                default:
+                    testWord = "Hello";
+            }
+            const systemPrompt = "You are a helpful assistant.";
+            let apiKey = await this.db.getPreference("providerApiKey");
+            let baseUrl = "";
+            let payload = {
+                model: modelId,
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: testWord }
+                ],
+                max_tokens: 2
+            };
+            let headers = { "Content-Type": "application/json" };
+            if (provider === "openrouter") {
+                baseUrl = "https://openrouter.ai/api/v1/chat/completions";
+                headers["Authorization"] = `Bearer ${apiKey}`;
+                headers["HTTP-Referer"] = window.location.origin;
+                headers["X-Title"] = "Kimi - Virtual Companion";
+            } else if (["openai", "groq", "together", "deepseek"].includes(provider)) {
+                baseUrl = await this.db.getPreference("llmBaseUrl", "https://api.openai.com/v1/chat/completions");
+                headers["Authorization"] = `Bearer ${apiKey}`;
+            } else if (provider === "ollama") {
+                baseUrl = "http://localhost:11434/api/chat";
+                payload = {
+                    model: modelId,
+                    messages: [
+                        { role: "system", content: systemPrompt },
+                        { role: "user", content: testWord }
+                    ],
+                    stream: false
+                };
+            } else {
+                throw new Error("Unknown provider: " + provider);
+            }
+            const response = await fetch(baseUrl, {
+                method: "POST",
+                headers,
+                body: JSON.stringify(payload)
+            });
+            if (!response.ok) {
+                const error = await response.text();
+                return { success: false, error };
+            }
+            const data = await response.json();
+            let content = "";
+            if (provider === "ollama") {
+                content = data?.message?.content || data?.choices?.[0]?.message?.content || "";
+            } else {
+                content = data?.choices?.[0]?.message?.content || "";
+            }
+            return { success: true, response: content };
+        } catch (error) {
+            return { success: false, error: error.message };
+        } finally {
+            await this.setCurrentModel(originalModel);
+        }
+    }
+
     // Fetch models from OpenRouter API and merge into availableModels
     async refreshRemoteModels() {
         if (this._isRefreshingModels) return;
         this._isRefreshingModels = true;
         try {
-            const apiKey = await this.db.getPreference("providerApiKey", "");
+            const apiKey = await this.db.getPreference("openrouterApiKey", "");
             const res = await fetch("https://openrouter.ai/api/v1/models", {
                 method: "GET",
                 headers: {

@@ -840,8 +840,7 @@ class KimiMemorySystem {
         if (memoryData.content && memoryData.content.length > 24) importance += 0.05;
         if (memoryData.confidence && memoryData.confidence > 0.9) importance += 0.05;
 
-        // Round to two decimals to avoid floating point artifacts
-        return Math.min(1.0, Math.round(importance * 100) / 100);
+        return Math.min(1.0, importance);
     }
 
     // Derive semantic tags from memory content to assist prioritization and merging
