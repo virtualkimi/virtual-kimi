@@ -441,7 +441,12 @@
                         </h3>
 
                         <div class="config-row">
-                            <label class="config-label" data-i18n="temperature">Temperature (Creativity)</label>
+                            <div class="config-label-section">
+                                <label class="config-label" data-i18n="temperature">Temperature (Creativity)</label>
+                                <small class="config-help" data-i18n="temperature_help">Controls randomness and
+                                    creativity
+                                    (default: 0.9). Higher values make output more creative but less focused.</small>
+                            </div>
                             <div class="config-control">
                                 <div class="slider-container">
                                     <input type="range" class="kimi-slider" id="llm-temperature" min="0.0" max="1"
@@ -452,7 +457,11 @@
                         </div>
 
                         <div class="config-row">
-                            <label class="config-label" data-i18n="max_tokens">Max Tokens</label>
+                            <div class="config-label-section">
+                                <label class="config-label" data-i18n="max_tokens">Max Tokens</label>
+                                <small class="config-help" data-i18n="max_tokens_help">Maximum response length in tokens
+                                    (default: 400). Higher values allow longer responses.</small>
+                            </div>
                             <div class="config-control">
                                 <div class="slider-container">
                                     <input type="range" class="kimi-slider" id="llm-max-tokens" min="10" max="8192"
@@ -463,7 +472,11 @@
                         </div>
 
                         <div class="config-row">
-                            <label class="config-label" data-i18n="top_p">Top P</label>
+                            <div class="config-label-section">
+                                <label class="config-label" data-i18n="top_p">Top P</label>
+                                <small class="config-help" data-i18n="top_p_help">Controls diversity of word selection
+                                    (default: 0.9). Lower values make responses more focused.</small>
+                            </div>
                             <div class="config-control">
                                 <div class="slider-container">
                                     <input type="range" class="kimi-slider" id="llm-top-p" min="0" max="1" step="0.01"
@@ -473,7 +486,12 @@
                             </div>
                         </div>
                         <div class="config-row">
-                            <label class="config-label" data-i18n="frequency_penalty">Frequency Penalty</label>
+                            <div class="config-label-section">
+                                <label class="config-label" data-i18n="frequency_penalty">Frequency Penalty</label>
+                                <small class="config-help" data-i18n="frequency_penalty_help">Reduces repetition of
+                                    words
+                                    already used (default: 0.9). Higher values discourage repetitive language.</small>
+                            </div>
                             <div class="config-control">
                                 <div class="slider-container">
                                     <input type="range" class="kimi-slider" id="llm-frequency-penalty" min="0" max="2"
@@ -483,7 +501,11 @@
                             </div>
                         </div>
                         <div class="config-row">
-                            <label class="config-label" data-i18n="presence_penalty">Presence Penalty</label>
+                            <div class="config-label-section">
+                                <label class="config-label" data-i18n="presence_penalty">Presence Penalty</label>
+                                <small class="config-help" data-i18n="presence_penalty_help">Encourages discussing new
+                                    topics (default: 0.8). Higher values promote topic diversity.</small>
+                            </div>
                             <div class="config-control">
                                 <div class="slider-container">
                                     <input type="range" class="kimi-slider" id="llm-presence-penalty" min="0" max="2"
