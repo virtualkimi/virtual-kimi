@@ -240,6 +240,21 @@
     flex: 1;
 }
 
+.config-label-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.config-help {
+    display: block;
+    color: var(--settings-text-secondary, #888);
+    font-size: 0.8rem;
+    margin: 4px 0 0 0;
+    opacity: 0.8;
+    line-height: 1.3;
+}
+
 .config-label-group {
     display: inline-flex;
     align-items: center;
