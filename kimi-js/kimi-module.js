@@ -1,8 +1,4 @@
-// ===== KIMI MODULE SYSTEM =====
-// This file contains the remaining utility classes and functions
-
-// Note: KimiMemory and KimiAppearanceManager have been moved to separate files
-// This file now contains the remaining utility classes and functions
+// KIMI MODULE SYSTEM
 
 class KimiDataManager extends KimiBaseManager {
     constructor(database) {
@@ -770,11 +766,11 @@ async function loadSettingsData() {
         const baseUrl = preferences.llmBaseUrl || "https://openrouter.ai/api/v1/chat/completions";
         const modelId = preferences.llmModelId || (window.kimiLLM ? window.kimiLLM.currentModel : "");
         const selectedCharacter = preferences.selectedCharacter || "kimi";
-        const llmTemperature = preferences.llmTemperature !== undefined ? preferences.llmTemperature : 0.8;
+        const llmTemperature = preferences.llmTemperature !== undefined ? preferences.llmTemperature : 0.9;
         const llmMaxTokens = preferences.llmMaxTokens !== undefined ? preferences.llmMaxTokens : 400;
         const llmTopP = preferences.llmTopP !== undefined ? preferences.llmTopP : 0.9;
-        const llmFrequencyPenalty = preferences.llmFrequencyPenalty !== undefined ? preferences.llmFrequencyPenalty : 0.6;
-        const llmPresencePenalty = preferences.llmPresencePenalty !== undefined ? preferences.llmPresencePenalty : 0.5;
+        const llmFrequencyPenalty = preferences.llmFrequencyPenalty !== undefined ? preferences.llmFrequencyPenalty : 0.9;
+        const llmPresencePenalty = preferences.llmPresencePenalty !== undefined ? preferences.llmPresencePenalty : 0.8;
 
         // Update UI with voice settings
         const languageSelect = document.getElementById("language-selection");
@@ -1340,7 +1336,7 @@ async function sendMessage() {
     try {
         const response = await analyzeAndReact(message);
         let finalResponse = response;
-        // Si la réponse du LLM est vide, nulle ou trop courte, utilise le fallback émotionnel
+        // If the LLM's response is empty, null, or too short, use the emotional fallback.
         if (!finalResponse || typeof finalResponse !== "string" || finalResponse.trim().length < 2) {
             finalResponse = window.getLocalizedEmotionalResponse
                 ? window.getLocalizedEmotionalResponse("neutral")
@@ -1553,7 +1549,7 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     if (llmTemperatureSlider) {
         const listener = e => {
             const validation = window.KimiValidationUtils?.validateRange(e.target.value, "llmTemperature");
-            const value = validation?.value || parseFloat(e.target.value) || 0.8;
+            const value = validation?.value || parseFloat(e.target.value) || 0.9;
 
             document.getElementById("llm-temperature-value").textContent = value;
             e.target.value = value;
@@ -1589,7 +1585,7 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     if (llmFrequencyPenaltySlider) {
         const listener = e => {
             const validation = window.KimiValidationUtils?.validateRange(e.target.value, "llmFrequencyPenalty");
-            const value = validation?.value || parseFloat(e.target.value) || 0.6;
+            const value = validation?.value || parseFloat(e.target.value) || 0.9;
 
             document.getElementById("llm-frequency-penalty-value").textContent = value;
             e.target.value = value;
@@ -1601,7 +1597,7 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     if (llmPresencePenaltySlider) {
         const listener = e => {
             const validation = window.KimiValidationUtils?.validateRange(e.target.value, "llmPresencePenalty");
-            const value = validation?.value || parseFloat(e.target.value) || 0.5;
+            const value = validation?.value || parseFloat(e.target.value) || 0.8;
 
             document.getElementById("llm-presence-penalty-value").textContent = value;
             e.target.value = value;
@@ -1661,7 +1657,7 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     }
 }
 
-// Exposer globalement (Note: KimiMemory and KimiAppearanceManager are now in separate files)
+// Exposer globalement
 window.KimiDataManager = KimiDataManager;
 window.updateFavorabilityLabel = updateFavorabilityLabel;
 window.loadCharacterSection = loadCharacterSection;
@@ -1671,7 +1667,8 @@ window.addMessageToChat = addMessageToChat;
 window.loadChatHistory = loadChatHistory;
 window.loadSettingsData = loadSettingsData;
 window.updateSlider = updateSlider;
-// ========================= DYNAMIC SLIDER SYNC =========================
+
+// DYNAMIC SLIDER SYNC
 async function refreshAllSliders() {
     if (!window.kimiDB) return;
     const prefMap = [

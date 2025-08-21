@@ -1,4 +1,4 @@
-﻿// ===== KIMI INDEXEDDB DATABASE SYSTEM =====
+﻿// KIMI INDEXEDDB DATABASE SYSTEM
 class KimiDatabase {
     constructor() {
         this.dbName = "KimiDB";
@@ -31,11 +31,11 @@ class KimiDatabase {
                         await settings.put({
                             category: "llm",
                             settings: {
-                                temperature: 0.8,
+                                temperature: 0.9,
                                 maxTokens: 400,
                                 top_p: 0.9,
-                                frequency_penalty: 0.6,
-                                presence_penalty: 0.5
+                                frequency_penalty: 0.9,
+                                presence_penalty: 0.8
                             },
                             updated: new Date().toISOString()
                         });
@@ -52,7 +52,7 @@ class KimiDatabase {
                             name: "Mistral Small 3.2",
                             provider: "openrouter",
                             apiKey: "",
-                            config: { temperature: 0.8, maxTokens: 400 },
+                            config: { temperature: 0.9, maxTokens: 400 },
                             added: new Date().toISOString(),
                             lastUsed: null
                         });
@@ -135,11 +135,11 @@ class KimiDatabase {
             {
                 category: "llm",
                 settings: {
-                    temperature: 0.8,
+                    temperature: 0.9,
                     maxTokens: 400,
                     top_p: 0.9,
-                    frequency_penalty: 0.6,
-                    presence_penalty: 0.5
+                    frequency_penalty: 0.9,
+                    presence_penalty: 0.8
                 }
             }
         ];
@@ -233,7 +233,6 @@ class KimiDatabase {
         // Fix: never recreate default conversations
         const convCount = await this.db.conversations.count();
         if (convCount === 0) {
-            // Ne rien faire : aucune conversation par défaut
         }
     }
 

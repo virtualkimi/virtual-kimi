@@ -436,11 +436,11 @@ class KimiLLMManager {
     async chat(userMessage, options = {}) {
         // Unified retrieval of LLM numeric parameters from settings.llm (single source of truth)
         const llmSettings = await this.db.getSetting("llm", {
-            temperature: 0.8,
+            temperature: 0.9,
             maxTokens: 400,
             top_p: 0.9,
-            frequency_penalty: 0.6,
-            presence_penalty: 0.5
+            frequency_penalty: 0.9,
+            presence_penalty: 0.8
         });
         const temperature = typeof options.temperature === "number" ? options.temperature : llmSettings.temperature;
         const maxTokens = typeof options.maxTokens === "number" ? options.maxTokens : llmSettings.maxTokens;
@@ -482,14 +482,14 @@ class KimiLLMManager {
         const systemPromptContent = await this.assemblePrompt(userMessage);
 
         const llmSettings = await this.db.getSetting("llm", {
-            temperature: 0.8,
+            temperature: 0.9,
             maxTokens: 400,
             top_p: 0.9,
-            frequency_penalty: 0.6,
-            presence_penalty: 0.5
+            frequency_penalty: 0.9,
+            presence_penalty: 0.8
         });
         // Unified fallback defaults (must stay consistent with database defaults)
-        const unifiedDefaults = { temperature: 0.9, maxTokens: 400, top_p: 0.9, frequency_penalty: 0.6, presence_penalty: 0.5 };
+        const unifiedDefaults = { temperature: 0.9, maxTokens: 400, top_p: 0.9, frequency_penalty: 0.9, presence_penalty: 0.8 };
         const payload = {
             model: modelId,
             messages: [
@@ -593,13 +593,13 @@ class KimiLLMManager {
 
         // Normalize LLM options with safe defaults and DO NOT log sensitive payloads
         const llmSettings = await this.db.getSetting("llm", {
-            temperature: 0.8,
+            temperature: 0.9,
             maxTokens: 400,
             top_p: 0.9,
-            frequency_penalty: 0.6,
-            presence_penalty: 0.5
+            frequency_penalty: 0.9,
+            presence_penalty: 0.8
         });
-        const unifiedDefaults = { temperature: 0.8, maxTokens: 400, top_p: 0.9, frequency_penalty: 0.6, presence_penalty: 0.5 };
+        const unifiedDefaults = { temperature: 0.9, maxTokens: 400, top_p: 0.9, frequency_penalty: 0.9, presence_penalty: 0.8 };
         const payload = {
             model: this.currentModel,
             messages: messages,
@@ -620,11 +620,12 @@ class KimiLLMManager {
                     : (llmSettings.presence_penalty ?? unifiedDefaults.presence_penalty)
         };
 
+        // ===== DEBUT AUDIT =====
         if (window.KIMI_DEBUG_API_AUDIT) {
             console.log("╔═══════════════════════════════════════════════════════════════════╗");
-            console.log("║                    🔍 AUDIT COMPLET API - ENVOI MESSAGE            ║");
+            console.log("║                   🔍 COMPLETE API AUDIT - SEND MESSAGE            ║");
             console.log("╚═══════════════════════════════════════════════════════════════════╝");
-            console.log("📋 1. INFORMATIONS GÉNÉRALES:");
+            console.log("📋 1. GENERAL INFORMATION:");
             console.log("   📡 URL API:", "https://openrouter.ai/api/v1/chat/completions");
             console.log("   🤖 Modèle:", payload.model);
             console.log("   🎭 Personnage:", await this.db.getSelectedCharacter());

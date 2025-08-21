@@ -1,4 +1,4 @@
-// ===== CENTRALIZED KIMI UTILITIES =====
+// CENTRALIZED KIMI UTILITIES
 
 // Input validation and sanitization utilities
 window.KimiValidationUtils = {
@@ -24,11 +24,11 @@ window.KimiValidationUtils = {
             voiceRate: { min: 0.5, max: 2, def: 1.1 },
             voicePitch: { min: 0, max: 2, def: 1.0 },
             voiceVolume: { min: 0, max: 1, def: 0.8 },
-            llmTemperature: { min: 0, max: 1, def: 0.8 },
+            llmTemperature: { min: 0, max: 1, def: 0.9 },
             llmMaxTokens: { min: 1, max: 8192, def: 400 },
             llmTopP: { min: 0, max: 1, def: 0.9 },
-            llmFrequencyPenalty: { min: 0, max: 2, def: 0.6 },
-            llmPresencePenalty: { min: 0, max: 2, def: 0.5 },
+            llmFrequencyPenalty: { min: 0, max: 2, def: 0.9 },
+            llmPresencePenalty: { min: 0, max: 2, def: 0.8 },
             interfaceOpacity: { min: 0.1, max: 1, def: 0.8 }
         };
         const b = bounds[key] || { min: 0, max: 100, def: 0 };
