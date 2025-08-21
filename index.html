@@ -355,7 +355,6 @@
                 <div class="tab-content active" data-tab="llm">
                     <div class="config-section">
                         <h3><i class="fas fa-key"></i> <span data-i18n="api_configuration">API Configuration</span></h3>
-
                         <div class="config-row">
                             <label class="config-label" for="llm-provider" data-i18n="provider_label">Provider</label>
                             <div class="config-control">
@@ -376,10 +375,10 @@
                             <div class="config-control">
                                 <input type="text" class="kimi-input" id="llm-base-url"
                                     placeholder="https://api.openai.com/v1/chat/completions"
-                                    data-i18n-placeholder="llm_base_url_placeholder" autocomplete="off"
+                                    data-i18n-placeholder="llm_base_url_placeholder" autocomplete="one-time-code"
                                     autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="text"
                                     aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true"
-                                    data-bwignore="true" data-form-type="other" />
+                                    data-bwignore="true" data-form-type="other" name="config-endpoint" />
                             </div>
                         </div>
 
@@ -388,10 +387,10 @@
                             <div class="config-control">
                                 <input type="text" class="kimi-input" id="llm-model-id"
                                     placeholder="gpt-4o-mini | llama-3.1-8b-instruct | ..."
-                                    data-i18n-placeholder="llm_model_id_placeholder" autocomplete="off"
+                                    data-i18n-placeholder="llm_model_id_placeholder" autocomplete="one-time-code"
                                     autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="text"
                                     aria-autocomplete="none" data-lpignore="true" data-1p-ignore="true"
-                                    data-bwignore="true" data-form-type="other" />
+                                    data-bwignore="true" data-form-type="other" name="config-model" />
                             </div>
                         </div>
 
@@ -407,10 +406,11 @@
                                     title="Green = API key saved for current provider. Grey = no key saved."></span>
                             </div>
                             <div class="config-control">
-                                <input type="text" class="kimi-input" id="provider-api-key" name="provider_api_key"
-                                    placeholder="API Key..." autocomplete="off" autocapitalize="none" autocorrect="off"
-                                    spellcheck="false" inputmode="text" aria-autocomplete="none" data-lpignore="true"
-                                    data-1p-ignore="true" data-bwignore="true" data-form-type="other" />
+                                <input type="text" class="kimi-input" id="provider-api-key" name="config-token"
+                                    placeholder="API Key..." autocomplete="one-time-code" autocapitalize="none"
+                                    autocorrect="off" spellcheck="false" inputmode="text" aria-autocomplete="none"
+                                    data-lpignore="true" data-1p-ignore="true" data-bwignore="true"
+                                    data-form-type="other" />
                                 <button class="kimi-button" id="toggle-api-key" type="button" aria-pressed="false"
                                     aria-label="Show API key">
                                     <i class="fas fa-eye"></i>
