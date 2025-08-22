@@ -164,7 +164,7 @@ class KimiDatabase {
                 name: "Mistral Small 3.2",
                 provider: "openrouter",
                 apiKey: "",
-                config: { temperature: 0.8, maxTokens: 400 },
+                config: { temperature: 0.9, maxTokens: 400 },
                 added: new Date().toISOString(),
                 lastUsed: null
             }
