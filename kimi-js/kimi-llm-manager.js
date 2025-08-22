@@ -434,14 +434,14 @@ class KimiLLMManager {
     }
 
     async chat(userMessage, options = {}) {
-        // Unified retrieval of LLM numeric parameters from settings.llm (single source of truth)
-        const llmSettings = await this.db.getSetting("llm", {
-            temperature: 0.9,
-            maxTokens: 400,
-            top_p: 0.9,
-            frequency_penalty: 0.9,
-            presence_penalty: 0.8
-        });
+        // Get LLM settings from individual preferences (FIXED: was using grouped settings)
+        const llmSettings = {
+            temperature: await this.db.getPreference("llmTemperature", 0.9),
+            maxTokens: await this.db.getPreference("llmMaxTokens", 400),
+            top_p: await this.db.getPreference("llmTopP", 0.9),
+            frequency_penalty: await this.db.getPreference("llmFrequencyPenalty", 0.9),
+            presence_penalty: await this.db.getPreference("llmPresencePenalty", 0.8)
+        };
         const temperature = typeof options.temperature === "number" ? options.temperature : llmSettings.temperature;
         const maxTokens = typeof options.maxTokens === "number" ? options.maxTokens : llmSettings.maxTokens;
         const opts = { ...options, temperature, maxTokens };
@@ -481,13 +481,14 @@ class KimiLLMManager {
         }
         const systemPromptContent = await this.assemblePrompt(userMessage);
 
-        const llmSettings = await this.db.getSetting("llm", {
-            temperature: 0.9,
-            maxTokens: 400,
-            top_p: 0.9,
-            frequency_penalty: 0.9,
-            presence_penalty: 0.8
-        });
+        // Get LLM settings from individual preferences (FIXED: was using grouped settings)
+        const llmSettings = {
+            temperature: await this.db.getPreference("llmTemperature", 0.9),
+            maxTokens: await this.db.getPreference("llmMaxTokens", 400),
+            top_p: await this.db.getPreference("llmTopP", 0.9),
+            frequency_penalty: await this.db.getPreference("llmFrequencyPenalty", 0.9),
+            presence_penalty: await this.db.getPreference("llmPresencePenalty", 0.8)
+        };
         // Unified fallback defaults (must stay consistent with database defaults)
         const unifiedDefaults = { temperature: 0.9, maxTokens: 400, top_p: 0.9, frequency_penalty: 0.9, presence_penalty: 0.8 };
         const payload = {
@@ -592,13 +593,14 @@ class KimiLLMManager {
         ];
 
         // Normalize LLM options with safe defaults and DO NOT log sensitive payloads
-        const llmSettings = await this.db.getSetting("llm", {
-            temperature: 0.9,
-            maxTokens: 400,
-            top_p: 0.9,
-            frequency_penalty: 0.9,
-            presence_penalty: 0.8
-        });
+        // Get LLM settings from individual preferences (FIXED: was using grouped settings)
+        const llmSettings = {
+            temperature: await this.db.getPreference("llmTemperature", 0.9),
+            maxTokens: await this.db.getPreference("llmMaxTokens", 400),
+            top_p: await this.db.getPreference("llmTopP", 0.9),
+            frequency_penalty: await this.db.getPreference("llmFrequencyPenalty", 0.9),
+            presence_penalty: await this.db.getPreference("llmPresencePenalty", 0.8)
+        };
         const unifiedDefaults = { temperature: 0.9, maxTokens: 400, top_p: 0.9, frequency_penalty: 0.9, presence_penalty: 0.8 };
         const payload = {
             model: this.currentModel,

@@ -115,10 +115,71 @@
     padding-right: 36px;
 }
 
+/* Consolidated Mobile Responsive */
 @media (max-width: 768px) {
     .memory-filters {
         grid-template-columns: 1fr;
         gap: 8px;
+    }
+
+    .memory-category-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+
+    .memory-badges {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .memory-modal {
+        width: 95%;
+        max-height: 90vh;
+    }
+
+    .memory-header {
+        padding: 16px 20px;
+    }
+
+    .memory-content {
+        padding: 16px 20px;
+    }
+
+    .memory-item {
+        padding: 10px;
+    }
+
+    .memory-item .memory-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+
+    .memory-meta {
+        flex-direction: column;
+        gap: 4px;
+        font-size: 0.7rem;
+    }
+
+    .memory-category {
+        font-size: 0.7rem;
+        padding: 2px 6px;
+    }
+
+    .memory-preview-text {
+        font-size: 0.85rem;
+    }
+
+    .memory-actions {
+        gap: 4px;
+    }
+
+    .memory-edit-btn,
+    .memory-delete-btn {
+        min-width: 24px;
+        height: 24px;
+        font-size: 0.75rem;
     }
 }
 
@@ -197,7 +258,7 @@
     padding: 0;
     max-height: none;
     overflow: visible;
-    color: var(--text-primary);
+    color: #e0e0e0;
     line-height: 1.4;
     margin-bottom: 8px;
     font-size: 0.9rem;
@@ -206,7 +267,7 @@
 .memory-preview {
     display: block;
     margin-bottom: 6px;
-    color: var(--text-primary);
+    color: #e0e0e0;
     line-height: 1.4;
     font-size: 0.9rem;
 }
@@ -217,6 +278,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     max-width: 100%;
+    color: #e0e0e0;
 }
 
 .memory-preview-full {
@@ -497,19 +559,6 @@
     box-shadow: 0 6px 20px rgba(var(--primary-rgb), 0.15);
 }
 
-/* Responsive improvements */
-@media (max-width: 768px) {
-    .memory-category-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 4px;
-    }
-
-    .memory-badges {
-        flex-wrap: wrap;
-    }
-}
-
 @keyframes fadeIn {
     to {
         opacity: 1;
@@ -552,99 +601,31 @@
     box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
 }
 
-/* Mobile Responsive */
-@media (max-width: 768px) {
-    .memory-modal {
-        width: 95%;
-        max-height: 90vh;
-    }
-
-    .memory-header {
-        padding: 16px 20px;
-    }
-
-    .memory-content {
-        padding: 16px 20px;
-    }
-
-    .memory-filters {
-        grid-template-columns: 1fr;
-        gap: 8px;
-    }
-
-    .memory-item {
-        padding: 10px;
-    }
-
-    .memory-item .memory-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 6px;
-    }
-
-    .memory-meta {
-        flex-direction: column;
-        gap: 4px;
-        font-size: 0.7rem;
-    }
-
-    .memory-badges {
-        flex-wrap: wrap;
-        gap: 4px;
-    }
-
-    .memory-category {
-        font-size: 0.7rem;
-        padding: 2px 6px;
-    }
-
-    .memory-preview-text {
-        font-size: 0.85rem;
-    }
-
-    .memory-actions {
-        gap: 4px;
-    }
-
-    .memory-edit-btn,
-    .memory-delete-btn {
-        min-width: 24px;
-        height: 24px;
-        font-size: 0.75rem;
-    }
-}
-
-/* Dark Theme Adjustments */
-[data-theme="dark"] .memory-modal {
+/* Unified Dark Theme for Memory Modal - All Themes */
+/* Theme-agnostic variables for consistent memory modal appearance */
+.memory-modal {
     background: #1a1a1a;
+    color: #e0e0e0;
+    --memory-modal-bg: #1a1a1a;
+    --memory-modal-text: #e0e0e0;
+    --memory-item-bg: rgba(42, 42, 42, 0.95);
+    --memory-item-bg-hover: rgba(42, 42, 42, 1);
+    --memory-item-border: #404040;
 }
 
-[data-theme="dark"] .memory-item {
-    background: rgba(42, 42, 42, 0.95);
-    border-color: #404040;
+.memory-item {
+    background: var(--memory-item-bg);
+    border-color: var(--memory-item-border);
+    color: var(--memory-modal-text);
     backdrop-filter: blur(5px);
 }
 
-[data-theme="dark"] .memory-item:hover {
+.memory-item:hover {
     border-color: var(--primary-color);
-    background: rgba(42, 42, 42, 1);
+    background: var(--memory-item-bg-hover);
+    box-shadow: 0 4px 16px rgba(var(--primary-rgb), 0.2);
 }
 
-[data-theme="dark"] .memory-expand-btn:hover {
+.memory-expand-btn:hover {
     background: rgba(var(--primary-rgb), 0.2);
-}
-
-/* Light Theme Specific */
-[data-theme="purple"] .memory-item,
-[data-theme="blue"] .memory-item,
-[data-theme="green"] .memory-item,
-[data-theme="default"] .memory-item {
-    background: rgba(255, 255, 255, 0.95);
-}
-
-[data-theme="purple"] .memory-item:hover,
-[data-theme="blue"] .memory-item:hover,
-[data-theme="green"] .memory-item:hover,
-[data-theme="default"] .memory-item:hover {
-    background: rgba(255, 255, 255, 1);
 }

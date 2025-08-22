@@ -34,9 +34,9 @@ class KimiMemory {
             this.affectionTrait = await this.db.getPersonalityTrait("affection", defaultAff, this.selectedCharacter);
 
             this.preferences = {
-                voiceRate: await this.db.getPreference(`voiceRate_${this.selectedCharacter}`, 1.1),
-                voicePitch: await this.db.getPreference(`voicePitch_${this.selectedCharacter}`, 1.1),
-                voiceVolume: await this.db.getPreference(`voiceVolume_${this.selectedCharacter}`, 0.8),
+                voiceRate: await this.db.getPreference("voiceRate", 1.1),
+                voicePitch: await this.db.getPreference("voicePitch", 1.1),
+                voiceVolume: await this.db.getPreference("voiceVolume", 0.8),
                 lastInteraction: await this.db.getPreference(`lastInteraction_${this.selectedCharacter}`, null),
                 totalInteractions: await this.db.getPreference(`totalInteractions_${this.selectedCharacter}`, 0),
                 favoriteWords: await this.db.getPreference(`favoriteWords_${this.selectedCharacter}`, []),

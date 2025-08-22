@@ -25,24 +25,43 @@
     padding: 10px;
 }
 
+/* ===== SETTINGS PANEL ===== */
 .settings-panel {
     background: var(--modal-bg);
-    backdrop-filter: blur(20px);
-    border-radius: 25px;
-    border: 1.5px solid var(--modal-border);
-    color: var(--modal-text);
-    box-shadow:
-        0 20px 60px rgba(0, 0, 0, 0.5),
-        0 0 30px var(--primary-color, rgba(255, 107, 157, 0.3));
-    width: 100%;
-    max-width: 900px;
-    max-height: 90vh;
+    border-radius: 15px;
+    border: 1px solid var(--modal-border);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    width: 90%;
+    max-width: 800px;
+    max-height: 85vh;
     overflow: hidden;
+    animation: slideInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     flex-direction: column;
-    animation: slideInUp 0.4s ease-out;
-    position: relative;
-    isolation: isolate;
+}
+
+.settings-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+}
+
+.settings-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.settings-content::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.settings-content::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 4px;
+}
+
+.settings-content::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-color);
 }
 
 @keyframes slideInUp {
@@ -662,12 +681,7 @@
 
 /* ===== CONSOLIDATED RESPONSIVE DESIGN ===== */
 @media (max-width: 768px) {
-    .settings-panel {
-        width: 100%;
-        height: 100%;
-        border-radius: 0;
-        max-height: 100vh;
-    }
+    /* Settings panel responsive styles */
 
     .settings-header {
         padding: 20px;
@@ -730,11 +744,7 @@
 }
 
 @media (max-width: 480px) {
-    .settings-panel {
-        width: 95%;
-        margin: 2.5%;
-        max-height: 90vh;
-    }
+    /* Settings panel responsive styles consolidated */
 
     .config-row {
         flex-direction: column;
@@ -811,10 +821,7 @@
 }
 
 @media (max-width: 360px) {
-    .settings-panel {
-        width: 98%;
-        margin: 1%;
-    }
+    /* Settings panel responsive styles consolidated */
 
     .slider-container {
         gap: 5px;
@@ -1033,11 +1040,20 @@
 .creator-link:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-    color: var(--creator-role-color, var(--text-on-primary)) !important;
-    text-decoration: none !important;
-    background: var(--creator-role-bg, linear-gradient(135deg, var(--primary-color), var(--secondary-color))) !important;
     filter: brightness(1.1);
     border-color: var(--primary-color, #ff6b9d);
+}
+
+/* Increased specificity to avoid !important */
+.help-modal .creator-link:hover {
+    color: var(--creator-role-color, var(--text-on-primary));
+    text-decoration: none;
+    background: var(--creator-role-bg, linear-gradient(135deg, var(--primary-color), var(--secondary-color)));
+}
+
+.help-modal .creator-link:hover i,
+.help-modal .creator-link:hover span {
+    color: inherit;
 }
 
 .creator-link i {
@@ -1449,6 +1465,10 @@
 
 .cheat-toggle-btn:hover,
 .cheat-toggle-btn:focus {
+    box-shadow: 0 2px 16px 0 rgba(255, 107, 157, 0.25);
+    transform: translateY(-1px);
+}
+.cheat-toggle-btn:focus {
     background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
     color: #fff;
     box-shadow: 0 4px 18px 0 rgba(255, 107, 157, 0.22);
@@ -1482,4 +1502,18 @@
     transition:
         max-height 0.6s cubic-bezier(0.4, 0, 0.2, 1),
         opacity 0.3s;
+}
+
+/* ===== ACCESSIBILITY - FOCUS STYLES ===== */
+.settings-panel select:focus,
+.settings-panel input:focus,
+.settings-panel button:focus,
+.settings-panel .cheat-toggle-btn:focus {
+    box-shadow: 0 0 0 2px var(--primary-pink);
+    border-color: var(--primary-pink);
+}
+
+.character-card:focus {
+    outline: 2px solid var(--primary-pink);
+    outline-offset: 2px;
 }
