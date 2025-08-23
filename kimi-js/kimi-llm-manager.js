@@ -501,8 +501,8 @@ class KimiLLMManager {
     async chatWithOpenAICompatible(userMessage, options = {}) {
         const baseUrl = await this.db.getPreference("llmBaseUrl", "https://api.openai.com/v1/chat/completions");
         const provider = await this.db.getPreference("llmProvider", "openai");
-        const apiKey = KimiProviderUtils
-            ? await KimiProviderUtils.getApiKey(this.db, provider)
+        const apiKey = window.KimiProviderUtils
+            ? await window.KimiProviderUtils.getApiKey(this.db, provider)
             : await this.db.getPreference("providerApiKey", "");
         const modelId = await this.db.getPreference("llmModelId", this.currentModel || "gpt-4o-mini");
         if (!apiKey) {
@@ -606,7 +606,10 @@ class KimiLLMManager {
     }
 
     async chatWithOpenRouter(userMessage, options = {}) {
-        const apiKey = await this.db.getPreference("providerApiKey");
+        const provider = await this.db.getPreference("llmProvider", "openrouter");
+        const apiKey = await (window.KimiProviderUtils
+            ? window.KimiProviderUtils.getApiKey(this.db, provider)
+            : this.db.getPreference("providerApiKey"));
         if (!apiKey) {
             throw new Error("OpenRouter API key not configured");
         }
@@ -916,7 +919,10 @@ class KimiLLMManager {
     // ===== STREAMING METHODS =====
 
     async chatWithOpenRouterStreaming(userMessage, onToken, options = {}) {
-        const apiKey = await this.db.getPreference("providerApiKey");
+        const provider = await this.db.getPreference("llmProvider", "openrouter");
+        const apiKey = await (window.KimiProviderUtils
+            ? window.KimiProviderUtils.getApiKey(this.db, provider)
+            : this.db.getPreference("providerApiKey"));
         if (!apiKey) {
             throw new Error("OpenRouter API key not configured");
         }
@@ -1047,9 +1053,12 @@ class KimiLLMManager {
 
     async chatWithOpenAICompatibleStreaming(userMessage, onToken, options = {}) {
         const baseUrl = await this.db.getPreference("llmBaseUrl", "https://api.openai.com/v1/chat/completions");
-        const apiKey = await this.db.getPreference("openaiApiKey");
+        const provider = await this.db.getPreference("llmProvider", "openai");
+        const apiKey = window.KimiProviderUtils
+            ? await window.KimiProviderUtils.getApiKey(this.db, provider)
+            : await this.db.getPreference("providerApiKey", "");
         if (!apiKey) {
-            throw new Error("OpenAI API key not configured");
+            throw new Error("API key not configured for selected provider");
         }
 
         const systemPromptContent = await this.assemblePrompt(userMessage);
@@ -1410,7 +1419,14 @@ class KimiLLMManager {
                     testWord = "Hello";
             }
             const systemPrompt = "You are a helpful assistant.";
-            let apiKey = await this.db.getPreference("providerApiKey");
+            let apiKey = await (window.KimiProviderUtils
+                ? window.KimiProviderUtils.getApiKey(this.db, provider)
+                : this.db.getPreference("providerApiKey"));
+
+            if (!apiKey) {
+                return { success: false, error: "No API key found for provider: " + provider };
+            }
+
             let baseUrl = "";
             let payload = {
                 model: modelId,
@@ -1442,6 +1458,7 @@ class KimiLLMManager {
             } else {
                 throw new Error("Unknown provider: " + provider);
             }
+
             const response = await fetch(baseUrl, {
                 method: "POST",
                 headers,
@@ -1497,7 +1514,10 @@ class KimiLLMManager {
         if (this._isRefreshingModels) return;
         this._isRefreshingModels = true;
         try {
-            const apiKey = await this.db.getPreference("providerApiKey", "");
+            const provider = await this.db.getPreference("llmProvider", "openrouter");
+            const apiKey = await (window.KimiProviderUtils
+                ? window.KimiProviderUtils.getApiKey(this.db, provider)
+                : this.db.getPreference("providerApiKey", ""));
             const res = await fetch("https://openrouter.ai/api/v1/models", {
                 method: "GET",
                 headers: {

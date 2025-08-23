@@ -397,28 +397,26 @@
                         </div>
 
                         <div class="config-row">
-                            <div class="config-label-group">
-                                <label class="config-label" id="api-key-label" data-i18n="api_key_label">API Key</label>
-                                <span id="api-key-info" class="help-icon" data-i18n-title="api_key_help_title"
-                                    title="Saved = your API key is stored for this provider. Use Test API Key to verify the connection.">
-                                    <i class="fas fa-info-circle"></i>
-                                </span>
-                                <span id="api-key-presence" class="presence-dot" aria-label="API key presence"
-                                    data-i18n-title="api_key_presence_hint"
-                                    title="Green = API key saved for current provider. Grey = no key saved."></span>
-                            </div>
+                            <label class="config-label" id="api-key-label" data-i18n="api_key_label">API Key</label>
                             <div class="config-control">
-                                <input type="text" class="kimi-input" id="provider-api-key" name="config-token"
-                                    placeholder="API Key..." autocomplete="one-time-code" autocapitalize="none"
-                                    autocorrect="off" spellcheck="false" inputmode="text" aria-autocomplete="none"
-                                    data-lpignore="true" data-1p-ignore="true" data-bwignore="true"
-                                    data-form-type="other" />
-                                <button class="kimi-button" id="toggle-api-key" type="button" aria-pressed="false"
-                                    aria-label="Show API key">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                                <span id="api-key-saved" data-i18n="saved"
-                                    style="display:none;margin-left:8px;color:#4caf50;font-weight:600;">Saved</span>
+                                <div class="api-key-input-group">
+                                    <input type="text" class="kimi-input" id="provider-api-key" name="config-token"
+                                        placeholder="API Key..." autocomplete="one-time-code" autocapitalize="none"
+                                        autocorrect="off" spellcheck="false" inputmode="text" aria-autocomplete="none"
+                                        data-lpignore="true" data-1p-ignore="true" data-bwignore="true"
+                                        data-form-type="other" />
+                                    <button class="kimi-button api-key-toggle" id="toggle-api-key" type="button"
+                                        aria-pressed="false" aria-label="Show API key">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <span id="api-key-presence" class="presence-dot" aria-label="API key presence"
+                                        data-i18n-title="api_key_presence_hint"
+                                        title="Green = API key saved for current provider. Grey = no key saved."></span>
+                                </div>
+                                <div class="api-key-status">
+                                    <span id="api-key-saved" data-i18n="saved"
+                                        style="display:none;color:#4caf50;font-weight:600;">Saved</span>
+                                </div>
                             </div>
                         </div>
 

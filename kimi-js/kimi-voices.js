@@ -7,7 +7,7 @@ class KimiVoiceManager {
 
         // Voice properties
         this.speechSynthesis = window.speechSynthesis;
-        this.kimiEnglishVoice = null;
+        this.currentVoice = null;
         this.availableVoices = [];
 
         // Speech recognition
@@ -31,8 +31,8 @@ class KimiVoiceManager {
         this.transcriptHideTimeout = null;
         this.listeningTimeout = null;
 
-        // Selected character for responses
-        this.selectedCharacter = "Kimi";
+        // Selected character for responses (will be updated from database)
+        this.selectedCharacter = window.KIMI_CONFIG?.DEFAULTS?.SELECTED_CHARACTER || "Kimi";
 
         // Speaking flag
         this.isSpeaking = false;
@@ -54,6 +54,7 @@ class KimiVoiceManager {
         // Browser detection
         this.browser = this._detectBrowser();
     }
+
     // ===== INITIALIZATION =====
     async init() {
         // Avoid double initialization
@@ -83,7 +84,13 @@ class KimiVoiceManager {
 
             // Initialize voice synthesis
             await this.initVoices();
-            this.setupVoicesChangedListener();
+
+            // Only setup listener once during initialization
+            if (!this._voicesListenerSetup) {
+                this.setupVoicesChangedListener();
+                this._voicesListenerSetup = true;
+            }
+
             this.setupLanguageSelector();
 
             // Initialize speech recognition
@@ -93,14 +100,19 @@ class KimiVoiceManager {
             // Check current microphone permission status
             await this.checkMicrophonePermission();
 
-            // Initialize selected character
+            // Initialize selected character with proper display name
             if (this.db && typeof this.db.getSelectedCharacter === "function") {
-                const char = await this.db.getSelectedCharacter();
-                if (char) this.selectedCharacter = char;
+                const charKey = await this.db.getSelectedCharacter();
+                if (charKey && window.KIMI_CHARACTERS && window.KIMI_CHARACTERS[charKey]) {
+                    // Use the display name, not the key
+                    this.selectedCharacter = window.KIMI_CHARACTERS[charKey].name;
+                } else if (charKey) {
+                    // Fallback to key if KIMI_CHARACTERS not available
+                    this.selectedCharacter = charKey;
+                }
             }
 
             this.isInitialized = true;
-            console.log("🎤 VoiceManager initialized successfully");
             return true;
         } catch (error) {
             console.error("Error during VoiceManager initialization:", error);
@@ -158,18 +170,16 @@ class KimiVoiceManager {
 
             if (!navigator.permissions) {
                 console.log("🎤 Permissions API not available");
+                this.micPermissionGranted = false; // Set default state
                 return;
             }
 
             const permissionStatus = await navigator.permissions.query({ name: "microphone" });
             this.micPermissionGranted = permissionStatus.state === "granted";
 
-            console.log("🎤 Initial microphone permission status:", permissionStatus.state);
-
             // Listen for permission changes
             permissionStatus.addEventListener("change", () => {
                 this.micPermissionGranted = permissionStatus.state === "granted";
-                console.log("🎤 Microphone permission changed to:", permissionStatus.state);
             });
         } catch (error) {
             console.log("🎤 Could not check microphone permission:", error);
@@ -187,6 +197,13 @@ class KimiVoiceManager {
 
         this.availableVoices = this.speechSynthesis.getVoices();
 
+        // Handle case where voices are not loaded yet (common timing issue)
+        if (this.availableVoices.length === 0) {
+            this._initializingVoices = false;
+            // The onvoiceschanged listener will retry initialization
+            return;
+        }
+
         // Only get language from DB if not already set
         if (!this.selectedLanguage) {
             const selectedLanguage = await this.db?.getPreference("selectedLanguage", "en");
@@ -195,43 +212,146 @@ class KimiVoiceManager {
 
         const savedVoice = await this.db?.getPreference("selectedVoice", "auto");
 
-        let filteredVoices = this.availableVoices.filter(voice => voice.lang.toLowerCase().startsWith(this.selectedLanguage));
-        if (filteredVoices.length === 0) {
-            filteredVoices = this.availableVoices.filter(voice => voice.lang.toLowerCase().includes(this.selectedLanguage));
-        }
-        if (filteredVoices.length === 0) {
-            // As a last resort, use any available voice
-            filteredVoices = this.availableVoices;
-        }
+        const filteredVoices = this.getVoicesForLanguage(this.selectedLanguage);
 
         if (savedVoice && savedVoice !== "auto") {
-            let foundVoice = filteredVoices.find(voice => voice.name === savedVoice);
-            if (!foundVoice) {
-                foundVoice = this.availableVoices.find(voice => voice.name === savedVoice);
-            }
+            // Only search within language-compatible voices
+            const foundVoice = filteredVoices.find(voice => voice.name === savedVoice);
             if (foundVoice) {
-                this.kimiEnglishVoice = foundVoice;
+                this.currentVoice = foundVoice;
+                console.log(
+                    `🎤 Voice restored from cache: "${foundVoice.name}" (${foundVoice.lang}) for language "${this.selectedLanguage}"`
+                );
                 this.updateVoiceSelector();
                 this._initializingVoices = false;
                 return;
-            } else if (filteredVoices.length > 0) {
-                this.kimiEnglishVoice = filteredVoices[0];
-                await this.db?.setPreference("selectedVoice", this.kimiEnglishVoice.name);
-                this.updateVoiceSelector();
-                this._initializingVoices = false;
-                return;
+            } else {
+                // Saved voice not compatible with current language, fall back to auto-selection
+                console.log(
+                    `🎤 Saved voice "${savedVoice}" not compatible with language "${this.selectedLanguage}", using auto-selection`
+                );
+                await this.db?.setPreference("selectedVoice", "auto");
             }
         }
 
-        // Prefer female voices if available, otherwise fallback
-        const femaleVoice = filteredVoices.find(
-            voice =>
-                voice.name.toLowerCase().includes("female") ||
-                (voice.gender && voice.gender.toLowerCase() === "female") ||
-                voice.name.toLowerCase().includes("woman") ||
-                voice.name.toLowerCase().includes("girl")
-        );
-        this.kimiEnglishVoice = femaleVoice || filteredVoices[0] || this.availableVoices[0];
+        // Prefer female voices if available in the language-compatible voices
+        // Use real voice names since voice.gender is rarely provided by browsers
+        const femaleVoice = filteredVoices.find(voice => {
+            const name = voice.name.toLowerCase();
+
+            // Common female voice names across different platforms
+            const femaleNames = [
+                // Microsoft voices
+                "aria",
+                "emma",
+                "jenny",
+                "michelle",
+                "karen",
+                "heather",
+                "susan",
+                "joanna",
+                "salli",
+                "kimberly",
+                "kendra",
+                "ivy",
+                "rebecca",
+                "zira",
+                "eva",
+                "linda",
+                "denise",
+                "elsa",
+                "nathalie",
+                "julie",
+                "hortense",
+                "marie",
+                "pauline",
+                "claudia",
+                "lucia",
+                "paola",
+                "bianca",
+                "cosima",
+                "katja",
+                "hedda",
+                "helena",
+                "naayf",
+                "sabina",
+                "naja",
+                "sara",
+                "amelie",
+                "lea",
+                "manon",
+
+                // Google voices
+                "wavenet-a",
+                "wavenet-c",
+                "wavenet-e",
+                "wavenet-f",
+                "wavenet-g",
+                "standard-a",
+                "standard-c",
+                "standard-e",
+
+                // Apple voices
+                "allison",
+                "ava",
+                "samantha",
+                "susan",
+                "vicki",
+                "victoria",
+                "audrey",
+                "aurelie",
+                "marie",
+                "thomas",
+                "amelie",
+
+                // General keywords
+                "female",
+                "woman",
+                "girl",
+                "lady"
+            ];
+
+            // Check if voice name contains any female name
+            return (
+                femaleNames.some(femaleName => name.includes(femaleName)) ||
+                (voice.gender && voice.gender.toLowerCase() === "female")
+            );
+        });
+
+        // Debug: Check what we actually found
+        if (femaleVoice) {
+            console.log(`🎤 Female voice found: "${femaleVoice.name}" (${femaleVoice.lang})`);
+        } else {
+            console.log(
+                `🎤 No female voice found, using first available: "${filteredVoices[0]?.name}" (${filteredVoices[0]?.lang})`
+            );
+            // Debug: Show what voices are available and why they don't match
+            if (filteredVoices.length > 0 && filteredVoices.length <= 5) {
+                console.log(
+                    `🎤 Available voices for ${this.selectedLanguage}:`,
+                    filteredVoices.map(v => ({
+                        name: v.name,
+                        lang: v.lang,
+                        gender: v.gender || "undefined"
+                    }))
+                );
+            }
+        }
+
+        // Use female voice if found, otherwise first compatible voice, with proper fallback
+        this.currentVoice = femaleVoice || filteredVoices[0] || null;
+
+        if (!this.currentVoice) {
+            console.warn("🎤 No voices available for speech synthesis - this may resolve automatically when voices load");
+            this._initializingVoices = false;
+            // Don't return here - let the system continue, voices may load later via onvoiceschanged
+            // The updateVoiceSelector will handle the empty state gracefully
+        } else {
+            // Log successful voice selection with language info
+            console.log(
+                `🎤 Voice loaded: "${this.currentVoice.name}" (${this.currentVoice.lang}) for language "${this.selectedLanguage}"`
+            );
+        }
 
         // Do not overwrite "auto" preference here; only update if user selects a specific voice
 
@@ -254,47 +374,184 @@ class KimiVoiceManager {
         autoOption.textContent = "Automatic (Best voice for selected language)";
         voiceSelect.appendChild(autoOption);
 
-        let filteredVoices = this.availableVoices.filter(voice => voice.lang.toLowerCase().startsWith(this.selectedLanguage));
+        const filteredVoices = this.getVoicesForLanguage(this.selectedLanguage);
+
         if (filteredVoices.length === 0) {
-            filteredVoices = this.availableVoices.filter(voice => voice.lang.toLowerCase().includes(this.selectedLanguage));
-        }
-        if (filteredVoices.length === 0) {
-            // Show all voices if none match the selected language
-            filteredVoices = this.availableVoices;
+            // Add a placeholder option when no voices are available
+            const noVoicesOption = document.createElement("option");
+            noVoicesOption.value = "none";
+            noVoicesOption.textContent = "No voices available (loading...)";
+            noVoicesOption.disabled = true;
+            voiceSelect.appendChild(noVoicesOption);
+        } else {
+            filteredVoices.forEach(voice => {
+                const option = document.createElement("option");
+                option.value = voice.name;
+                option.textContent = `${voice.name} (${voice.lang})`;
+                if (this.currentVoice && voice.name === this.currentVoice.name) {
+                    option.selected = true;
+                }
+                voiceSelect.appendChild(option);
+            });
         }
 
-        filteredVoices.forEach(voice => {
-            const option = document.createElement("option");
-            option.value = voice.name;
-            option.textContent = `${voice.name} (${voice.lang})`;
-            if (this.kimiEnglishVoice && voice.name === this.kimiEnglishVoice.name) {
-                option.selected = true;
-            }
-            voiceSelect.appendChild(option);
-        });
+        // Remove existing handler before adding new one
+        if (this.voiceChangeHandler) {
+            voiceSelect.removeEventListener("change", this.voiceChangeHandler);
+        }
 
-        voiceSelect.removeEventListener("change", this.handleVoiceChange);
-        voiceSelect.addEventListener("change", this.handleVoiceChange.bind(this));
+        // Create and store the handler
+        this.voiceChangeHandler = this.handleVoiceChange.bind(this);
+        voiceSelect.addEventListener("change", this.voiceChangeHandler);
     }
 
     async handleVoiceChange(e) {
         if (e.target.value === "auto") {
+            console.log(`🎤 Voice set to automatic selection for language "${this.selectedLanguage}"`);
             await this.db?.setPreference("selectedVoice", "auto");
-            this.kimiEnglishVoice = null; // Trigger auto-selection next time
+            this.currentVoice = null; // Trigger auto-selection next time
         } else {
-            this.kimiEnglishVoice = this.availableVoices.find(voice => voice.name === e.target.value);
+            this.currentVoice = this.availableVoices.find(voice => voice.name === e.target.value);
+            console.log(`🎤 Voice manually selected: "${this.currentVoice?.name}" (${this.currentVoice?.lang})`);
             await this.db?.setPreference("selectedVoice", e.target.value);
         }
     }
 
     setupVoicesChangedListener() {
         if (this.speechSynthesis.onvoiceschanged !== undefined) {
-            this.speechSynthesis.onvoiceschanged = async () => await this.initVoices();
+            // Prevent multiple event listeners
+            this.speechSynthesis.onvoiceschanged = null;
+            this.speechSynthesis.onvoiceschanged = async () => {
+                // Only reinitialize if voices are actually available now
+                if (this.speechSynthesis.getVoices().length > 0) {
+                    await this.initVoices();
+                }
+            };
+        }
+
+        // Fallback: Only use timeout if onvoiceschanged is not supported
+        if (this.availableVoices.length === 0 && this.speechSynthesis.onvoiceschanged === undefined) {
+            setTimeout(async () => {
+                await this.initVoices();
+            }, 1000);
         }
     }
 
+    // ===== LANGUAGE UTILITIES =====
+    getLanguageCode(langShort) {
+        const languageMap = {
+            en: "en-US",
+            fr: "fr-FR",
+            es: "es-ES",
+            de: "de-DE",
+            it: "it-IT",
+            ja: "ja-JP",
+            zh: "zh-CN"
+        };
+        return languageMap[langShort] || langShort;
+    }
+
+    getVoicesForLanguage(language) {
+        let filteredVoices = this.availableVoices.filter(voice => voice.lang.toLowerCase().startsWith(language));
+        if (filteredVoices.length === 0) {
+            filteredVoices = this.availableVoices.filter(voice => voice.lang.toLowerCase().includes(language));
+        }
+        if (filteredVoices.length === 0) {
+            // As last resort, return all voices
+            filteredVoices = this.availableVoices;
+        }
+        return filteredVoices;
+    }
+
+    // ===== VOICE PREFERENCE UTILITIES =====
+    getVoicePreference(paramType, options = {}) {
+        // Hierarchy: options > memory.preferences > kimiMemory.preferences > DOM element > default
+        const defaults = {
+            rate: window.KIMI_CONFIG?.DEFAULTS?.VOICE_RATE || 1.1,
+            pitch: window.KIMI_CONFIG?.DEFAULTS?.VOICE_PITCH || 1.1,
+            volume: window.KIMI_CONFIG?.DEFAULTS?.VOICE_VOLUME || 0.8
+        };
+
+        const elementIds = {
+            rate: "voice-rate",
+            pitch: "voice-pitch",
+            volume: "voice-volume"
+        };
+
+        const memoryKeys = {
+            rate: "voiceRate",
+            pitch: "voicePitch",
+            volume: "voiceVolume"
+        };
+
+        // 1. Check options parameter
+        if (options[paramType] !== undefined) {
+            return parseFloat(options[paramType]);
+        }
+
+        // 2. Check local memory preferences
+        if (this.memory?.preferences?.[memoryKeys[paramType]] !== undefined) {
+            return parseFloat(this.memory.preferences[memoryKeys[paramType]]);
+        }
+
+        // 3. Check global memory preferences
+        if (window.kimiMemory?.preferences?.[memoryKeys[paramType]] !== undefined) {
+            return parseFloat(window.kimiMemory.preferences[memoryKeys[paramType]]);
+        }
+
+        // 4. Check DOM element
+        const element = document.getElementById(elementIds[paramType]);
+        if (element) {
+            return parseFloat(element.value);
+        }
+
+        // 5. Return default value
+        return defaults[paramType];
+    }
+
+    // ===== CHAT MESSAGE UTILITIES =====
+    handleChatMessage(userMessage, kimiResponse) {
+        const chatContainer = document.getElementById("chat-container");
+        const chatMessages = document.getElementById("chat-messages");
+
+        if (!chatContainer || !chatContainer.classList.contains("visible") || !chatMessages) {
+            return;
+        }
+
+        const addMessageToChat = window.addMessageToChat || (typeof addMessageToChat !== "undefined" ? addMessageToChat : null);
+
+        if (addMessageToChat) {
+            addMessageToChat("user", userMessage);
+            addMessageToChat(this.selectedCharacter.toLowerCase(), kimiResponse);
+        } else {
+            // Fallback manual message creation
+            this.createChatMessage(chatMessages, "user", userMessage);
+            this.createChatMessage(chatMessages, this.selectedCharacter.toLowerCase(), kimiResponse);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+    }
+
+    createChatMessage(container, sender, text) {
+        const messageDiv = document.createElement("div");
+        messageDiv.className = `message ${sender}`;
+
+        const textDiv = document.createElement("div");
+        textDiv.textContent = text;
+
+        const timeDiv = document.createElement("div");
+        timeDiv.className = "message-time";
+        timeDiv.textContent = new Date().toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit"
+        });
+
+        messageDiv.appendChild(textDiv);
+        messageDiv.appendChild(timeDiv);
+        container.appendChild(messageDiv);
+    }
+
     async speak(text, options = {}) {
-        if (!text || !this.kimiEnglishVoice) {
+        if (!text || !this.currentVoice) {
             console.warn("Unable to speak: empty text or voice not initialized");
             return;
         }
@@ -306,30 +563,9 @@ class KimiVoiceManager {
         // Clean text for better speech synthesis
         let processedText = this._normalizeForSpeech(text);
 
-        // Detect emotional content for voice adjustments
-        let customRate = options.rate;
-        if (customRate === undefined) {
-            customRate = this.memory?.preferences?.voiceRate;
-        }
-        if (customRate === undefined) {
-            customRate = window.kimiMemory?.preferences?.voiceRate;
-        }
-        if (customRate === undefined) {
-            const rateSlider = document.getElementById("voice-rate");
-            customRate = rateSlider ? parseFloat(rateSlider.value) : 1.1;
-        }
-
-        let customPitch = options.pitch;
-        if (customPitch === undefined) {
-            customPitch = this.memory?.preferences?.voicePitch;
-        }
-        if (customPitch === undefined) {
-            customPitch = window.kimiMemory?.preferences?.voicePitch;
-        }
-        if (customPitch === undefined) {
-            const pitchSlider = document.getElementById("voice-pitch");
-            customPitch = pitchSlider ? parseFloat(pitchSlider.value) : 1.1;
-        }
+        // Get voice settings using centralized utility
+        let customRate = this.getVoicePreference("rate", options);
+        let customPitch = this.getVoicePreference("pitch", options);
 
         // Check for emotional indicators in original text (before processing)
         const lowerText = text.toLowerCase();
@@ -347,26 +583,12 @@ class KimiVoiceManager {
         }
 
         const utterance = new SpeechSynthesisUtterance(processedText);
-        utterance.voice = this.kimiEnglishVoice;
+        utterance.voice = this.currentVoice;
         utterance.rate = customRate;
         utterance.pitch = customPitch;
 
-        // Get volume from multiple sources with fallback hierarchy
-        let volume = options.volume;
-        if (volume === undefined) {
-            // Try to get from memory preferences
-            volume = this.memory?.preferences?.voiceVolume;
-        }
-        if (volume === undefined) {
-            // Try to get from kimiMemory global
-            volume = window.kimiMemory?.preferences?.voiceVolume;
-        }
-        if (volume === undefined) {
-            // Try to get directly from slider
-            const volumeSlider = document.getElementById("voice-volume");
-            volume = volumeSlider ? parseFloat(volumeSlider.value) : 0.8;
-        }
-        utterance.volume = volume;
+        // Get volume using centralized utility
+        utterance.volume = this.getVoicePreference("volume", options);
         const emotionFromText = this.analyzeTextEmotion(text);
         if (window.kimiVideo && emotionFromText !== "neutral") {
             requestAnimationFrame(() => {
@@ -585,9 +807,7 @@ class KimiVoiceManager {
         }
         this.recognition = new this.SpeechRecognition();
         this.recognition.continuous = true;
-        let langCode = this.selectedLanguage || "en";
-        if (langCode === "fr") langCode = "fr-FR";
-        if (langCode === "en") langCode = "en-US";
+        const langCode = this.getLanguageCode(this.selectedLanguage || "en");
         this.recognition.lang = langCode;
         this.recognition.interimResults = true;
 
@@ -629,112 +849,18 @@ class KimiVoiceManager {
                         this.stopListening();
                     }, this.silenceTimeout);
                     (async () => {
+                        let response;
                         if (typeof window.analyzeAndReact === "function") {
-                            const response = await window.analyzeAndReact(final_transcript);
-                            if (response) {
-                                const chatContainer = document.getElementById("chat-container");
-                                const chatMessages = document.getElementById("chat-messages");
-                                if (chatContainer && chatContainer.classList.contains("visible") && chatMessages) {
-                                    const addMessageToChat =
-                                        window.addMessageToChat ||
-                                        (typeof addMessageToChat !== "undefined" ? addMessageToChat : null);
-                                    if (addMessageToChat) {
-                                        addMessageToChat("user", final_transcript);
-                                        addMessageToChat("kimi", response);
-                                    } else {
-                                        const userDiv = document.createElement("div");
-                                        userDiv.className = "message user";
+                            response = await window.analyzeAndReact(final_transcript);
+                        } else if (this.onSpeechAnalysis) {
+                            response = await this.onSpeechAnalysis(final_transcript);
+                        }
 
-                                        const userMessageDiv = document.createElement("div");
-                                        userMessageDiv.textContent = final_transcript;
-
-                                        const userTimeDiv = document.createElement("div");
-                                        userTimeDiv.className = "message-time";
-                                        userTimeDiv.textContent = new Date().toLocaleTimeString("en-US", {
-                                            hour: "2-digit",
-                                            minute: "2-digit"
-                                        });
-
-                                        userDiv.appendChild(userMessageDiv);
-                                        userDiv.appendChild(userTimeDiv);
-                                        chatMessages.appendChild(userDiv);
-
-                                        const kimiDiv = document.createElement("div");
-                                        kimiDiv.className = "message kimi";
-
-                                        const kimiMessageDiv = document.createElement("div");
-                                        kimiMessageDiv.textContent = response;
-
-                                        const kimiTimeDiv = document.createElement("div");
-                                        kimiTimeDiv.className = "message-time";
-                                        kimiTimeDiv.textContent = new Date().toLocaleTimeString("en-US", {
-                                            hour: "2-digit",
-                                            minute: "2-digit"
-                                        });
-
-                                        kimiDiv.appendChild(kimiMessageDiv);
-                                        kimiDiv.appendChild(kimiTimeDiv);
-                                        chatMessages.appendChild(kimiDiv);
-                                        chatMessages.scrollTop = chatMessages.scrollHeight;
-                                    }
-                                }
-                                setTimeout(() => {
-                                    this.speak(response);
-                                }, 500);
-                            }
-                        } else {
-                            const response = await this.onSpeechAnalysis(final_transcript);
-                            if (response) {
-                                const chatContainer = document.getElementById("chat-container");
-                                const chatMessages = document.getElementById("chat-messages");
-                                if (chatContainer && chatContainer.classList.contains("visible") && chatMessages) {
-                                    const addMessageToChat =
-                                        window.addMessageToChat ||
-                                        (typeof addMessageToChat !== "undefined" ? addMessageToChat : null);
-                                    if (addMessageToChat) {
-                                        addMessageToChat("user", final_transcript);
-                                        addMessageToChat("kimi", response);
-                                    } else {
-                                        const userDiv = document.createElement("div");
-                                        userDiv.className = "message user";
-
-                                        const userMessageDiv = document.createElement("div");
-                                        userMessageDiv.textContent = final_transcript;
-
-                                        const userTimeDiv = document.createElement("div");
-                                        userTimeDiv.className = "message-time";
-                                        userTimeDiv.textContent = new Date().toLocaleTimeString("en-US", {
-                                            hour: "2-digit",
-                                            minute: "2-digit"
-                                        });
-
-                                        userDiv.appendChild(userMessageDiv);
-                                        userDiv.appendChild(userTimeDiv);
-                                        chatMessages.appendChild(userDiv);
-
-                                        const kimiDiv = document.createElement("div");
-                                        kimiDiv.className = "message kimi";
-
-                                        const kimiMessageDiv = document.createElement("div");
-                                        kimiMessageDiv.textContent = response;
-
-                                        const kimiTimeDiv = document.createElement("div");
-                                        kimiTimeDiv.className = "message-time";
-                                        kimiTimeDiv.textContent = new Date().toLocaleTimeString("en-US", {
-                                            hour: "2-digit",
-                                            minute: "2-digit"
-                                        });
-
-                                        kimiDiv.appendChild(kimiMessageDiv);
-                                        kimiDiv.appendChild(kimiTimeDiv);
-                                        chatMessages.appendChild(kimiDiv);
-                                        chatMessages.scrollTop = chatMessages.scrollHeight;
-                                    }
-                                }
-                                setTimeout(() => {
-                                    this.speak(response);
-                                }, 500);
-                            }
+                        if (response) {
+                            this.handleChatMessage(final_transcript, response);
+                            setTimeout(() => {
+                                this.speak(response);
+                            }, 500);
                         }
                     })();
                 } catch (error) {
@@ -829,7 +955,6 @@ class KimiVoiceManager {
 
         // Add the event listener
         this.micButton.addEventListener("click", this.handleMicClick);
-        console.log("🎤 Microphone button event listener setup complete");
     }
 
     async startListening() {
@@ -1011,11 +1136,11 @@ class KimiVoiceManager {
 
     // ===== UTILITY METHODS =====
     isVoiceAvailable() {
-        return this.kimiFrenchVoice !== null;
+        return this.currentVoice !== null;
     }
 
     getCurrentVoice() {
-        return this.kimiFrenchVoice;
+        return this.currentVoice;
     }
 
     getAvailableVoices() {
@@ -1081,10 +1206,31 @@ class KimiVoiceManager {
             this.speechSynthesis.cancel();
         }
 
+        // Clean up mic button event listener
         if (this.micButton && this.handleMicClick) {
             this.micButton.removeEventListener("click", this.handleMicClick);
         }
 
+        // Clean up voice selector event listener
+        if (this.voiceChangeHandler) {
+            const voiceSelect = document.getElementById("voice-selection");
+            if (voiceSelect) {
+                voiceSelect.removeEventListener("change", this.voiceChangeHandler);
+            }
+            this.voiceChangeHandler = null;
+        }
+
+        // Clean up language selector event listener
+        if (this.languageChangeHandler) {
+            const languageSelect = document.getElementById("language-selection");
+            if (languageSelect) {
+                languageSelect.removeEventListener("change", this.languageChangeHandler);
+            }
+            this.languageChangeHandler = null;
+        }
+
+        // Reset state
+        this.currentVoice = null;
         this.isInitialized = false;
         this.isListening = false;
         this.isStoppingVolontaire = false;
@@ -1096,47 +1242,65 @@ class KimiVoiceManager {
     setupLanguageSelector() {
         const languageSelect = document.getElementById("language-selection");
         if (!languageSelect) return;
+
         languageSelect.value = this.selectedLanguage || "en";
+
+        // Remove existing handler before adding new one
+        if (this.languageChangeHandler) {
+            languageSelect.removeEventListener("change", this.languageChangeHandler);
+        }
+
+        // Create and store the handler
+        this.languageChangeHandler = this.handleLanguageChange.bind(this);
+        languageSelect.addEventListener("change", this.languageChangeHandler);
     }
 
     async handleLanguageChange(e) {
         const newLang = e.target.value;
-        console.log(`🎤 Language changing to: ${newLang}`);
+        const oldLang = this.selectedLanguage;
+        console.log(`� Language changing: "${oldLang}" → "${newLang}"`);
+
         this.selectedLanguage = newLang;
         await this.db?.setPreference("selectedLanguage", newLang);
 
-        // Force voice reset when changing language
-        const currentVoicePref = await this.db?.getPreference("selectedVoice", "auto");
-        if (currentVoicePref === "auto") {
-            // Reset voice selection to force auto-selection for new language
-            this.kimiEnglishVoice = null;
-            console.log(`🎤 Voice reset for auto-selection in ${newLang}`);
+        // Update i18n system for interface translations
+        if (window.kimiI18nManager?.setLanguage) {
+            await window.kimiI18nManager.setLanguage(newLang);
         }
 
+        // ALWAYS reset voice when changing language to ensure compatibility
+        const currentVoicePref = await this.db?.getPreference("selectedVoice", "auto");
+
+        // Reset voice selection to force re-selection for new language
+        this.currentVoice = null;
+
+        // CRITICAL: Reset voice preference to "auto" to prevent old voice from being reused
+        await this.db?.setPreference("selectedVoice", "auto");
+
         await this.initVoices();
-        console.log(
-            `🎤 Voice initialized for ${newLang}, selected voice:`,
-            this.kimiEnglishVoice?.name,
-            this.kimiEnglishVoice?.lang
-        );
+
+        if (this.currentVoice) {
+            console.log(`🎤 Voice selected for "${newLang}": "${this.currentVoice.name}" (${this.currentVoice.lang})`);
+        } else {
+            console.warn(`🎤 No voice found for language "${newLang}"`);
+        }
 
         if (this.recognition) {
-            let langCode = newLang;
-            if (langCode === "fr") langCode = "fr-FR";
-            else if (langCode === "en") langCode = "en-US";
-            else if (langCode === "es") langCode = "es-ES";
-            else if (langCode === "de") langCode = "de-DE";
-            else if (langCode === "it") langCode = "it-IT";
-            else if (langCode === "ja") langCode = "ja-JP";
-            else if (langCode === "zh") langCode = "zh-CN";
+            const langCode = this.getLanguageCode(newLang);
             this.recognition.lang = langCode;
         }
     }
 
     async updateSelectedCharacter() {
         if (this.db && typeof this.db.getSelectedCharacter === "function") {
-            const char = await this.db.getSelectedCharacter();
-            if (char) this.selectedCharacter = char;
+            const charKey = await this.db.getSelectedCharacter();
+            if (charKey && window.KIMI_CHARACTERS && window.KIMI_CHARACTERS[charKey]) {
+                // Use the display name, not the key
+                this.selectedCharacter = window.KIMI_CHARACTERS[charKey].name;
+            } else if (charKey) {
+                // Fallback to key if KIMI_CHARACTERS not available
+                this.selectedCharacter = charKey;
+            }
         }
     }
 

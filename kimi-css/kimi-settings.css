@@ -114,15 +114,6 @@
     backdrop-filter: blur(10px);
 }
 
-.help-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 18px;
-    height: 18px;
-    color: var(--modal-text);
-}
-
 .help-button:hover,
 .settings-close:hover {
     background-color: var(--modal-close-hover-bg);
@@ -308,13 +299,6 @@
 .config-note-info .config-help {
     margin: 0;
     opacity: 0.9;
-}
-
-.config-label-group {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    flex: 1;
 }
 
 .presence-dot {
@@ -1552,4 +1536,93 @@
 .character-card:focus {
     outline: 2px solid var(--primary-pink);
     outline-offset: 2px;
+}
+
+/* ===== API KEY INPUT STYLING ===== */
+
+.api-key-input-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+}
+
+.api-key-input-group .kimi-input {
+    flex: 1;
+    margin: 0;
+}
+
+.api-key-toggle {
+    min-width: 40px;
+    height: 40px;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background: var(--settings-bg-secondary, rgba(255, 255, 255, 0.08));
+    border: 1px solid var(--settings-border-color, rgba(255, 255, 255, 0.15));
+    color: var(--settings-text, #ffffff);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.api-key-toggle:hover {
+    background: var(--settings-bg-hover, rgba(255, 255, 255, 0.12));
+    border-color: var(--accent-color, #8a2be2);
+}
+
+.api-key-toggle:active {
+    transform: scale(0.95);
+}
+
+.api-key-input-group .presence-dot {
+    width: 12px;
+    height: 12px;
+    margin-left: 4px;
+    border: 2px solid var(--settings-bg-primary, rgba(0, 0, 0, 0.3));
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
+    transition: all 0.2s ease;
+}
+
+.api-key-status {
+    margin-top: 6px;
+    min-height: 18px;
+    display: flex;
+    align-items: center;
+}
+
+.api-key-status span {
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.api-key-status span::before {
+    content: "✓";
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+    .api-key-input-group {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .api-key-toggle {
+        align-self: flex-end;
+        min-width: 100px;
+    }
+
+    .api-key-input-group .presence-dot {
+        position: absolute;
+        top: 50%;
+        right: 8px;
+        transform: translateY(-50%);
+        z-index: 10;
+    }
 }

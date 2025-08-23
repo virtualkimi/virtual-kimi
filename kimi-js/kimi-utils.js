@@ -22,7 +22,7 @@ window.KimiValidationUtils = {
     validateRange(value, key) {
         const bounds = {
             voiceRate: { min: 0.5, max: 2, def: 1.1 },
-            voicePitch: { min: 0, max: 2, def: 1.0 },
+            voicePitch: { min: 0.5, max: 2, def: 1.1 },
             voiceVolume: { min: 0, max: 1, def: 0.8 },
             llmTemperature: { min: 0, max: 1, def: 0.9 },
             llmMaxTokens: { min: 1, max: 8192, def: 400 },
@@ -1818,10 +1818,8 @@ class KimiVideoManager {
     }
 
     // METHODS TO ANALYZE EMOTIONS FROM TEXT
-    analyzeTextEmotion(text) {
-        // Use unified emotion system
-        return window.kimiAnalyzeEmotion ? window.kimiAnalyzeEmotion(text, "auto") : "neutral";
-    } // CLEANUP
+    // Note: analyzeTextEmotion() moved to KimiVoiceManager for centralized emotion analysis
+    // CLEANUP
     destroy() {
         clearTimeout(this.autoTransitionTimer);
         this.autoTransitionTimer = null;

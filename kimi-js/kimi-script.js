@@ -693,7 +693,6 @@ document.addEventListener("DOMContentLoaded", async function () {
                 if (baseUrl) await window.kimiDB.setPreference("llmBaseUrl", baseUrl);
                 if (modelId) await window.kimiDB.setPreference("llmModelId", modelId);
             }
-
             statusSpan.textContent = "Testing in progress...";
             statusSpan.style.color = "#ffa726";
 
@@ -877,23 +876,25 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     // Function definitions
     function setupUnifiedEventHandlers() {
-        // Cleanup existing event handlers
-        if (window._kimiEventCleanup && Array.isArray(window._kimiEventCleanup)) {
-            window._kimiEventCleanup.forEach(cleanup => {
-                if (typeof cleanup === "function") cleanup();
-            });
+        // SIMPLE FIX: Initialize _kimiEventCleanup to prevent undefined error
+        if (!window._kimiEventCleanup) {
+            window._kimiEventCleanup = [];
         }
-        window._kimiEventCleanup = [];
 
         // Helper function to safely add event listeners
         function safeAddEventListener(element, event, handler, identifier) {
             if (element && !element[identifier]) {
                 element.addEventListener(event, handler);
                 element[identifier] = true;
-                window._kimiEventCleanup.push(() => {
+
+                // Simple cleanup system
+                const cleanupFn = () => {
                     element.removeEventListener(event, handler);
                     element[identifier] = false;
-                });
+                };
+
+                // Store cleanup function in the simple array
+                window._kimiEventCleanup.push(cleanupFn);
             }
         }
 
@@ -924,24 +925,8 @@ document.addEventListener("DOMContentLoaded", async function () {
         window.kimiI18nManager = new window.KimiI18nManager();
         const lang = await kimiDB.getPreference("selectedLanguage", "en");
         await window.kimiI18nManager.setLanguage(lang);
-        const langSelect = document.getElementById("language-selection");
-        if (langSelect) {
-            langSelect.value = lang;
-            langSelect.addEventListener("change", async function (e) {
-                const selectedLang = e.target.value;
-                await kimiDB.setPreference("selectedLanguage", selectedLang);
-                await window.kimiI18nManager.setLanguage(selectedLang);
-
-                if (window.voiceManager && window.voiceManager.handleLanguageChange) {
-                    await window.voiceManager.handleLanguageChange({ target: { value: selectedLang } });
-                }
-
-                // Refresh the personality prompt to include new language instruction
-                if (window.kimiLLM && window.kimiLLM.refreshMemoryContext) {
-                    await window.kimiLLM.refreshMemoryContext();
-                }
-            });
-        }
+        // Note: Language selector event listener is now handled by VoiceManager.setupLanguageSelector()
+        // This prevents duplicate event listeners and ensures proper coordination between voice and i18n systems
 
         window.kimiUIStateManager = new window.KimiUIStateManager();
     }

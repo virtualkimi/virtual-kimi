@@ -847,8 +847,13 @@ async function loadSettingsData() {
         // Update API key input
         const apiKeyInput = document.getElementById("provider-api-key");
         if (apiKeyInput) {
-            const keyPref = window.KimiProviderUtils ? window.KimiProviderUtils.getKeyPrefForProvider(provider) : null;
-            const providerKey = keyPref && preferences[keyPref] ? preferences[keyPref] : apiKey;
+            // Get the API key for the current provider
+            let providerKey = "";
+            if (window.KimiProviderUtils) {
+                providerKey = await window.KimiProviderUtils.getApiKey(kimiDB, provider);
+            } else {
+                providerKey = apiKey; // fallback to old method
+            }
             apiKeyInput.value = providerKey || "";
         }
         const providerSelect = document.getElementById("llm-provider");
@@ -1557,15 +1562,10 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     const interfaceOpacitySlider = document.getElementById("interface-opacity");
     const animationsToggle = document.getElementById("animations-toggle");
 
-    // Cleanup existing listeners to prevent memory leaks
-    const cleanupListeners = () => {
-        if (window._kimiListenerCleanup) {
-            window._kimiListenerCleanup.forEach(cleanup => cleanup());
-        }
+    // SIMPLE FIX: Initialize _kimiListenerCleanup to prevent undefined error
+    if (!window._kimiListenerCleanup) {
         window._kimiListenerCleanup = [];
-    };
-
-    cleanupListeners();
+    }
 
     // Create debounced functions for better performance
     const debouncedVoiceRateUpdate = window.KimiPerformanceUtils?.debounce(async value => {
@@ -1656,22 +1656,12 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
         voiceVolumeSlider.addEventListener("input", listener);
         window._kimiListenerCleanup.push(() => voiceVolumeSlider.removeEventListener("input", listener));
     }
-    if (languageSelect) {
-        languageSelect.removeEventListener("change", window._kimiLanguageListener);
-        window._kimiLanguageListener = async e => {
-            if (kimiDB) await kimiDB.setPreference("selectedLanguage", e.target.value);
-            if (window.voiceManager && window.voiceManager.initVoices) await window.voiceManager.initVoices();
-        };
-        languageSelect.addEventListener("change", window._kimiLanguageListener);
-    }
-    if (voiceSelect) {
-        voiceSelect.removeEventListener("change", window._kimiVoiceSelectListener);
-        window._kimiVoiceSelectListener = async e => {
-            if (kimiDB) await kimiDB.setPreference("selectedVoice", e.target.value);
-            if (window.voiceManager && window.voiceManager.initVoices) await window.voiceManager.initVoices();
-        };
-        voiceSelect.addEventListener("change", window._kimiVoiceSelectListener);
-    }
+    // Note: Language selector event listener is now handled by VoiceManager.setupLanguageSelector()
+    // This prevents duplicate event listeners and ensures proper voice/language coordination
+
+    // Note: Voice selector event listener is now handled by VoiceManager.updateVoiceSelector()
+    // This prevents duplicate event listeners and ensures proper voice preference coordination
+
     // Batch personality traits optimization
     let personalityBatchTimeout = null;
     const pendingTraitChanges = {};

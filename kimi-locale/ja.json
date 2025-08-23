@@ -139,7 +139,6 @@
     "storage_used": "使用ストレージ",
     "saved": "保存されました！",
     "saved_short": "保存",
-    "api_key_help_title": "保存 = このプロバイダー用のAPIキーが保存されました。接続確認には『Test API Key』を使用してください。",
     "reset_done": "リセット完了！",
     "category_listening": "聞いている",
     "category_dancing": "踊っている",
