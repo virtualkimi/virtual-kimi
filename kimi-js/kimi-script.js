@@ -317,14 +317,24 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
     }
 
-    const loadingScreen = document.getElementById("loading-screen");
-    if (loadingScreen) {
-        setTimeout(() => {
+    // Loading screen management
+    const hideLoadingScreen = () => {
+        const loadingScreen = document.getElementById("loading-screen");
+        if (loadingScreen) {
             loadingScreen.style.opacity = "0";
             setTimeout(() => {
                 loadingScreen.style.display = "none";
             }, 500);
-        }, 1500);
+        }
+    };
+
+    // Hide loading screen when resources are loaded
+    if (document.readyState === "complete") {
+        setTimeout(hideLoadingScreen, 1000);
+    } else {
+        window.addEventListener("load", () => {
+            setTimeout(hideLoadingScreen, 1000);
+        });
     }
 
     // Use centralized video utilities
