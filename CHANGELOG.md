@@ -10,14 +10,26 @@
 - **Enhanced emotion detection**: Improved keyword detection with better priorities and reduced conflicts.
 - **Video selection rebalancing**: Fixed positive/negative bias and made auto-triggers more accessible.
 - **Complete codebase synchronization**: Eliminated inconsistencies and redundancies across all modules.
-
 - **Text streaming implementation**: Added real-time text streaming in chat for better user experience.
+
+### Language & Voice Improvements
+
+- **Enhanced language and voice selection**: Fixed bugs and inconsistencies in language switching and voice preferences.
+- **Improved voice synchronization**: Better coordination between selected language and available voice options.
+
+### API Key Management Enhancements
+
+- **Provider-specific API key storage**: Implemented separate storage for different LLM providers (OpenRouter, OpenAI, Groq, etc.).
+- **Unified API key handling**: Consolidated all API key operations through a centralized utility system.
+- **Enhanced settings UI**: Improved visual design and layout of API configuration section.
+- **Comprehensive API audit**: Fixed inconsistencies across all chat, test, and model loading functions.
 
 ### Bug Fixes
 
-- Fixed trait calculation inconsistencies between modules.
+- Fixed trait calculation inconsistencies between modules (INTELLIGENCE and others).
 - Resolved emotion detection conflicts (LISTENING, ROMANTIC/KISS categories).
 - Corrected fallback values causing progression issues.
+- Fixed API key loading and display issues in settings modal.
 
 # [1.0.8] - 2025-08-19
 
