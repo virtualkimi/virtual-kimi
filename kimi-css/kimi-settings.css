@@ -274,6 +274,42 @@
     line-height: 1.3;
 }
 
+.config-note-info {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 12px 0 16px 0;
+    padding: 12px;
+    background: var(--settings-bg-secondary, rgba(255, 255, 255, 0.05));
+    border: 1px solid var(--settings-border-color, rgba(255, 255, 255, 0.1));
+    border-radius: 6px;
+    border-left: 3px solid var(--accent-color, #8a2be2);
+}
+
+.config-note-info i {
+    color: var(--accent-color, #8a2be2);
+    margin-top: 1px;
+    font-size: 0.9rem;
+}
+
+/* Variantes de couleur pour différents types de notes */
+.config-note-info.info i {
+    color: #4a9eff;
+}
+
+.config-note-info.tip i {
+    color: #ff9500;
+}
+
+.config-note-info.settings i {
+    color: #00c896;
+}
+
+.config-note-info .config-help {
+    margin: 0;
+    opacity: 0.9;
+}
+
 .config-label-group {
     display: inline-flex;
     align-items: center;

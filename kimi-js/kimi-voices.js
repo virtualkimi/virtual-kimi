@@ -18,8 +18,9 @@ class KimiVoiceManager {
 
         // DOM elements
         this.micButton = null;
-        this.transcriptContainer = null;
-        this.transcriptText = null;
+        // Real-time transcript overlay elements (shows live speech transcription and AI responses)
+        this.transcriptContainer = null; // Container for transcript overlay
+        this.transcriptText = null; // Text element displaying current transcript
 
         // Callback for voice message analysis
         this.onSpeechAnalysis = null;
@@ -70,6 +71,14 @@ class KimiVoiceManager {
             if (!this.micButton) {
                 console.warn("Microphone button not found in DOM!");
                 return false;
+            }
+
+            // Check transcript elements (non-critical, just warn)
+            if (!this.transcriptContainer) {
+                console.warn("Transcript container not found in DOM - transcript feature will be disabled");
+            }
+            if (!this.transcriptText) {
+                console.warn("Transcript text element not found in DOM - transcript feature will be disabled");
             }
 
             // Initialize voice synthesis
@@ -289,10 +298,7 @@ class KimiVoiceManager {
             console.warn("Unable to speak: empty text or voice not initialized");
             return;
         }
-        if (this.transcriptHideTimeout) {
-            clearTimeout(this.transcriptHideTimeout);
-            this.transcriptHideTimeout = null;
-        }
+        this.clearTranscriptTimeout();
         if (this.speechSynthesis.speaking) {
             this.speechSynthesis.cancel();
         }
@@ -374,12 +380,9 @@ class KimiVoiceManager {
 
         utterance.onstart = async () => {
             this.isSpeaking = true;
-            const showTranscript = await this.db?.getPreference("showTranscript", true);
-            if (showTranscript && this.transcriptContainer) {
-                this.transcriptContainer.classList.add("visible");
-            } else if (this.transcriptContainer) {
-                this.transcriptContainer.classList.remove("visible");
-            }
+            // Note: transcript visibility is already handled by showResponseWithPerfectTiming
+            // This ensures the transcript stays visible while AI is speaking
+
             // Ensure a speaking animation plays (avoid frozen neutral frame during TTS)
             try {
                 if (window.kimiVideo && window.kimiVideo.getCurrentVideoInfo) {
@@ -400,10 +403,10 @@ class KimiVoiceManager {
 
         utterance.onend = () => {
             this.isSpeaking = false;
-            if (this.transcriptContainer) {
-                this.transcriptContainer.classList.remove("visible");
-            }
-            this.transcriptHideTimeout = null;
+            // Hide transcript overlay when AI finishes speaking
+            this.updateTranscriptVisibility(false);
+            // Clear any pending hide timeout
+            this.clearTranscriptTimeout();
             if (window.kimiVideo) {
                 // Do not force neutral if an emotion clip is still playing (speaking/dancing)
                 try {
@@ -428,10 +431,8 @@ class KimiVoiceManager {
 
         utterance.onerror = e => {
             this.isSpeaking = false;
-            if (this.transcriptContainer) {
-                this.transcriptContainer.classList.remove("visible");
-            }
-            this.transcriptHideTimeout = null;
+            this.updateTranscriptVisibility(false);
+            this.clearTranscriptTimeout();
         };
 
         this.speechSynthesis.speak(utterance);
@@ -509,15 +510,52 @@ class KimiVoiceManager {
         return Math.max(estimatedMilliseconds + bufferTime, 2000);
     }
 
-    async showResponseWithPerfectTiming(text) {
-        if (!this.transcriptContainer || !this.transcriptText) return;
-        const showTranscript = await this.db?.getPreference("showTranscript", true);
-        if (!showTranscript) return;
-        this.transcriptText.textContent = `${this.selectedCharacter}: ${text}`;
-        this.transcriptContainer.classList.add("visible");
+    // ===== REAL-TIME TRANSCRIPT DISPLAY =====
+    // Centralized transcript timeout management
+    clearTranscriptTimeout() {
         if (this.transcriptHideTimeout) {
             clearTimeout(this.transcriptHideTimeout);
             this.transcriptHideTimeout = null;
+        }
+    }
+
+    // Utility method to safely check transcript preference and control visibility
+    async updateTranscriptVisibility(shouldShow, text = null) {
+        if (!this.transcriptContainer || !this.transcriptText) return false;
+
+        const showTranscript = await this.db?.getPreference(
+            "showTranscript",
+            window.KIMI_CONFIG?.DEFAULTS?.SHOW_TRANSCRIPT ?? true
+        );
+        if (!showTranscript) {
+            // If transcript is disabled, always hide
+            this.transcriptContainer.classList.remove("visible");
+            return false;
+        }
+
+        if (shouldShow) {
+            if (text) {
+                // Show with text content
+                this.transcriptText.textContent = text;
+                this.transcriptContainer.classList.add("visible");
+                return true;
+            } else {
+                // Show but keep existing text (for cases where we just want to maintain visibility)
+                this.transcriptContainer.classList.add("visible");
+                return true;
+            }
+        } else {
+            // Hide transcript
+            this.transcriptContainer.classList.remove("visible");
+            return false;
+        }
+    }
+
+    // Show AI response text in real-time transcript overlay when AI is speaking
+    async showResponseWithPerfectTiming(text) {
+        const success = await this.updateTranscriptVisibility(true, `${this.selectedCharacter}: ${text}`);
+        if (success) {
+            this.clearTranscriptTimeout();
         }
     }
 
@@ -525,22 +563,17 @@ class KimiVoiceManager {
         this.showResponseWithPerfectTiming(text);
     }
 
+    // Show user voice input text in real-time transcript overlay during speech recognition
     async showUserMessage(text, duration = 3000) {
-        if (!this.transcriptContainer || !this.transcriptText) return;
-        const showTranscript = await this.db?.getPreference("showTranscript", true);
-        if (!showTranscript) return;
-        if (this.transcriptHideTimeout) {
-            clearTimeout(this.transcriptHideTimeout);
-            this.transcriptHideTimeout = null;
+        const success = await this.updateTranscriptVisibility(true, text);
+        if (success) {
+            this.clearTranscriptTimeout();
+            // Auto-hide transcript after specified duration
+            this.transcriptHideTimeout = setTimeout(async () => {
+                await this.updateTranscriptVisibility(false);
+                this.transcriptHideTimeout = null;
+            }, duration);
         }
-        this.transcriptText.textContent = text;
-        this.transcriptContainer.classList.add("visible");
-        this.transcriptHideTimeout = setTimeout(() => {
-            if (this.transcriptContainer) {
-                this.transcriptContainer.classList.remove("visible");
-            }
-            this.transcriptHideTimeout = null;
-        }, duration);
     }
 
     // ===== SPEECH RECOGNITION =====
@@ -573,6 +606,7 @@ class KimiVoiceManager {
                 console.log("🎤 Microphone permission confirmed via onresult");
             }
 
+            // Process speech recognition results into final and interim transcripts
             let final_transcript = "";
             let interim_transcript = "";
             for (let i = event.resultIndex; i < event.results.length; ++i) {
@@ -582,14 +616,11 @@ class KimiVoiceManager {
                     interim_transcript += event.results[i][0].transcript;
                 }
             }
-            const showTranscript = await this.db?.getPreference("showTranscript", true);
-            if (showTranscript && this.transcriptText) {
-                this.transcriptText.textContent = final_transcript || interim_transcript;
-                if (this.transcriptContainer && (final_transcript || interim_transcript)) {
-                    this.transcriptContainer.classList.add("visible");
-                }
-            } else if (this.transcriptContainer) {
-                this.transcriptContainer.classList.remove("visible");
+
+            // Display real-time speech transcription if enabled
+            const transcriptText = final_transcript || interim_transcript;
+            if (transcriptText) {
+                await this.updateTranscriptVisibility(true, transcriptText);
             }
             if (final_transcript && this.onSpeechAnalysis) {
                 try {
@@ -718,15 +749,14 @@ class KimiVoiceManager {
                 console.log("🎤 Permission denied - stopping listening");
                 this.micPermissionGranted = false;
                 this.stopListening();
-                if (this.transcriptText) {
-                    this.transcriptText.textContent =
-                        window.kimiI18nManager?.t("mic_permission_denied") ||
-                        "Microphone permission denied. Click again to retry.";
-                    this.transcriptContainer?.classList.add("visible");
+                const message =
+                    window.kimiI18nManager?.t("mic_permission_denied") || "Microphone permission denied. Click again to retry.";
+                // Use promise-based approach for async operation
+                this.updateTranscriptVisibility(true, message).then(() => {
                     setTimeout(() => {
-                        this.transcriptContainer?.classList.remove("visible");
+                        this.updateTranscriptVisibility(false);
                     }, 2000);
-                }
+                });
             } else {
                 this.stopListening();
             }
@@ -758,9 +788,7 @@ class KimiVoiceManager {
             this.isListening = false;
             if (this.micButton) this.micButton.classList.remove("is-listening");
             if (this.micButton) this.micButton.classList.remove("mic-pulse-active");
-            if (this.transcriptContainer) {
-                this.transcriptContainer.classList.remove("visible");
-            }
+            this.updateTranscriptVisibility(false);
         };
     }
 
@@ -782,13 +810,11 @@ class KimiVoiceManager {
                 else if (this.browser === "opera") key = "sr_not_supported_opera";
                 else if (this.browser === "safari") key = "sr_not_supported_safari";
                 const message = window.kimiI18nManager?.t(key) || "Speech recognition is not available in this browser.";
-                if (this.transcriptText) {
-                    this.transcriptText.textContent = message;
-                    this.transcriptContainer?.classList.add("visible");
+                this.updateTranscriptVisibility(true, message).then(() => {
                     setTimeout(() => {
-                        this.transcriptContainer?.classList.remove("visible");
+                        this.updateTranscriptVisibility(false);
                     }, 4000);
-                }
+                });
                 return;
             }
 
@@ -814,13 +840,11 @@ class KimiVoiceManager {
             else if (this.browser === "opera") key = "sr_not_supported_opera";
             else if (this.browser === "safari") key = "sr_not_supported_safari";
             const message = window.kimiI18nManager?.t(key) || "Speech recognition is not available in this browser.";
-            if (this.transcriptText) {
-                this.transcriptText.textContent = message;
-                this.transcriptContainer?.classList.add("visible");
+            this.updateTranscriptVisibility(true, message).then(() => {
                 setTimeout(() => {
-                    this.transcriptContainer?.classList.remove("visible");
+                    this.updateTranscriptVisibility(false);
                 }, 4000);
-            }
+            });
             return;
         }
         if (!this.recognition || this.isListening) return;
@@ -828,14 +852,12 @@ class KimiVoiceManager {
         // Check microphone API availability
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             console.warn("MediaDevices API not available");
-            if (this.transcriptText) {
-                this.transcriptText.textContent =
-                    window.kimiI18nManager?.t("mic_not_supported") || "Microphone not supported in this browser.";
-                this.transcriptContainer?.classList.add("visible");
+            const message = window.kimiI18nManager?.t("mic_not_supported") || "Microphone not supported in this browser.";
+            this.updateTranscriptVisibility(true, message).then(() => {
                 setTimeout(() => {
-                    this.transcriptContainer?.classList.remove("visible");
+                    this.updateTranscriptVisibility(false);
                 }, 3000);
-            }
+            });
             return;
         }
 
@@ -857,15 +879,14 @@ class KimiVoiceManager {
                 return;
             } else if (permissionStatus.state === "denied") {
                 console.log("🎤 Microphone permission denied");
-                if (this.transcriptText) {
-                    this.transcriptText.textContent =
-                        window.kimiI18nManager?.t("mic_permission_denied") ||
-                        "Microphone permission denied. Please allow access in browser settings.";
-                    this.transcriptContainer?.classList.add("visible");
+                const message =
+                    window.kimiI18nManager?.t("mic_permission_denied") ||
+                    "Microphone permission denied. Please allow access in browser settings.";
+                this.updateTranscriptVisibility(true, message).then(() => {
                     setTimeout(() => {
-                        this.transcriptContainer?.classList.remove("visible");
+                        this.updateTranscriptVisibility(false);
                     }, 4000);
-                }
+                });
                 return;
             }
         } catch (error) {
@@ -926,14 +947,13 @@ class KimiVoiceManager {
             this.stopListening();
 
             // Show user-friendly error message
-            if (this.transcriptText) {
-                this.transcriptText.textContent =
-                    window.kimiI18nManager?.t("mic_permission_denied") || "Microphone permission denied. Click again to retry.";
-                this.transcriptContainer?.classList.add("visible");
+            const message =
+                window.kimiI18nManager?.t("mic_permission_denied") || "Microphone permission denied. Click again to retry.";
+            this.updateTranscriptVisibility(true, message).then(() => {
                 setTimeout(() => {
-                    this.transcriptContainer?.classList.remove("visible");
+                    this.updateTranscriptVisibility(false);
                 }, 3000);
-            }
+            });
         }
     }
 
@@ -971,16 +991,12 @@ class KimiVoiceManager {
             }
         }
 
-        if (this.transcriptHideTimeout) {
-            clearTimeout(this.transcriptHideTimeout);
-            this.transcriptHideTimeout = null;
-        }
+        this.clearTranscriptTimeout();
 
         if (!this.speechSynthesis.speaking) {
-            this.transcriptHideTimeout = setTimeout(() => {
-                if (this.transcriptContainer) {
-                    this.transcriptContainer.classList.remove("visible");
-                }
+            // Hide transcript after delay if AI is not speaking
+            this.transcriptHideTimeout = setTimeout(async () => {
+                await this.updateTranscriptVisibility(false);
                 this.transcriptHideTimeout = null;
             }, 2000);
         }
@@ -1045,8 +1061,6 @@ class KimiVoiceManager {
             window.kimiI18nManager?.t("test_voice_message_2") || "I am Kimi, your virtual companion!",
             window.kimiI18nManager?.t("test_voice_message_3") || "How are you today, my love?"
         ];
-        const randomMessage = testMessages[Math.floor(Math.random() * testMessages.length)];
-        await this.speak(randomMessage);
     }
 
     destroy() {
@@ -1056,10 +1070,7 @@ class KimiVoiceManager {
             this.listeningTimeout = null;
         }
 
-        if (this.transcriptHideTimeout) {
-            clearTimeout(this.transcriptHideTimeout);
-            this.transcriptHideTimeout = null;
-        }
+        this.clearTranscriptTimeout();
 
         if (this.recognition) {
             this.recognition.stop();
@@ -1145,9 +1156,7 @@ class KimiVoiceManager {
             console.log("🎤 Interrupting speech to start listening");
             this.speechSynthesis.cancel();
             this.isSpeaking = false;
-            if (this.transcriptContainer) {
-                this.transcriptContainer.classList.remove("visible");
-            }
+            this.updateTranscriptVisibility(false);
         }
 
         if (this.isListening) {

@@ -29,7 +29,7 @@ class KimiMemory {
             // Load affection trait from personality database with coherent defaults
             const charDefAff =
                 (window.KIMI_CHARACTERS && window.KIMI_CHARACTERS[this.selectedCharacter]?.traits?.affection) || null;
-            const genericAff = (window.getTraitDefaults && window.getTraitDefaults().affection) || 65;
+            const genericAff = (window.getTraitDefaults && window.getTraitDefaults().affection) || 55;
             const defaultAff = typeof charDefAff === "number" ? charDefAff : genericAff;
             this.affectionTrait = await this.db.getPersonalityTrait("affection", defaultAff, this.selectedCharacter);
 

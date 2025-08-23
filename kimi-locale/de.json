@@ -46,6 +46,8 @@
     "advanced_settings": "Erweiterte Einstellungen",
     "temperature": "Temperatur (Kreativität)",
     "max_tokens": "Maximale Token",
+    "enable_streaming": "Text-Streaming aktivieren",
+    "enable_streaming_help": "Zeigt Text an, während er generiert wird, für Echtzeit-Antworten (Standard: aktiviert). Zeigt Text progressiv an, anstatt auf die vollständige Antwort zu warten.",
     "available_models": "Verfügbare Openrouter Modelle",
     "refresh_list": "Liste Aktualisieren",
     "refresh": "Aktualisieren",
@@ -55,6 +57,9 @@
     "animations": "Animationen",
     "transcript_settings": "Transkript-Einstellungen",
     "show_transcript": "Transkript Anzeigen",
+    "show_transcript_note": "Zeigt die Echtzeit-Transkription an, wenn Sie sprechen, um eine Nachricht zu senden, und wenn die KI antwortet.",
+    "plugin_status_note": "Derzeit ist nur -Sample Blue Theme- vollständig funktionsfähig. Andere Plugins sind in Entwicklung und ihre Aktivierung hat derzeit keine Wirkung.",
+    "memory_system_help": "Das Intelligente Gedächtnis ermöglicht es Ihrem Charakter, sich an Gespräche, Vorlieben und wichtige Details über Sitzungen hinweg zu erinnern. Dies schafft personalisiertere und kohärentere Interaktionen im Laufe der Zeit.",
     "data_management": "Datenverwaltung",
     "export_all_data": "Alle Daten Exportieren",
     "export": "Exportieren",
@@ -113,6 +118,7 @@
     "response_cold_3": "Was willst du?",
     "response_cold_4": "Ich bin hier.",
     "response_cold_5": "Wie kann ich dir helfen?",
+    "system_prompt": "System-Prompt",
     "system_prompt_kimi": "Kimi System-Prompt",
     "system_prompt_bella": "Bella System-Prompt",
     "system_prompt_rosa": "Rosa System-Prompt",
@@ -223,5 +229,6 @@
     "memory_category_important": "Wichtige Ereignisse",
     "memory_content_placeholder": "z.B.: Ich liebe klassische Musik...",
     "memory_management": "Gedächtnisverwaltung",
-    "add": "Hinzufügen"
+    "add": "Hinzufügen",
+    "api_key_label": "API Key"
 }

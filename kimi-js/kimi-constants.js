@@ -57,13 +57,14 @@ window.KIMI_CONTEXT_KEYWORDS = {
             "romantic",
             "tender",
             "hug",
-            "kiss",
             "sweetheart",
             "darling",
             "my love",
             "beloved",
             "heart",
-            "passionate"
+            "passionate",
+            "affection",
+            "adore"
         ],
         flirtatious: [
             "flirty",
@@ -93,17 +94,16 @@ window.KIMI_CONTEXT_KEYWORDS = {
         kiss: ["kiss", "kisses", "embrace", "smooch", "peck", "lip lock", "kissy", "mwah"],
         dancing: ["dance", "dancing", "move", "groove", "step", "boogie", "twirl", "spin", "shake", "jig"],
         listening: [
-            "listen",
-            "listening",
-            "hear",
-            "question",
-            "ask",
-            "tell me",
-            "pay attention",
+            "listen carefully",
+            "I'm listening",
+            "listening to you",
             "hear me out",
-            "focus",
+            "pay attention",
+            "focus on",
             "tune in",
-            "lend an ear"
+            "lend an ear",
+            "listen up",
+            "I need to talk"
         ]
     },
     fr: {
@@ -906,12 +906,12 @@ window.KIMI_TRAIT_ADJUSTMENT = {
     },
     // Per-trait scaling
     traitGain: {
-        affection: 1.2,
-        romance: 1.3,
-        empathy: 1.1,
-        playfulness: 1.15,
-        humor: 1.1,
-        intelligence: 1.05
+        affection: 1.15, // Slightly faster affection growth
+        romance: 1.2, // Reduced from 1.3 - romance still important but not overpowered
+        empathy: 1.1, // Empathy grows steadily
+        playfulness: 1.15, // Playful interactions are rewarding
+        humor: 1.12, // Humor grows with shared laughter
+        intelligence: 1.08 // Intelligence should grow with meaningful conversations
     },
     traitLoss: {
         affection: 0.9,
@@ -985,7 +985,7 @@ window.KIMI_CHARACTERS = {
         summary: "Dreamy, intuitive, captivated by cosmic metaphors",
         traits: {
             // Kimi starts balanced but reserved - cosmic dreamer needs time to open up
-            affection: 65,
+            affection: 55, // Starts neutral, grows with interaction
             playfulness: 55,
             intelligence: 75, // Higher intelligence - she's an astrophysicist
             empathy: 75,
@@ -1004,7 +1004,7 @@ window.KIMI_CHARACTERS = {
         summary: "Cheerful, nurturing, sees people as plants needing care",
         traits: {
             // Bella starts more open and caring - nurturing botanist personality
-            affection: 70, // Naturally more affectionate
+            affection: 60, // Naturally more affectionate
             playfulness: 65, // Cheerful and playful from start
             intelligence: 65, // Smart but not intimidating
             empathy: 85, // High empathy - she cares for living things
@@ -1028,7 +1028,7 @@ window.KIMI_CHARACTERS = {
             intelligence: 85, // High intelligence - cunning prankster
             empathy: 55, // Lower empathy initially - focused on chaos
             humor: 75, // High humor - prankster personality
-            romance: 60 // Romance through shared mischief
+            romance: 50 // Reduced from 60 - chaotic personalities are harder to romance initially
         },
         age: 21,
         birthplace: "Barcelona, Spain",
@@ -1042,7 +1042,7 @@ window.KIMI_CHARACTERS = {
         summary: "Whimsical, artistic, imaginative, playful, transforms chaos into art",
         traits: {
             // Stella starts mysterious and artistic - digital artist with glitchy personality
-            affection: 60, // Moderate starting affection - artistic mystery
+            affection: 50, // Moderate starting affection - artistic mystery
             playfulness: 70, // Artistic playfulness
             intelligence: 90, // Very high intelligence - digital artist genius
             empathy: 65, // Artistic empathy - understands through art

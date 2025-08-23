@@ -46,6 +46,8 @@
     "advanced_settings": "高级设置",
     "temperature": "温度（创造性）",
     "max_tokens": "最大令牌数",
+    "enable_streaming": "启用文本流式传输",
+    "enable_streaming_help": "实时显示生成的文本以获得实时响应（默认：启用）。逐步显示文本而不是等待完整响应。",
     "available_models": "可用模型 OpenRouter",
     "refresh_list": "刷新列表",
     "refresh": "刷新",
@@ -55,6 +57,9 @@
     "animations": "动画",
     "transcript_settings": "转录设置",
     "show_transcript": "显示转录",
+    "show_transcript_note": "显示当您说话发送消息时和AI回应时的实时转录。",
+    "plugin_status_note": "目前只有-Sample Blue Theme-完全可用。其他插件正在开发中，激活它们目前不会有任何效果。",
+    "memory_system_help": "智能记忆允许您的角色记住对话、偏好和重要细节跨会话。这创造了随时间推移更个性化和连贯的互动。",
     "data_management": "数据管理",
     "export_all_data": "导出所有数据",
     "export": "导出",
@@ -113,6 +118,7 @@
     "response_cold_3": "你想要什么？",
     "response_cold_4": "我在这里。",
     "response_cold_5": "我如何能帮助你？",
+    "system_prompt": "系统提示",
     "system_prompt_kimi": "Kimi系统提示",
     "system_prompt_bella": "Bella系统提示",
     "system_prompt_rosa": "Rosa系统提示",
@@ -223,5 +229,6 @@
     "memory_category_important": "重要事件",
     "memory_content_placeholder": "例如：我喜欢古典音乐...",
     "memory_management": "记忆管理",
-    "add": "添加"
+    "add": "添加",
+    "api_key_label": "API Key"
 }

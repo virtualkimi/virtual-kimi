@@ -46,6 +46,8 @@
     "advanced_settings": "詳細設定",
     "temperature": "Temperature（創造性）",
     "max_tokens": "最大トークン数",
+    "enable_streaming": "テキストストリーミングを有効化",
+    "enable_streaming_help": "リアルタイム応答のため、生成されるテキストを表示します（デフォルト：有効）。完全な応答を待つ代わりに、テキストを段階的に表示します。",
     "available_models": "利用可能なモデル OpenRouter",
     "refresh_list": "リストを更新",
     "refresh": "更新",
@@ -55,6 +57,9 @@
     "animations": "アニメーション",
     "transcript_settings": "転写設定",
     "show_transcript": "転写を表示",
+    "show_transcript_note": "メッセージを送信するために話すときと、AIが応答するときのリアルタイム転写を表示します。",
+    "plugin_status_note": "現在、-Sample Blue Theme- のみが完全に機能します。他のプラグインは開発中で、それらを有効にしても現時点では効果がありません。",
+    "memory_system_help": "インテリジェントメモリにより、キャラクターはセッション間で会話、好み、重要な詳細を記憶できます。これにより、時間の経過とともに、よりパーソナライズされ一貫したインタラクションが生まれます。",
     "data_management": "データ管理",
     "export_all_data": "すべてのデータをエクスポート",
     "export": "エクスポート",
@@ -113,6 +118,7 @@
     "response_cold_3": "何が欲しいですか？",
     "response_cold_4": "私はここにいます。",
     "response_cold_5": "どのようにお手伝いできますか？",
+    "system_prompt": "システムプロンプト",
     "system_prompt_kimi": "Kimiシステムプロンプト",
     "system_prompt_bella": "Bellaシステムプロンプト",
     "system_prompt_rosa": "Rosaシステムプロンプト",
@@ -223,5 +229,6 @@
     "memory_category_important": "重要な出来事",
     "memory_content_placeholder": "例: クラシック音楽が大好き...",
     "memory_management": "メモリ管理",
-    "add": "追加"
+    "add": "追加",
+    "api_key_label": "API Key"
 }

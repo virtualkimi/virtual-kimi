@@ -13,7 +13,7 @@
 
     <!-- SEO Meta Tags -->
     <meta name="description"
-        content="Virtual Kimi is a an AI companion with evolving personality, advanced voice recognition and immersive interface. Discover the future of human-AI girlfriend relationships.">
+        content="Virtual Kimi is a an AI girlfriend and companion with evolving personality, advanced voice recognition and immersive interface. Discover the future of human-AI girlfriend relationships.">
     <meta name="keywords"
         content="artificial intelligence, virtual companion, emotional AI, voice recognition, advanced chatbot, Virtual Kimi, personalized AI assistant, girlfriend">
     <meta name="author" content="Jean & Kimi">
@@ -26,7 +26,7 @@
     <meta property="og:url" content="https://virtualkimi.com/virtual-kimi-app/">
     <meta property="og:title" content="Virtual Kimi - Virtual AI Companion">
     <meta property="og:description"
-        content="Discover Virtual Kimi, an AI companion with evolving personality, voice recognition and immersive interface. The future of human-AI girlfriend relationships.">
+        content="Virtual Kimi, your virtual AI girlfriend and companion with an evolving personality, voice recognition and immersive interface. The future of human-AI girlfriend relationships.">
     <meta property="og:image" content="kimi-icons/virtualkimi-logo.png">
 
     <!-- Twitter -->
@@ -43,7 +43,7 @@
         "@context": "https://schema.org",
         "@type": "SoftwareApplication",
         "name": "Virtual Kimi",
-        "description": "Virtual AI companion with evolving personality, voice recognition and immersive interface",
+        "description": "Virtual Kimi, your virtual AI girlfriend and companion with an evolving personality, voice recognition and immersive interface",
         "applicationCategory": "AI Companion",
         "operatingSystem": "Web Browser",
         "offers": {
@@ -56,8 +56,8 @@
             "name": "Jean & Kimi"
         },
         "dateCreated": "2025-07-16",
-        "dateModified": "2025-08-19",
-        "version": "v1.0.8"
+        "dateModified": "2025-08-23",
+        "version": "v1.0.9"
     }
     </script>
 
@@ -442,12 +442,7 @@
                         </h3>
 
                         <div class="config-row">
-                            <div class="config-label-section">
-                                <label class="config-label" data-i18n="temperature">Temperature (Creativity)</label>
-                                <small class="config-help" data-i18n="temperature_help">Controls randomness and
-                                    creativity
-                                    (default: 0.9). Higher values make output more creative but less focused.</small>
-                            </div>
+                            <label class="config-label" data-i18n="temperature">Temperature (Creativity)</label>
                             <div class="config-control">
                                 <div class="slider-container">
                                     <input type="range" class="kimi-slider" id="llm-temperature" min="0.0" max="1"
@@ -456,13 +451,15 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="config-note-info tip">
+                            <i class="fas fa-lightbulb"></i>
+                            <small class="config-help" data-i18n="temperature_help">Controls randomness and
+                                creativity
+                                (default: 0.9). Higher values make output more creative but less focused.</small>
+                        </div>
 
                         <div class="config-row">
-                            <div class="config-label-section">
-                                <label class="config-label" data-i18n="max_tokens">Max Tokens</label>
-                                <small class="config-help" data-i18n="max_tokens_help">Maximum response length in tokens
-                                    (default: 400). Higher values allow longer responses.</small>
-                            </div>
+                            <label class="config-label" data-i18n="max_tokens">Max Tokens</label>
                             <div class="config-control">
                                 <div class="slider-container">
                                     <input type="range" class="kimi-slider" id="llm-max-tokens" min="10" max="8192"
@@ -471,13 +468,14 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="config-note-info settings">
+                            <i class="fas fa-ruler"></i>
+                            <small class="config-help" data-i18n="max_tokens_help">Maximum response length in tokens
+                                (default: 400). Higher values allow longer responses.</small>
+                        </div>
 
                         <div class="config-row">
-                            <div class="config-label-section">
-                                <label class="config-label" data-i18n="top_p">Top P</label>
-                                <small class="config-help" data-i18n="top_p_help">Controls diversity of word selection
-                                    (default: 0.9). Lower values make responses more focused.</small>
-                            </div>
+                            <label class="config-label" data-i18n="top_p">Top P</label>
                             <div class="config-control">
                                 <div class="slider-container">
                                     <input type="range" class="kimi-slider" id="llm-top-p" min="0" max="1" step="0.01"
@@ -486,13 +484,13 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="config-note-info tip">
+                            <i class="fas fa-filter"></i>
+                            <small class="config-help" data-i18n="top_p_help">Controls diversity of word selection
+                                (default: 0.9). Lower values make responses more focused.</small>
+                        </div>
                         <div class="config-row">
-                            <div class="config-label-section">
-                                <label class="config-label" data-i18n="frequency_penalty">Frequency Penalty</label>
-                                <small class="config-help" data-i18n="frequency_penalty_help">Reduces repetition of
-                                    words
-                                    already used (default: 0.9). Higher values discourage repetitive language.</small>
-                            </div>
+                            <label class="config-label" data-i18n="frequency_penalty">Frequency Penalty</label>
                             <div class="config-control">
                                 <div class="slider-container">
                                     <input type="range" class="kimi-slider" id="llm-frequency-penalty" min="0" max="2"
@@ -501,12 +499,14 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="config-note-info settings">
+                            <i class="fas fa-sync-alt"></i>
+                            <small class="config-help" data-i18n="frequency_penalty_help">Reduces repetition of
+                                words
+                                already used (default: 0.9). Higher values discourage repetitive language.</small>
+                        </div>
                         <div class="config-row">
-                            <div class="config-label-section">
-                                <label class="config-label" data-i18n="presence_penalty">Presence Penalty</label>
-                                <small class="config-help" data-i18n="presence_penalty_help">Encourages discussing new
-                                    topics (default: 0.8). Higher values promote topic diversity.</small>
-                            </div>
+                            <label class="config-label" data-i18n="presence_penalty">Presence Penalty</label>
                             <div class="config-control">
                                 <div class="slider-container">
                                     <input type="range" class="kimi-slider" id="llm-presence-penalty" min="0" max="2"
@@ -514,6 +514,27 @@
                                     <span class="slider-value" id="llm-presence-penalty-value">0.8</span>
                                 </div>
                             </div>
+                        </div>
+                        <div class="config-note-info tip">
+                            <i class="fas fa-lightbulb"></i>
+                            <small class="config-help" data-i18n="presence_penalty_help">Encourages discussing new
+                                topics (default: 0.8). Higher values promote topic diversity.</small>
+                        </div>
+
+                        <div class="config-row">
+                            <label class="config-label" data-i18n="enable_streaming">Enable Text Streaming</label>
+                            <div class="config-control">
+                                <div class="toggle-switch active" id="enable-streaming" role="switch"
+                                    aria-checked="true" tabindex="0" aria-labelledby="enable-streaming-label">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="config-note-info info">
+                            <i class="fas fa-stream"></i>
+                            <small class="config-help" data-i18n="enable_streaming_help">Stream text as it's
+                                generated for real-time responses (default: enabled). Shows text progressively
+                                instead of waiting for complete response.</small>
                         </div>
                     </div>
 
@@ -568,6 +589,12 @@
                             <span data-i18n="transcript_settings">Transcript Settings</span>
                         </h3>
 
+                        <div class="config-note-info info">
+                            <i class="fas fa-info-circle"></i>
+                            <small class="config-help" data-i18n="show_transcript_note">Display real-time
+                                transcription when you speak to send a message and when the AI responds.</small>
+                        </div>
+
                         <div class="config-row">
                             <label class="config-label" data-i18n="show_transcript">Show Transcript</label>
                             <div class="config-control">
@@ -603,6 +630,13 @@
 
                     <div class="config-section">
                         <h3><i class="fas fa-brain"></i> <span data-i18n="memory_system">Memory System</span></h3>
+
+                        <div class="config-note-info tip">
+                            <i class="fas fa-brain"></i>
+                            <small class="config-help" data-i18n="memory_system_help">Intelligent Memory allows your
+                                character to remember conversations, preferences, and important details across sessions.
+                                This creates more personalized and coherent interactions over time.</small>
+                        </div>
 
                         <div class="config-row">
                             <label class="config-label" data-i18n="enable_memory">Enable Intelligent Memory</label>
@@ -719,6 +753,14 @@
                 <div class="tab-content" data-tab="plugins">
                     <div class="config-section">
                         <h3><i class="fas fa-plug"></i> <span data-i18n="plugin_manager">Plugin Manager</span></h3>
+                        <div class="config-note-info info">
+                            <i class="fas fa-info-circle"></i>
+                            <small class="config-help">
+                                <span data-i18n="plugin_status_note">Currently, only "Sample Blue Theme" is fully
+                                    functional. Other plugins are in development and activating them will have no effect
+                                    at this time.</span>
+                            </small>
+                        </div>
                         <div id="plugin-list"></div>
                         <div class="plugin-actions">
                             <button class="kimi-button" id="refresh-plugins" data-i18n="refresh">Refresh</button>
@@ -1024,8 +1066,8 @@
                     <h3><i class="fas fa-code"></i> Technical Information</h3>
                     <div class="tech-info">
                         <p><strong>Created date :</strong> July 16, 2025</p>
-                        <p><strong>Version :</strong> v1.0.8</p>
-                        <p><strong>Last update :</strong> August 19, 2025</p>
+                        <p><strong>Version :</strong> v1.0.9</p>
+                        <p><strong>Last update :</strong> August 23, 2025</p>
                         <p><strong>Technologies :</strong> HTML5, CSS3, JavaScript ES6+, IndexedDB, Web Speech
                             API</p>
                         <p><strong>Status :</strong> ✅ Stable and functional</p>
@@ -1056,14 +1098,14 @@
         "@context": "https://schema.org",
         "@type": "WebPage",
         "name": "Virtual Kimi - Virtual AI Companion",
-    "description": "Discover Virtual Kimi, an AI companion with evolving personality, multi-provider AI support, advanced voice recognition and immersive interface. The future of human-AI girlfriend relationships.",
+    "description": "Virtual Kimi, your virtual AI girlfriend and companion with an evolving personality, multi-provider AI support, advanced voice recognition and immersive interface. The future of human-AI girlfriend relationships.",
         "url": "https://virtualkimi.com/virtual-kimi-app/index.html",
         "mainEntity": {
             "@type": "SoftwareApplication",
             "name": "Virtual Kimi",
             "applicationCategory": "AI Companion",
             "operatingSystem": "Web Browser",
-            "description": "Virtual AI companion with evolving personality, multi-provider AI support, voice recognition and immersive interface",
+            "description": "Virtual Kimi, a virtual AI girlfriend and companion with an evolving personality, multi-provider AI support, voice recognition and immersive interface",
             "features": [
                 "Advanced voice recognition",
                 "Evolving personality with 6 adjustable traits",
@@ -1076,8 +1118,8 @@
                 "@type": "Person",
                 "name": "Jean & Kimi"
             },
-            "dateCreated": "2025-07-19",
-                "version": "v1.0.8"
+            "dateCreated": "2025-07-16",
+                "version": "v1.0.9"
         }
     }
     </script>

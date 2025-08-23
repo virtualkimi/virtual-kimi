@@ -435,7 +435,7 @@ async function getBasicResponse(reaction) {
 
 // Déporté vers KimiEmotionSystem: utiliser window.updatePersonalityTraitsFromEmotion
 
-async function analyzeAndReact(text, useAdvancedLLM = true) {
+async function analyzeAndReact(text, useAdvancedLLM = true, onStreamToken = null) {
     const kimiDB = window.kimiDB;
     const kimiLLM = window.kimiLLM;
     const kimiVideo = window.kimiVideo;
@@ -461,7 +461,7 @@ async function analyzeAndReact(text, useAdvancedLLM = true) {
         const selectedCharacter = await kimiDB.getSelectedCharacter();
         const traits = await kimiDB.getAllPersonalityTraits(selectedCharacter);
         const avg = window.getPersonalityAverage ? window.getPersonalityAverage(traits) : 50;
-        const affection = typeof traits.affection === "number" ? traits.affection : 80;
+        const affection = typeof traits.affection === "number" ? traits.affection : 55;
         const characterTraits = window.KIMI_CHARACTERS[selectedCharacter]?.traits || "";
 
         // Always reflect user's input phase with a listening video (voice or chat)
@@ -485,7 +485,14 @@ async function analyzeAndReact(text, useAdvancedLLM = true) {
                             window.dispatchEvent(new CustomEvent("chat:typing:start"));
                         }
                     } catch (e) {}
-                    response = await kimiLLM.chat(sanitizedText);
+
+                    // Use streaming if onStreamToken callback is provided
+                    if (onStreamToken && typeof kimiLLM.chatStreaming === "function") {
+                        response = await kimiLLM.chatStreaming(sanitizedText, onStreamToken);
+                    } else {
+                        response = await kimiLLM.chat(sanitizedText);
+                    }
+
                     try {
                         if (window.dispatchEvent) {
                             window.dispatchEvent(new CustomEvent("chat:typing:stop"));
@@ -647,7 +654,9 @@ async function analyzeAndReact(text, useAdvancedLLM = true) {
 
 function addMessageToChat(sender, text, conversationId = null) {
     const chatMessages = document.getElementById("chat-messages");
-    if (!text) return;
+    // Allow empty text for streaming (we'll update it progressively)
+    if (text === undefined || text === null) return;
+
     const messageDiv = document.createElement("div");
     messageDiv.className = `message ${sender}`;
 
@@ -690,13 +699,29 @@ function addMessageToChat(sender, text, conversationId = null) {
     messageTimeDiv.appendChild(deleteBtn);
 
     const textDiv = document.createElement("div");
-    textDiv.textContent = text;
+    textDiv.textContent = text || ""; // Handle empty strings properly
 
     messageDiv.appendChild(textDiv);
     messageDiv.appendChild(messageTimeDiv);
 
     chatMessages.appendChild(messageDiv);
     chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    // Return an object that allows updating the message content for streaming
+    return {
+        updateText: newText => {
+            textDiv.textContent = newText;
+            // Throttle scrolling to prevent visual stuttering during streaming
+            if (!textDiv._scrollTimeout) {
+                textDiv._scrollTimeout = setTimeout(() => {
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                    textDiv._scrollTimeout = null;
+                }, 50); // Throttle to 20 FPS max
+            }
+        },
+        element: messageDiv,
+        textElement: textDiv
+    };
 }
 
 async function loadChatHistory() {
@@ -859,14 +884,24 @@ async function updatePersonalitySliders(characterKey) {
         // Get default traits from KIMI_CHARACTERS constants
         const characterDefaults = window.KIMI_CHARACTERS[characterKey]?.traits || {};
 
-        // Use saved traits if they exist, otherwise fall back to character defaults
+        // Get unified defaults
+        const unifiedDefaults = window.kimiEmotionSystem?.TRAIT_DEFAULTS || {
+            affection: 55,
+            playfulness: 55,
+            intelligence: 70,
+            empathy: 75,
+            humor: 60,
+            romance: 50
+        };
+
+        // Use saved traits if they exist, otherwise fall back to character defaults, then unified defaults
         const traits = {
-            affection: savedTraits.affection ?? characterDefaults.affection ?? 50,
-            playfulness: savedTraits.playfulness ?? characterDefaults.playfulness ?? 50,
-            intelligence: savedTraits.intelligence ?? characterDefaults.intelligence ?? 50,
-            empathy: savedTraits.empathy ?? characterDefaults.empathy ?? 50,
-            humor: savedTraits.humor ?? characterDefaults.humor ?? 50,
-            romance: savedTraits.romance ?? characterDefaults.romance ?? 50
+            affection: savedTraits.affection ?? characterDefaults.affection ?? unifiedDefaults.affection,
+            playfulness: savedTraits.playfulness ?? characterDefaults.playfulness ?? unifiedDefaults.playfulness,
+            intelligence: savedTraits.intelligence ?? characterDefaults.intelligence ?? unifiedDefaults.intelligence,
+            empathy: savedTraits.empathy ?? characterDefaults.empathy ?? unifiedDefaults.empathy,
+            humor: savedTraits.humor ?? characterDefaults.humor ?? unifiedDefaults.humor,
+            romance: savedTraits.romance ?? characterDefaults.romance ?? unifiedDefaults.romance
         };
 
         // Check if sliders exist before updating them
@@ -898,7 +933,7 @@ async function updateStats() {
     const tokensIn = await kimiDB.getPreference(`totalTokensIn_${character}`, 0);
     const tokensOut = await kimiDB.getPreference(`totalTokensOut_${character}`, 0);
     const charDefAff = (window.KIMI_CHARACTERS && window.KIMI_CHARACTERS[character]?.traits?.affection) || null;
-    const genericAff = (window.getTraitDefaults && window.getTraitDefaults().affection) || 65;
+    const genericAff = (window.getTraitDefaults && window.getTraitDefaults().affection) || 55;
     const defaultAff = typeof charDefAff === "number" ? charDefAff : genericAff;
     const affectionTrait = await kimiDB.getPersonalityTrait("affection", defaultAff, character);
     const conversations = await kimiDB.getAllConversations(character);
@@ -1334,21 +1369,143 @@ async function sendMessage() {
     if (waitingIndicator) waitingIndicator.style.display = "inline-block";
 
     try {
-        const response = await analyzeAndReact(message);
-        let finalResponse = response;
-        // If the LLM's response is empty, null, or too short, use the emotional fallback.
-        if (!finalResponse || typeof finalResponse !== "string" || finalResponse.trim().length < 2) {
-            finalResponse = window.getLocalizedEmotionalResponse
-                ? window.getLocalizedEmotionalResponse("neutral")
-                : "I'm here for you!";
-        }
-        setTimeout(() => {
-            addMessageToChat("kimi", finalResponse);
-            if (window.voiceManager && !message.startsWith("Vous:")) {
-                window.voiceManager.speak(finalResponse);
+        // Check if streaming is enabled (you can add a preference for this)
+        const streamingEnabled = await window.kimiDB?.getPreference(
+            "enableStreaming",
+            window.KIMI_CONFIG?.DEFAULTS?.ENABLE_STREAMING ?? true
+        );
+
+        if (streamingEnabled && window.kimiLLM && typeof window.kimiLLM.chatStreaming === "function") {
+            // Use streaming through analyzeAndReact
+            let streamingResponse = "";
+            const messageObj = addMessageToChat("kimi", ""); // Start with empty message
+
+            // Safety check: ensure messageObj is valid
+            if (!messageObj || typeof messageObj.updateText !== "function") {
+                console.error("Failed to create streaming message object, falling back to non-streaming");
+                const response = await analyzeAndReact(message);
+                let finalResponse = response;
+                if (!finalResponse || typeof finalResponse !== "string" || finalResponse.trim().length < 2) {
+                    finalResponse = window.getLocalizedEmotionalResponse
+                        ? window.getLocalizedEmotionalResponse("neutral")
+                        : "I'm here for you!";
+                }
+                addMessageToChat("kimi", finalResponse);
+                if (window.voiceManager && !message.startsWith("Vous:")) {
+                    window.voiceManager.speak(finalResponse);
+                }
+                if (waitingIndicator) waitingIndicator.style.display = "none";
+                return;
             }
-            if (waitingIndicator) waitingIndicator.style.display = "none";
-        }, 1000);
+
+            try {
+                console.log("🔄 Starting streaming response...");
+                let emotionDetected = false;
+
+                const response = await analyzeAndReact(message, true, token => {
+                    streamingResponse += token;
+                    if (messageObj && messageObj.updateText) {
+                        messageObj.updateText(streamingResponse);
+                    }
+                    // Progressive analysis disabled to prevent UI flickering during streaming
+                    // All analysis will be done after streaming completes
+                });
+                console.log("✅ Streaming completed, final response length:", streamingResponse.length);
+
+                // Final processing after streaming completes
+                let finalResponse = streamingResponse || response;
+                if (!finalResponse || finalResponse.trim().length < 2) {
+                    finalResponse = window.getLocalizedEmotionalResponse
+                        ? window.getLocalizedEmotionalResponse("neutral")
+                        : "I'm here for you!";
+                    if (messageObj && messageObj.updateText) {
+                        messageObj.updateText(finalResponse);
+                    }
+                }
+
+                // Voice synthesis after streaming completes (if not started during streaming)
+                if (window.voiceManager && !message.startsWith("Vous:") && finalResponse.length > 20) {
+                    // Check if voice synthesis should happen
+                    const shouldSpeak = await window.kimiDB?.getPreference(
+                        "voiceEnabled",
+                        window.KIMI_CONFIG?.DEFAULTS?.VOICE_ENABLED ?? true
+                    );
+                    if (shouldSpeak) {
+                        window.voiceManager.speak(finalResponse);
+                    }
+                }
+
+                // Final comprehensive system updates
+                try {
+                    // Final emotion analysis if not done during streaming
+                    if (!emotionDetected && window.kimiAnalyzeEmotion) {
+                        const finalEmotion = window.kimiAnalyzeEmotion(finalResponse);
+                        if (finalEmotion && finalEmotion !== "neutral") {
+                            emotionDetected = true;
+                        }
+                    }
+
+                    // Final personality update
+                    if (window.updatePersonalityTraitsFromEmotion && finalResponse.length > 50) {
+                        const finalEmotion = window.kimiAnalyzeEmotion ? window.kimiAnalyzeEmotion(finalResponse) : "neutral";
+                        await window.updatePersonalityTraitsFromEmotion(finalEmotion, finalResponse);
+                    }
+
+                    // Final memory extraction
+                    if (window.kimiMemory && typeof window.kimiMemory.extractMemoriesFromConversation === "function") {
+                        await window.kimiMemory.extractMemoriesFromConversation(message, finalResponse);
+                    }
+
+                    // Final video state adjustment
+                    if (window.kimiVideo && window.kimiDB) {
+                        const selectedCharacter = await window.kimiDB.getSelectedCharacter();
+                        const traits = await window.kimiDB.getAllPersonalityTraits(selectedCharacter);
+                        if (traits && emotionDetected) {
+                            window.kimiVideo.setMoodByPersonality(traits);
+                        }
+                    }
+                } catch (finalError) {
+                    console.warn("Final system updates failed:", finalError);
+                }
+
+                if (waitingIndicator) waitingIndicator.style.display = "none";
+            } catch (streamingError) {
+                console.warn("Streaming failed, falling back to non-streaming:", streamingError);
+                // Fallback to non-streaming
+                const response = await analyzeAndReact(message);
+                let finalResponse = response;
+                if (!finalResponse || typeof finalResponse !== "string" || finalResponse.trim().length < 2) {
+                    finalResponse = window.getLocalizedEmotionalResponse
+                        ? window.getLocalizedEmotionalResponse("neutral")
+                        : "I'm here for you!";
+                }
+                if (messageObj && messageObj.updateText) {
+                    messageObj.updateText(finalResponse);
+                }
+
+                if (window.voiceManager && !message.startsWith("Vous:")) {
+                    window.voiceManager.speak(finalResponse);
+                }
+                if (waitingIndicator) waitingIndicator.style.display = "none";
+            }
+        } else {
+            // Use non-streaming (original behavior)
+            const response = await analyzeAndReact(message);
+            let finalResponse = response;
+            // If the LLM's response is empty, null, or too short, use the emotional fallback.
+            if (!finalResponse || typeof finalResponse !== "string" || finalResponse.trim().length < 2) {
+                finalResponse = window.getLocalizedEmotionalResponse
+                    ? window.getLocalizedEmotionalResponse("neutral")
+                    : "I'm here for you!";
+            }
+            setTimeout(() => {
+                addMessageToChat("kimi", finalResponse);
+                if (window.voiceManager && !message.startsWith("Vous:")) {
+                    window.voiceManager.speak(finalResponse);
+                }
+                if (waitingIndicator) waitingIndicator.style.display = "none";
+            }, 1000);
+        }
     } catch (error) {
         console.error("Error while generating response:", error);
         const i18n = window.kimiI18nManager;
@@ -1382,6 +1539,7 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     const llmTopPSlider = document.getElementById("llm-top-p");
     const llmFrequencyPenaltySlider = document.getElementById("llm-frequency-penalty");
     const llmPresencePenaltySlider = document.getElementById("llm-presence-penalty");
+    const enableStreamingToggle = document.getElementById("enable-streaming");
     const colorThemeSelect = document.getElementById("color-theme");
     const interfaceOpacitySlider = document.getElementById("interface-opacity");
     const animationsToggle = document.getElementById("animations-toggle");
@@ -1606,6 +1764,21 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
         llmPresencePenaltySlider.addEventListener("input", listener);
         window._kimiListenerCleanup.push(() => llmPresencePenaltySlider.removeEventListener("input", listener));
     }
+    if (enableStreamingToggle) {
+        const listener = async () => {
+            try {
+                const isEnabled = enableStreamingToggle.classList.contains("active");
+                const newState = !isEnabled;
+                enableStreamingToggle.classList.toggle("active", newState);
+                enableStreamingToggle.setAttribute("aria-checked", newState ? "true" : "false");
+                if (kimiDB) await kimiDB.setPreference("enableStreaming", newState);
+            } catch (error) {
+                console.error("Error toggling streaming:", error);
+            }
+        };
+        enableStreamingToggle.addEventListener("click", listener);
+        window._kimiListenerCleanup.push(() => enableStreamingToggle.removeEventListener("click", listener));
+    }
     if (colorThemeSelect) {
         colorThemeSelect.removeEventListener("change", window._kimiColorThemeListener);
         window._kimiColorThemeListener = async e => {
@@ -1630,11 +1803,11 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     }
     // Animation toggle is handled by KimiAppearanceManager
     // Remove the duplicate handler to prevent conflicts
+    // Real-time transcript toggle (shows live speech transcription and AI responses)
     const transcriptToggle = document.getElementById("transcript-toggle");
     if (transcriptToggle) {
-        let showTranscript = true;
         if (kimiDB && kimiDB.getPreference) {
-            kimiDB.getPreference("showTranscript", true).then(showTranscript => {
+            kimiDB.getPreference("showTranscript", window.KIMI_CONFIG?.DEFAULTS?.SHOW_TRANSCRIPT ?? true).then(showTranscript => {
                 transcriptToggle.classList.toggle("active", showTranscript);
                 transcriptToggle.setAttribute("aria-checked", showTranscript ? "true" : "false");
             });
@@ -1643,8 +1816,17 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
             const enabled = !transcriptToggle.classList.contains("active");
             transcriptToggle.classList.toggle("active", enabled);
             transcriptToggle.setAttribute("aria-checked", enabled ? "true" : "false");
+            // Save transcript display preference
             if (kimiDB && kimiDB.setPreference) {
                 await kimiDB.setPreference("showTranscript", enabled);
+            }
+            // Apply change immediately if transcript is currently visible
+            if (window.kimiVoiceManager && window.kimiVoiceManager.updateTranscriptVisibility) {
+                if (!enabled) {
+                    // Hide transcript immediately if disabled (uses centralized logic)
+                    await window.kimiVoiceManager.updateTranscriptVisibility(false);
+                }
+                // If enabled, transcript will show naturally during next voice interaction
             }
         };
         transcriptToggle.onclick = onToggle;
@@ -1692,6 +1874,19 @@ async function refreshAllSliders() {
             }
         } catch {}
     }
+
+    // Load streaming preference
+    try {
+        const enableStreamingToggle = document.getElementById("enable-streaming");
+        if (enableStreamingToggle) {
+            const streamingEnabled = await window.kimiDB.getPreference(
+                "enableStreaming",
+                window.KIMI_CONFIG?.DEFAULTS?.ENABLE_STREAMING ?? true
+            );
+            enableStreamingToggle.classList.toggle("active", streamingEnabled);
+            enableStreamingToggle.setAttribute("aria-checked", streamingEnabled ? "true" : "false");
+        }
+    } catch {}
 }
 window.refreshAllSliders = refreshAllSliders;
 
@@ -1814,7 +2009,7 @@ async function syncPersonalityTraits(characterName = null) {
         } else if (window.getTraitDefaults) {
             generic = window.getTraitDefaults();
         } else {
-            generic = { affection: 65, playfulness: 55, intelligence: 70, empathy: 75, humor: 60, romance: 50 };
+            generic = { affection: 55, playfulness: 55, intelligence: 70, empathy: 75, humor: 60, romance: 50 };
         }
         // Character defaults take precedence over generic defaults
         return { ...generic, ...charDefaults };

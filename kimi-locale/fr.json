@@ -46,6 +46,8 @@
     "advanced_settings": "Paramètres avancés",
     "temperature": "Température (Créativité)",
     "max_tokens": "Nombre maximal de tokens",
+    "enable_streaming": "Activer le streaming de texte",
+    "enable_streaming_help": "Affiche le texte au fur et à mesure qu'il est généré pour des réponses en temps réel (par défaut : activé). Affiche le texte progressivement au lieu d'attendre la réponse complète.",
     "available_models": "Modèles Openrouter disponibles",
     "refresh_list": "Rafraîchir la liste",
     "refresh": "Rafraîchir",
@@ -55,6 +57,9 @@
     "animations": "Animations",
     "transcript_settings": "Paramètres de transcription",
     "show_transcript": "Afficher la transcription",
+    "show_transcript_note": "Affiche la transcription en temps réel lorsque vous parlez pour envoyer un message et lorsque l'IA répond.",
+    "plugin_status_note": "Actuellement, seul -Sample Blue Theme- est entièrement fonctionnel. Les autres plugins sont en développement et les activer n'aura aucun effet pour le moment.",
+    "memory_system_help": "La Mémoire Intelligente permet à votre personnage de se souvenir des conversations, préférences et détails importants entre les sessions. Cela crée des interactions plus personnalisées et cohérentes au fil du temps.",
     "data_management": "Gestion des données",
     "export_all_data": "Exporter toutes les données",
     "export": "Exporter",
@@ -113,6 +118,7 @@
     "response_cold_3": "Que veux-tu ?",
     "response_cold_4": "Je suis là.",
     "response_cold_5": "Comment puis-je t'aider ?",
+    "system_prompt": "Prompt système",
     "system_prompt_kimi": "Prompt système de Kimi",
     "system_prompt_bella": "Prompt système de Bella",
     "system_prompt_rosa": "Prompt système de Rosa",
@@ -224,5 +230,6 @@
     "add": "Ajouter",
     "help_providers": "Vous pouvez utiliser plusieurs fournisseurs d’IA : OpenRouter, OpenAI, Groq, Together, DeepSeek, un service OpenAI‑compatible personnalisé, ou Local (Ollama). Renseignez la Base URL et le Model ID si nécessaire, enregistrez votre clé API par fournisseur, puis utilisez ‘Test API Key’.",
     "api_key_presence_hint": "Vert = clé API enregistrée pour le fournisseur courant. Gris = aucune clé enregistrée.",
-    "api_key_test_hint": "Vert = connectivité API vérifiée. Gris = non testé ou échec."
+    "api_key_test_hint": "Vert = connectivité API vérifiée. Gris = non testé ou échec.",
+    "api_key_label": "API Key"
 }

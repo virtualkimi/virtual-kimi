@@ -102,7 +102,7 @@ class KimiDatabase {
             return emotionSystem.TRAIT_DEFAULTS;
         }
         return {
-            affection: 65,
+            affection: 55,
             playfulness: 55,
             intelligence: 70,
             empathy: 75,
@@ -123,6 +123,9 @@ class KimiDatabase {
             { key: "interfaceOpacity", value: 0.8 },
             { key: "animationsEnabled", value: true },
             { key: "showTranscript", value: true },
+            { key: "enableStreaming", value: true },
+            { key: "voiceEnabled", value: true },
+            { key: "memorySystemEnabled", value: true },
             { key: "llmProvider", value: "openrouter" },
             { key: "llmBaseUrl", value: "https://openrouter.ai/api/v1/chat/completions" },
             { key: "llmModelId", value: "mistralai/mistral-small-3.2-24b-instruct" },
@@ -314,6 +317,35 @@ class KimiDatabase {
                     const { key, value } = p;
                     await this.db.preferences.put({ key, value, updated: new Date().toISOString() });
                 }
+            }
+
+            // MIGRATION: Fix Kimi affection progression issue - update default affection from 65 to 55
+            // This allows better progression and prevents blocking at ~65%
+            const kimiAffectionRecord = await this.db.personality.get(["kimi", "affection"]);
+            if (kimiAffectionRecord && kimiAffectionRecord.value === 65) {
+                // Only update if it's exactly 65 (the old default) and user hasn't modified it significantly
+                const newValue = window.KIMI_CHARACTERS?.kimi?.traits?.affection || 55;
+                await this.db.personality.put({
+                    trait: "affection",
+                    character: "kimi",
+                    value: newValue,
+                    updated: new Date().toISOString()
+                });
+                console.log(`🔧 Migration: Updated Kimi affection from 65% to ${newValue}% for better progression`);
+            }
+
+            // MIGRATION: Fix Bella affection progression issue - update default affection from 70 to 60
+            const bellaAffectionRecord = await this.db.personality.get(["bella", "affection"]);
+            if (bellaAffectionRecord && bellaAffectionRecord.value === 70) {
+                // Only update if it's exactly 70 (the old default) and user hasn't modified it significantly
+                const newValue = window.KIMI_CHARACTERS?.bella?.traits?.affection || 60;
+                await this.db.personality.put({
+                    trait: "affection",
+                    character: "bella",
+                    value: newValue,
+                    updated: new Date().toISOString()
+                });
+                console.log(`🔧 Migration: Updated Bella affection from 70% to ${newValue}% for better progression`);
             }
         } catch {}
     }
@@ -522,7 +554,7 @@ class KimiDatabase {
                 } else {
                     defaultValue =
                         {
-                            affection: 65,
+                            affection: 55,
                             playfulness: 55,
                             intelligence: 70,
                             empathy: 75,
@@ -763,7 +795,7 @@ class KimiDatabase {
             if (window.KimiEmotionSystem) {
                 return new window.KimiEmotionSystem(this).TRAIT_DEFAULTS[trait] || 50;
             }
-            const fallback = { affection: 65, playfulness: 55, intelligence: 70, empathy: 75, humor: 60, romance: 50 };
+            const fallback = { affection: 55, playfulness: 55, intelligence: 70, empathy: 75, humor: 60, romance: 50 };
             return fallback[trait] || 50;
         };
         const batch = Object.entries(traitsObj).map(([trait, value]) => {

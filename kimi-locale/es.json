@@ -1,5 +1,5 @@
 {
-    "title": "Kimi - Compañera Virtual  ??",
+    "title": "Kimi - Compañera Virtual 💕",
     "chat_with_kimi": "Chatear con Kimi",
     "chat_with_bella": "Chatear con Bella",
     "chat_with_rosa": "Chatear con Rosa",
@@ -46,6 +46,8 @@
     "advanced_settings": "Configuración Avanzada",
     "temperature": "Temperatura (Creatividad)",
     "max_tokens": "Máximo de Tokens",
+    "enable_streaming": "Activar Streaming de Texto",
+    "enable_streaming_help": "Muestra el texto a medida que se genera para respuestas en tiempo real (por defecto: activado). Muestra el texto progresivamente en lugar de esperar la respuesta completa.",
     "available_models": "Modelos Openrouter Disponibles",
     "refresh_list": "Actualizar Lista",
     "refresh": "Actualizar",
@@ -55,6 +57,9 @@
     "animations": "Animaciones",
     "transcript_settings": "Configuración de Transcripción",
     "show_transcript": "Mostrar Transcripción",
+    "show_transcript_note": "Muestra la transcripción en tiempo real cuando hablas para enviar un mensaje y cuando la IA responde.",
+    "plugin_status_note": "Actualmente, solo -Sample Blue Theme- es completamente funcional. Otros plugins están en desarrollo y activarlos no tendrá efecto en este momento.",
+    "memory_system_help": "La Memoria Inteligente permite a tu personaje recordar conversaciones, preferencias y detalles importantes entre sesiones. Esto crea interacciones más personalizadas y coherentes con el tiempo.",
     "data_management": "Gestión de Datos",
     "export_all_data": "Exportar Todos los Datos",
     "export": "Exportar",
@@ -113,6 +118,7 @@
     "response_cold_3": "¿Qué quieres?",
     "response_cold_4": "Estoy aquí.",
     "response_cold_5": "¿Cómo puedo ayudarte?",
+    "system_prompt": "Prompt del Sistema",
     "system_prompt_kimi": "Prompt del Sistema de Kimi",
     "system_prompt_bella": "Prompt del Sistema de Bella",
     "system_prompt_rosa": "Prompt del Sistema de Rosa",
@@ -223,5 +229,6 @@
     "memory_category_important": "Eventos importantes",
     "memory_content_placeholder": "ej.: Me encanta la música clásica...",
     "memory_management": "Gestión de Memoria",
-    "add": "Agregar"
+    "add": "Agregar",
+    "api_key_label": "API Key"
 }

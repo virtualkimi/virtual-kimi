@@ -909,7 +909,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         if (personalityPayload) {
             const { character, traits } = personalityPayload;
             const defaults = (window.getTraitDefaults && window.getTraitDefaults()) || {
-                affection: 65,
+                affection: 55, // Lowered to match emotion system defaults
                 romance: 50,
                 empathy: 75,
                 playfulness: 55,

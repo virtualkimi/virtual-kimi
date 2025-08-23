@@ -43,9 +43,9 @@ class KimiEmotionSystem {
             goodbye: "neutral"
         };
 
-        // Unified trait defaults - More balanced for progressive experience
+        // Unified trait defaults - Balanced for progressive experience
         this.TRAIT_DEFAULTS = {
-            affection: 65, // Reduced from 80 - starts neutral, grows with interaction
+            affection: 55, // Lowered to allow more natural progression from start
             playfulness: 55, // Reduced from 70 - more reserved initially
             intelligence: 70, // Reduced from 85 - still competent but not overwhelming
             empathy: 75, // Reduced from 90 - caring but not overly so
@@ -69,33 +69,29 @@ class KimiEmotionSystem {
 
         const emotionKeywords = window.KIMI_CONTEXT_KEYWORDS?.[detectedLang] || window.KIMI_CONTEXT_KEYWORDS?.en || {};
 
-        // Priority order for emotion detection
+        // Priority order for emotion detection - reordered for better logic
         const emotionChecks = [
-            // Listening intent (user asks to talk or indicates speaking/listening)
-            {
-                emotion: this.EMOTIONS.LISTENING,
-                keywords: emotionKeywords.listening || [
-                    "listen",
-                    "listening",
-                    "écoute",
-                    "ecoute",
-                    "écouter",
-                    "parle",
-                    "speak",
-                    "talk",
-                    "question",
-                    "ask"
-                ]
-            },
+            // High-impact emotions first
+            { emotion: this.EMOTIONS.KISS, keywords: emotionKeywords.kiss || ["kiss", "embrace"] },
             { emotion: this.EMOTIONS.DANCING, keywords: emotionKeywords.dancing || ["dance", "dancing"] },
             { emotion: this.EMOTIONS.ROMANTIC, keywords: emotionKeywords.romantic || ["love", "romantic"] },
+            { emotion: this.EMOTIONS.FLIRTATIOUS, keywords: emotionKeywords.flirtatious || ["flirt", "tease"] },
             { emotion: this.EMOTIONS.LAUGHING, keywords: emotionKeywords.laughing || ["laugh", "funny"] },
             { emotion: this.EMOTIONS.SURPRISE, keywords: emotionKeywords.surprise || ["wow", "surprise"] },
             { emotion: this.EMOTIONS.CONFIDENT, keywords: emotionKeywords.confident || ["confident", "strong"] },
             { emotion: this.EMOTIONS.SHY, keywords: emotionKeywords.shy || ["shy", "embarrassed"] },
-            { emotion: this.EMOTIONS.FLIRTATIOUS, keywords: emotionKeywords.flirtatious || ["flirt", "tease"] },
-            { emotion: this.EMOTIONS.KISS, keywords: emotionKeywords.kiss || ["kiss", "embrace"] },
-            { emotion: this.EMOTIONS.GOODBYE, keywords: emotionKeywords.goodbye || ["goodbye", "bye"] }
+            { emotion: this.EMOTIONS.GOODBYE, keywords: emotionKeywords.goodbye || ["goodbye", "bye"] },
+            // Listening intent (lower priority to not mask other emotions)
+            {
+                emotion: this.EMOTIONS.LISTENING,
+                keywords: emotionKeywords.listening || [
+                    "listen carefully",
+                    "I'm listening",
+                    "listening to you",
+                    "hear me out",
+                    "pay attention"
+                ]
+            }
         ];
 
         // Check for specific emotions first, applying sensitivity weights per language
@@ -166,14 +162,14 @@ class KimiEmotionSystem {
         let humor = safe(traits?.humor, this.TRAIT_DEFAULTS.humor);
         let intelligence = safe(traits?.intelligence, this.TRAIT_DEFAULTS.intelligence);
 
-        // Unified adjustment functions - More gradual progression for balanced experience
+        // Unified adjustment functions - More balanced progression for better user experience
         const adjustUp = (val, amount) => {
-            // Slower progression as values get higher - make romance and affection harder to max out
-            if (val >= 95) return val + amount * 0.1; // Very slow near max
-            if (val >= 85) return val + amount * 0.3; // Slow progression at high levels
-            if (val >= 70) return val + amount * 0.6; // Moderate progression at medium levels
-            if (val >= 50) return val + amount * 0.8; // Normal progression above average
-            return val + amount; // Normal progression below average
+            // Gradual slowdown only at very high levels to allow natural progression
+            if (val >= 95) return val + amount * 0.2; // Slow near max to preserve challenge
+            if (val >= 88) return val + amount * 0.5; // Moderate slowdown at very high levels
+            if (val >= 80) return val + amount * 0.7; // Slight slowdown at high levels
+            if (val >= 60) return val + amount * 0.9; // Nearly normal progression in mid-high range
+            return val + amount; // Normal progression below 60%
         };
 
         const adjustDown = (val, amount) => {
@@ -245,6 +241,41 @@ class KimiEmotionSystem {
                 playfulness = Math.min(100, adjustUp(playfulness, scaleGain("playfulness", 0.3))); // Reduced from 0.4
                 affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.2))); // Small affection boost
                 break;
+            case this.EMOTIONS.SURPRISE:
+                intelligence = Math.min(100, adjustUp(intelligence, scaleGain("intelligence", 0.1))); // Surprise stimulates thinking
+                empathy = Math.min(100, adjustUp(empathy, scaleGain("empathy", 0.1))); // Opens mind to new perspectives
+                break;
+            case this.EMOTIONS.KISS:
+                romance = Math.min(100, adjustUp(romance, scaleGain("romance", 0.8))); // Strong romantic gesture
+                affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.6))); // Very affectionate action
+                break;
+            case this.EMOTIONS.GOODBYE:
+                // Slight melancholy but no major trait changes
+                empathy = Math.min(100, adjustUp(empathy, scaleGain("empathy", 0.05))); // Understanding of parting
+                break;
+            case this.EMOTIONS.LISTENING:
+                intelligence = Math.min(100, adjustUp(intelligence, scaleGain("intelligence", 0.2))); // Active listening shows intelligence
+                empathy = Math.min(100, adjustUp(empathy, scaleGain("empathy", 0.3))); // Listening builds empathy
+                break;
+        }
+
+        // Cross-trait interactions - traits influence each other for more realistic personality development
+        // High empathy should boost affection over time
+        if (empathy >= 75 && affection < empathy - 5) {
+            affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.1)));
+        }
+
+        // High intelligence should slightly boost empathy (understanding others)
+        if (intelligence >= 80 && empathy < intelligence - 10) {
+            empathy = Math.min(100, adjustUp(empathy, scaleGain("empathy", 0.05)));
+        }
+
+        // Humor and playfulness should reinforce each other
+        if (humor >= 70 && playfulness < humor - 10) {
+            playfulness = Math.min(100, adjustUp(playfulness, scaleGain("playfulness", 0.05)));
+        }
+        if (playfulness >= 70 && humor < playfulness - 10) {
+            humor = Math.min(100, adjustUp(humor, scaleGain("humor", 0.05)));
         }
 
         // Content-based adjustments (unified)
@@ -429,7 +460,7 @@ class KimiEmotionSystem {
 
     // ===== PERSONALITY CALCULATION =====
     calculatePersonalityAverage(traits) {
-        const keys = ["affection", "romance", "empathy", "playfulness", "humor"];
+        const keys = ["affection", "romance", "empathy", "playfulness", "humor", "intelligence"];
         let sum = 0;
         let count = 0;
 

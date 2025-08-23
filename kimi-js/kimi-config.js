@@ -15,7 +15,10 @@ window.KIMI_CONFIG = {
         LLM_FREQUENCY_PENALTY: 0.9,
         LLM_PRESENCE_PENALTY: 0.8,
         SELECTED_CHARACTER: "kimi",
-        SHOW_TRANSCRIPT: true
+        SHOW_TRANSCRIPT: true,
+        ENABLE_STREAMING: true,
+        VOICE_ENABLED: true,
+        MEMORY_SYSTEM_ENABLED: true
     },
 
     // Validation ranges

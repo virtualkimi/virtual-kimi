@@ -1,5 +1,24 @@
 # Virtual Kimi Changelog
 
+# [1.0.9] - 2025-08-23
+
+### Major System Improvements
+
+- **Personality trait system overhaul**: Rebalanced progression curves and multipliers for more natural character development.
+- **Unified emotion system**: Centralized emotion-to-video mapping and fixed all 13 emotions to properly affect traits.
+- **Intelligence trait integration**: Added intelligence to personality calculations and video selection algorithms.
+- **Enhanced emotion detection**: Improved keyword detection with better priorities and reduced conflicts.
+- **Video selection rebalancing**: Fixed positive/negative bias and made auto-triggers more accessible.
+- **Complete codebase synchronization**: Eliminated inconsistencies and redundancies across all modules.
+
+- **Text streaming implementation**: Added real-time text streaming in chat for better user experience.
+
+### Bug Fixes
+
+- Fixed trait calculation inconsistencies between modules.
+- Resolved emotion detection conflicts (LISTENING, ROMANTIC/KISS categories).
+- Corrected fallback values causing progression issues.
+
 # [1.0.8] - 2025-08-19
 
 ### Changed

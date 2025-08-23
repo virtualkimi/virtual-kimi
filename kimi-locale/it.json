@@ -46,6 +46,8 @@
     "advanced_settings": "Impostazioni Avanzate",
     "temperature": "Temperatura (Creatività)",
     "max_tokens": "Token Massimi",
+    "enable_streaming": "Abilita Streaming del Testo",
+    "enable_streaming_help": "Mostra il testo mentre viene generato per risposte in tempo reale (predefinito: abilitato). Mostra il testo progressivamente invece di aspettare la risposta completa.",
     "available_models": "Modelli Openrouter Disponibili",
     "refresh_list": "Aggiorna Lista",
     "refresh": "Aggiorna",
@@ -55,6 +57,9 @@
     "animations": "Animazioni",
     "transcript_settings": "Impostazioni Trascrizione",
     "show_transcript": "Mostra Trascrizione",
+    "show_transcript_note": "Mostra la trascrizione in tempo reale quando parli per inviare un messaggio e quando l'IA risponde.",
+    "plugin_status_note": "Attualmente, solo -Sample Blue Theme- è completamente funzionale. Altri plugin sono in sviluppo e attivarli non avrà effetto al momento.",
+    "memory_system_help": "La Memoria Intelligente permette al tuo personaggio di ricordare conversazioni, preferenze e dettagli importanti tra le sessioni. Questo crea interazioni più personalizzate e coerenti nel tempo.",
     "data_management": "Gestione Dati",
     "export_all_data": "Esporta Tutti i Dati",
     "export": "Esporta",
@@ -113,6 +118,7 @@
     "response_cold_3": "Cosa vuoi?",
     "response_cold_4": "Sono qui.",
     "response_cold_5": "Come posso aiutarti?",
+    "system_prompt": "Prompt di Sistema",
     "system_prompt_kimi": "Prompt di Sistema di Kimi",
     "system_prompt_bella": "Prompt di Sistema di Bella",
     "system_prompt_rosa": "Prompt di Sistema di Rosa",
@@ -223,5 +229,6 @@
     "memory_category_important": "Eventi importanti",
     "memory_content_placeholder": "es.: Amo la musica classica...",
     "memory_management": "Gestione della Memoria",
-    "add": "Aggiungi"
+    "add": "Aggiungi",
+    "api_key_label": "API Key"
 }

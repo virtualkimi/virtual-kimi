@@ -46,6 +46,8 @@
     "advanced_settings": "Advanced Settings",
     "temperature": "Temperature (Creativity)",
     "max_tokens": "Max Tokens",
+    "enable_streaming": "Enable Text Streaming",
+    "enable_streaming_help": "Stream text as it's generated for real-time responses (default: enabled). Shows text progressively instead of waiting for complete response.",
     "available_models": "Available Openrouter Models",
     "refresh_list": "Refresh List",
     "refresh": "Refresh",
@@ -55,6 +57,9 @@
     "animations": "Animations",
     "transcript_settings": "Transcript Settings",
     "show_transcript": "Show Transcript",
+    "show_transcript_note": "Display real-time transcription when you speak to send a message and when the AI responds.",
+    "plugin_status_note": "Currently, only -Sample Blue Theme- is fully functional. Other plugins are in development and activating them will have no effect at this time.",
+    "memory_system_help": "Intelligent Memory allows your character to remember conversations, preferences, and important details across sessions. This creates more personalized and coherent interactions over time.",
     "data_management": "Data Management",
     "export_all_data": "Export All Data",
     "export": "Export",
@@ -113,6 +118,7 @@
     "response_cold_3": "What do you want?",
     "response_cold_4": "I am here.",
     "response_cold_5": "How can I help you?",
+    "system_prompt": "System Prompt",
     "system_prompt_kimi": "Kimi System Prompt",
     "system_prompt_bella": "Bella System Prompt",
     "system_prompt_rosa": "Rosa System Prompt",
@@ -224,5 +230,6 @@
     "add": "Add",
     "help_providers": "You can use multiple AI providers: OpenRouter, OpenAI, Groq, Together, DeepSeek, Custom OpenAI-compatible, or Local (Ollama). Enter the Base URL and Model ID when required, save your API key per provider, then use ‘Test API Key’.",
     "api_key_presence_hint": "Green = API key saved for current provider. Grey = no key saved.",
-    "api_key_test_hint": "Green = API connectivity verified. Grey = not tested or failed."
+    "api_key_test_hint": "Green = API connectivity verified. Grey = not tested or failed.",
+    "api_key_label": "API Key"
 }

@@ -311,24 +311,8 @@ class KimiVideoManager {
         this._maxPrefetch = 3;
         this._loadTimeout = null;
         this.updateVideoCategories();
-        this.emotionToCategory = {
-            listening: "listening",
-            positive: "speakingPositive",
-            negative: "speakingNegative",
-            neutral: "neutral",
-            surprise: "speakingPositive",
-            laughing: "speakingPositive",
-            shy: "neutral",
-            confident: "speakingPositive",
-            romantic: "speakingPositive",
-            flirtatious: "speakingPositive",
-            goodbye: "neutral",
-            kiss: "speakingPositive",
-            dancing: "dancing",
-            speaking: "speakingPositive",
-            speakingPositive: "speakingPositive",
-            speakingNegative: "speakingNegative"
-        };
+        // Use centralized emotion mapping from emotion system
+        this.emotionToCategory = null; // Will be fetched from emotion system when needed
         this.positiveVideos = this.videoCategories.speakingPositive;
         this.negativeVideos = this.videoCategories.speakingNegative;
         this.neutralVideos = this.videoCategories.neutral;
@@ -995,34 +979,36 @@ class KimiVideoManager {
         if (traits && typeof affection === "number") {
             let weights = candidateVideos.map(video => {
                 if (category === "speakingPositive") {
-                    // More positive videos when affection is high, but not extreme
-                    // Also bias within positive towards romance/humor contexts when emotion suggests it
-                    const base = 1 + (affection / 100) * 0.3;
+                    // Positive videos favored by affection, romance, and humor
+                    const base = 1 + (affection / 100) * 0.4; // Increased from 0.3
                     let bonus = 0;
                     const rom = typeof traits.romance === "number" ? traits.romance : 50;
                     const hum = typeof traits.humor === "number" ? traits.humor : 50;
-                    if (emotion === "romantic") bonus += (rom / 100) * 0.2;
-                    if (emotion === "laughing") bonus += (hum / 100) * 0.2;
+                    if (emotion === "romantic") bonus += (rom / 100) * 0.3; // Increased from 0.2
+                    if (emotion === "laughing") bonus += (hum / 100) * 0.3; // Increased from 0.2
                     return base + bonus;
                 }
                 if (category === "speakingNegative") {
-                    // More negative/shy videos when affection is low
-                    return 1 + ((100 - affection) / 100) * 0.4;
+                    // Negative videos when affection is low (reduced weight to balance)
+                    return 1 + ((100 - affection) / 100) * 0.3; // Reduced from 0.4
                 }
                 if (category === "neutral") {
-                    // Neutral videos when affection is moderate (peak at ~50, lower at extremes)
+                    // Neutral videos when affection is moderate, also influenced by intelligence
                     const distance = Math.abs(50 - affection) / 50; // 0 at 50, 1 at 0 or 100
-                    return 1 + (1 - Math.min(1, distance)) * 0.2;
+                    const intBonus = ((traits.intelligence || 50) / 100) * 0.1; // Intelligence adds to neutral thoughtfulness
+                    return 1 + (1 - Math.min(1, distance)) * 0.2 + intBonus;
                 }
                 if (category === "dancing") {
-                    // Dancing strongly influenced by playfulness but capped
-                    return 1 + Math.min(0.6, (traits.playfulness / 100) * 0.7);
+                    // Dancing strongly influenced by playfulness, romance also adds excitement
+                    const playBonus = Math.min(0.6, (traits.playfulness / 100) * 0.7);
+                    const romanceBonus = ((traits.romance || 50) / 100) * 0.2; // Romance adds to dance appeal
+                    return 1 + playBonus + romanceBonus;
                 }
                 if (category === "listening") {
-                    // Listening influenced by empathy and attention
+                    // Listening influenced by empathy, intelligence, and affection
                     const empathyWeight = (traits.empathy || 50) / 100;
-                    // Slightly consider affection too (more patient listening at higher affection)
-                    return 1 + empathyWeight * 0.2 + (affection / 100) * 0.05;
+                    const intWeight = ((traits.intelligence || 50) / 100) * 0.1; // Intelligence improves listening quality
+                    return 1 + empathyWeight * 0.3 + (affection / 100) * 0.1 + intWeight;
                 }
                 return 1;
             });
@@ -1083,9 +1069,29 @@ class KimiVideoManager {
 
     // Ensure determineCategory exists as a class method (used at line ~494 and ~537)
     determineCategory(context, emotion = "neutral", traits = null) {
+        // Get emotion mapping from centralized emotion system
+        const emotionToCategory = window.kimiEmotionSystem?.emotionToVideoCategory || {
+            listening: "listening",
+            positive: "speakingPositive",
+            negative: "speakingNegative",
+            neutral: "neutral",
+            surprise: "speakingPositive",
+            laughing: "speakingPositive",
+            shy: "neutral",
+            confident: "speakingPositive",
+            romantic: "speakingPositive",
+            flirtatious: "speakingPositive",
+            goodbye: "neutral",
+            kiss: "speakingPositive",
+            dancing: "dancing",
+            speaking: "speakingPositive",
+            speakingPositive: "speakingPositive",
+            speakingNegative: "speakingNegative"
+        };
+
         // Prefer explicit context mapping if provided (e.g., 'listening','dancing')
-        if (this.emotionToCategory && this.emotionToCategory[context]) {
-            return this.emotionToCategory[context];
+        if (emotionToCategory[context]) {
+            return emotionToCategory[context];
         }
         // Normalize generic 'speaking' by emotion polarity
         if (context === "speaking") {
@@ -1094,8 +1100,8 @@ class KimiVideoManager {
             return "neutral";
         }
         // Map by emotion label when possible
-        if (this.emotionToCategory && this.emotionToCategory[emotion]) {
-            return this.emotionToCategory[emotion];
+        if (emotionToCategory[emotion]) {
+            return emotionToCategory[emotion];
         }
         return "neutral";
     }
@@ -1241,8 +1247,8 @@ class KimiVideoManager {
             detectedEmotion = emotionAnalysis.reaction;
         }
 
-        // Special case: Auto-dancing if playfulness very high
-        if (traits && typeof traits.playfulness === "number" && traits.playfulness >= 85) {
+        // Special case: Auto-dancing if playfulness high (more accessible)
+        if (traits && typeof traits.playfulness === "number" && traits.playfulness >= 75) {
             this.switchToContext("dancing", "dancing", null, traits, affection);
             return;
         }
@@ -1286,8 +1292,9 @@ class KimiVideoManager {
 
         // Switch to appropriate context based on dominant emotion
         if (max >= 1 && dominant) {
-            // Map emotion to context using our emotion mapping
-            const targetCategory = this.emotionToCategory[dominant];
+            // Map emotion to context using centralized emotion mapping
+            const emotionToCategory = window.kimiEmotionSystem?.emotionToVideoCategory || {};
+            const targetCategory = emotionToCategory[dominant];
             if (targetCategory) {
                 this.switchToContext(targetCategory, dominant, null, traits, affection);
                 return;
@@ -1312,10 +1319,11 @@ class KimiVideoManager {
             }
         }
 
-        // Default to neutral context, with a very subtle positive bias at very high affection
-        if (traits && typeof traits.affection === "number" && traits.affection >= 95) {
+        // Default to neutral context, with a positive bias at high affection (more accessible)
+        if (traits && typeof traits.affection === "number" && traits.affection >= 80) {
             const chance = Math.random();
-            if (chance < 0.25) {
+            if (chance < 0.35) {
+                // Increased chance from 0.25 to 0.35
                 this.switchToContext("speakingPositive", "positive", null, traits, affection);
                 return;
             }
@@ -1850,8 +1858,8 @@ function getMoodCategoryFromPersonality(traits) {
         return window.kimiEmotionSystem.getMoodCategoryFromPersonality(traits);
     }
 
-    // Fallback (should not be reached)
-    const keys = ["affection", "romance", "empathy", "playfulness", "humor"];
+    // Fallback (should not be reached) - must match emotion system calculation
+    const keys = ["affection", "romance", "empathy", "playfulness", "humor", "intelligence"];
     let sum = 0;
     let count = 0;
     keys.forEach(key => {
@@ -2260,9 +2268,14 @@ class KimiUIStateManager {
         window.KimiDOMUtils.setText("#favorability-text", `${clamped.toFixed(2)}%`);
         window.KimiDOMUtils.get("#favorability-bar").style.width = `${clamped}%`;
     }
-    setTranscript(text) {
+    async setTranscript(text) {
         this.state.transcript = text;
-        window.KimiDOMUtils.setText("#transcript", text);
+        // Always use the proper transcript management via VoiceManager
+        if (window.kimiVoiceManager && window.kimiVoiceManager.updateTranscriptVisibility) {
+            await window.kimiVoiceManager.updateTranscriptVisibility(!!text, text);
+        } else {
+            console.warn("VoiceManager not available - transcript display may not work properly");
+        }
     }
     setChatOpen(open) {
         this.state.chatOpen = open;

@@ -209,7 +209,10 @@ class KimiMemorySystem {
         }
 
         try {
-            this.memoryEnabled = await this.db.getPreference("memorySystemEnabled", true);
+            this.memoryEnabled = await this.db.getPreference(
+                "memorySystemEnabled",
+                window.KIMI_CONFIG?.DEFAULTS?.MEMORY_SYSTEM_ENABLED ?? true
+            );
             this.selectedCharacter = await this.db.getSelectedCharacter();
             await this.createMemoryTables();
 

@@ -287,7 +287,7 @@ class KimiLLMManager {
         const getUnifiedDefaults = () =>
             window.getTraitDefaults
                 ? window.getTraitDefaults()
-                : { affection: 65, playfulness: 55, intelligence: 70, empathy: 75, humor: 60, romance: 50 };
+                : { affection: 55, playfulness: 55, intelligence: 70, empathy: 75, humor: 60, romance: 50 };
 
         const defaults = getUnifiedDefaults();
         const affection = personality.affection || defaults.affection;
@@ -466,6 +466,35 @@ class KimiLLMManager {
                 return this.getFallbackResponse(userMessage, "network");
             }
             return this.getFallbackResponse(userMessage);
+        }
+    }
+
+    async chatStreaming(userMessage, onToken, options = {}) {
+        // Get LLM settings from individual preferences
+        const llmSettings = {
+            temperature: await this.db.getPreference("llmTemperature", 0.9),
+            maxTokens: await this.db.getPreference("llmMaxTokens", 400),
+            top_p: await this.db.getPreference("llmTopP", 0.9),
+            frequency_penalty: await this.db.getPreference("llmFrequencyPenalty", 0.9),
+            presence_penalty: await this.db.getPreference("llmPresencePenalty", 0.8)
+        };
+        const temperature = typeof options.temperature === "number" ? options.temperature : llmSettings.temperature;
+        const maxTokens = typeof options.maxTokens === "number" ? options.maxTokens : llmSettings.maxTokens;
+        const opts = { ...options, temperature, maxTokens };
+
+        try {
+            const provider = await this.db.getPreference("llmProvider", "openrouter");
+            if (provider === "openrouter") {
+                return await this.chatWithOpenRouterStreaming(userMessage, onToken, opts);
+            }
+            if (provider === "ollama") {
+                return await this.chatWithLocalStreaming(userMessage, onToken, opts);
+            }
+            return await this.chatWithOpenAICompatibleStreaming(userMessage, onToken, opts);
+        } catch (error) {
+            console.error("Error during streaming chat:", error);
+            // Fallback to non-streaming if streaming fails
+            return await this.chat(userMessage, options);
         }
     }
 
@@ -881,6 +910,352 @@ class KimiLLMManager {
         } catch (error) {
             console.warn("Local LLM not available:", error);
             return this.getFallbackResponse(userMessage);
+        }
+    }
+
+    // ===== STREAMING METHODS =====
+
+    async chatWithOpenRouterStreaming(userMessage, onToken, options = {}) {
+        const apiKey = await this.db.getPreference("providerApiKey");
+        if (!apiKey) {
+            throw new Error("OpenRouter API key not configured");
+        }
+
+        const systemPromptContent = await this.assemblePrompt(userMessage);
+        const messages = [
+            { role: "system", content: systemPromptContent },
+            ...this.conversationContext.slice(-this.maxContextLength),
+            { role: "user", content: userMessage }
+        ];
+
+        // Get unified defaults and options
+        const unifiedDefaults = window.getUnifiedDefaults
+            ? window.getUnifiedDefaults()
+            : { temperature: 0.9, maxTokens: 400, top_p: 0.9, frequency_penalty: 0.9, presence_penalty: 0.8 };
+
+        const llmSettings = {
+            temperature: await this.db.getPreference("llmTemperature", unifiedDefaults.temperature),
+            maxTokens: await this.db.getPreference("llmMaxTokens", unifiedDefaults.maxTokens),
+            top_p: await this.db.getPreference("llmTopP", unifiedDefaults.top_p),
+            frequency_penalty: await this.db.getPreference("llmFrequencyPenalty", unifiedDefaults.frequency_penalty),
+            presence_penalty: await this.db.getPreference("llmPresencePenalty", unifiedDefaults.presence_penalty)
+        };
+
+        const payload = {
+            model: this.currentModel,
+            messages: messages,
+            stream: true, // Enable streaming
+            temperature: typeof options.temperature === "number" ? options.temperature : llmSettings.temperature,
+            max_tokens: typeof options.maxTokens === "number" ? options.maxTokens : llmSettings.maxTokens,
+            top_p: typeof options.topP === "number" ? options.topP : llmSettings.top_p,
+            frequency_penalty:
+                typeof options.frequencyPenalty === "number" ? options.frequencyPenalty : llmSettings.frequency_penalty,
+            presence_penalty: typeof options.presencePenalty === "number" ? options.presencePenalty : llmSettings.presence_penalty
+        };
+
+        try {
+            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${apiKey}`,
+                    "Content-Type": "application/json",
+                    "HTTP-Referer": window.location.origin,
+                    "X-Title": "Kimi - Virtual Companion"
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = "";
+            let fullResponse = "";
+
+            try {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split("\n");
+                    buffer = lines.pop() || ""; // Keep incomplete line in buffer
+
+                    for (const line of lines) {
+                        if (line.trim() === "" || line.startsWith(":")) continue; // Skip empty lines and comments
+
+                        if (line.startsWith("data: ")) {
+                            const data = line.slice(6);
+                            if (data === "[DONE]") {
+                                break;
+                            }
+
+                            try {
+                                const parsed = JSON.parse(data);
+                                const content = parsed.choices?.[0]?.delta?.content;
+                                if (content) {
+                                    fullResponse += content;
+                                    onToken(content);
+                                }
+                            } catch (parseError) {
+                                console.warn("Failed to parse streaming chunk:", parseError);
+                            }
+                        }
+                    }
+                }
+            } finally {
+                reader.releaseLock();
+            }
+
+            // Add to context after streaming completes
+            this.conversationContext.push(
+                { role: "user", content: userMessage, timestamp: new Date().toISOString() },
+                { role: "assistant", content: fullResponse, timestamp: new Date().toISOString() }
+            );
+
+            if (this.conversationContext.length > this.maxContextLength * 2) {
+                this.conversationContext = this.conversationContext.slice(-this.maxContextLength * 2);
+            }
+
+            // Token usage estimation
+            try {
+                const est = window.KimiTokenUtils?.estimate || (t => Math.ceil((t || "").length / 4));
+                const tokensIn = est(userMessage + " " + systemPromptContent);
+                const tokensOut = est(fullResponse);
+                window._lastKimiTokenUsage = { tokensIn, tokensOut };
+                if (!window.kimiMemory && this.db) {
+                    const character = await this.db.getSelectedCharacter();
+                    const prevIn = Number(await this.db.getPreference(`totalTokensIn_${character}`, 0)) || 0;
+                    const prevOut = Number(await this.db.getPreference(`totalTokensOut_${character}`, 0)) || 0;
+                    await this.db.setPreference(`totalTokensIn_${character}`, prevIn + tokensIn);
+                    await this.db.setPreference(`totalTokensOut_${character}`, prevOut + tokensOut);
+                }
+            } catch (e) {
+                console.warn("Token usage estimation failed (OpenRouter streaming):", e);
+            }
+
+            return fullResponse;
+        } catch (error) {
+            console.error("OpenRouter streaming error:", error);
+            throw error;
+        }
+    }
+
+    async chatWithOpenAICompatibleStreaming(userMessage, onToken, options = {}) {
+        const baseUrl = await this.db.getPreference("llmBaseUrl", "https://api.openai.com/v1/chat/completions");
+        const apiKey = await this.db.getPreference("openaiApiKey");
+        if (!apiKey) {
+            throw new Error("OpenAI API key not configured");
+        }
+
+        const systemPromptContent = await this.assemblePrompt(userMessage);
+        const messages = [
+            { role: "system", content: systemPromptContent },
+            ...this.conversationContext.slice(-this.maxContextLength),
+            { role: "user", content: userMessage }
+        ];
+
+        const unifiedDefaults = window.getUnifiedDefaults
+            ? window.getUnifiedDefaults()
+            : { temperature: 0.9, maxTokens: 400, top_p: 0.9, frequency_penalty: 0.9, presence_penalty: 0.8 };
+
+        const llmSettings = {
+            temperature: await this.db.getPreference("llmTemperature", unifiedDefaults.temperature),
+            maxTokens: await this.db.getPreference("llmMaxTokens", unifiedDefaults.maxTokens),
+            top_p: await this.db.getPreference("llmTopP", unifiedDefaults.top_p),
+            frequency_penalty: await this.db.getPreference("llmFrequencyPenalty", unifiedDefaults.frequency_penalty),
+            presence_penalty: await this.db.getPreference("llmPresencePenalty", unifiedDefaults.presence_penalty)
+        };
+
+        const payload = {
+            model: this.currentModel,
+            messages: messages,
+            stream: true,
+            temperature: typeof options.temperature === "number" ? options.temperature : llmSettings.temperature,
+            max_tokens: typeof options.maxTokens === "number" ? options.maxTokens : llmSettings.maxTokens,
+            top_p: typeof options.topP === "number" ? options.topP : llmSettings.top_p,
+            frequency_penalty:
+                typeof options.frequencyPenalty === "number" ? options.frequencyPenalty : llmSettings.frequency_penalty,
+            presence_penalty: typeof options.presencePenalty === "number" ? options.presencePenalty : llmSettings.presence_penalty
+        };
+
+        try {
+            const response = await fetch(baseUrl, {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${apiKey}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = "";
+            let fullResponse = "";
+
+            try {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split("\n");
+                    buffer = lines.pop() || "";
+
+                    for (const line of lines) {
+                        if (line.trim() === "" || line.startsWith(":")) continue;
+
+                        if (line.startsWith("data: ")) {
+                            const data = line.slice(6);
+                            if (data === "[DONE]") {
+                                break;
+                            }
+
+                            try {
+                                const parsed = JSON.parse(data);
+                                const content = parsed.choices?.[0]?.delta?.content;
+                                if (content) {
+                                    fullResponse += content;
+                                    onToken(content);
+                                }
+                            } catch (parseError) {
+                                console.warn("Failed to parse streaming chunk:", parseError);
+                            }
+                        }
+                    }
+                }
+            } finally {
+                reader.releaseLock();
+            }
+
+            // Add to context
+            this.conversationContext.push(
+                { role: "user", content: userMessage, timestamp: new Date().toISOString() },
+                { role: "assistant", content: fullResponse, timestamp: new Date().toISOString() }
+            );
+
+            if (this.conversationContext.length > this.maxContextLength * 2) {
+                this.conversationContext = this.conversationContext.slice(-this.maxContextLength * 2);
+            }
+
+            // Token usage estimation
+            try {
+                const est = window.KimiTokenUtils?.estimate || (t => Math.ceil((t || "").length / 4));
+                const tokensIn = est(userMessage + " " + systemPromptContent);
+                const tokensOut = est(fullResponse);
+                window._lastKimiTokenUsage = { tokensIn, tokensOut };
+                if (!window.kimiMemory && this.db) {
+                    const character = await this.db.getSelectedCharacter();
+                    const prevIn = Number(await this.db.getPreference(`totalTokensIn_${character}`, 0)) || 0;
+                    const prevOut = Number(await this.db.getPreference(`totalTokensOut_${character}`, 0)) || 0;
+                    await this.db.setPreference(`totalTokensIn_${character}`, prevIn + tokensIn);
+                    await this.db.setPreference(`totalTokensOut_${character}`, prevOut + tokensOut);
+                }
+            } catch (e) {
+                console.warn("Token usage estimation failed (OpenAI streaming):", e);
+            }
+
+            return fullResponse;
+        } catch (error) {
+            console.error("OpenAI compatible streaming error:", error);
+            throw error;
+        }
+    }
+
+    async chatWithLocalStreaming(userMessage, onToken, options = {}) {
+        const systemPromptContent = await this.assemblePrompt(userMessage);
+
+        const payload = {
+            model: this.currentModel || "llama2",
+            messages: [
+                { role: "system", content: systemPromptContent },
+                ...this.conversationContext.slice(-this.maxContextLength),
+                { role: "user", content: userMessage }
+            ],
+            stream: true
+        };
+
+        try {
+            const response = await fetch("http://localhost:11434/api/chat", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error("Ollama not available");
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let fullResponse = "";
+
+            try {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value, { stream: true });
+                    const lines = chunk.split("\n").filter(line => line.trim());
+
+                    for (const line of lines) {
+                        try {
+                            const parsed = JSON.parse(line);
+                            const content = parsed.message?.content;
+                            if (content) {
+                                fullResponse += content;
+                                onToken(content);
+                            }
+                            if (parsed.done) {
+                                break;
+                            }
+                        } catch (parseError) {
+                            console.warn("Failed to parse Ollama streaming chunk:", parseError);
+                        }
+                    }
+                }
+            } finally {
+                reader.releaseLock();
+            }
+
+            // Add to context
+            this.conversationContext.push(
+                { role: "user", content: userMessage, timestamp: new Date().toISOString() },
+                { role: "assistant", content: fullResponse, timestamp: new Date().toISOString() }
+            );
+
+            if (this.conversationContext.length > this.maxContextLength * 2) {
+                this.conversationContext = this.conversationContext.slice(-this.maxContextLength * 2);
+            }
+
+            // Token usage estimation
+            try {
+                const est = window.KimiTokenUtils?.estimate || (t => Math.ceil((t || "").length / 4));
+                const tokensIn = est(userMessage + " " + systemPromptContent);
+                const tokensOut = est(fullResponse);
+                window._lastKimiTokenUsage = { tokensIn, tokensOut };
+                const character = await this.db.getSelectedCharacter();
+                const prevIn = Number(await this.db.getPreference(`totalTokensIn_${character}`, 0)) || 0;
+                const prevOut = Number(await this.db.getPreference(`totalTokensOut_${character}`, 0)) || 0;
+                await this.db.setPreference(`totalTokensIn_${character}`, prevIn + tokensIn);
+                await this.db.setPreference(`totalTokensOut_${character}`, prevOut + tokensOut);
+            } catch (e) {
+                console.warn("Token usage estimation failed (local streaming):", e);
+            }
+
+            return fullResponse;
+        } catch (error) {
+            console.warn("Local LLM streaming not available:", error);
+            throw error;
         }
     }
 
