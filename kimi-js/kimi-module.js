@@ -777,7 +777,8 @@ async function loadSettingsData() {
             "llmMaxTokens",
             "llmTopP",
             "llmFrequencyPenalty",
-            "llmPresencePenalty"
+            "llmPresencePenalty",
+            "enableStreaming"
         ];
         const preferences = await kimiDB.getPreferencesBatch(preferenceKeys);
 
@@ -796,6 +797,7 @@ async function loadSettingsData() {
         const llmTopP = preferences.llmTopP !== undefined ? preferences.llmTopP : 0.9;
         const llmFrequencyPenalty = preferences.llmFrequencyPenalty !== undefined ? preferences.llmFrequencyPenalty : 0.9;
         const llmPresencePenalty = preferences.llmPresencePenalty !== undefined ? preferences.llmPresencePenalty : 0.8;
+        const enableStreaming = preferences.enableStreaming !== undefined ? preferences.enableStreaming : true;
 
         // Update UI with voice settings
         const languageSelect = document.getElementById("language-selection");
@@ -810,6 +812,17 @@ async function loadSettingsData() {
         updateSlider("llm-top-p", llmTopP);
         updateSlider("llm-frequency-penalty", llmFrequencyPenalty);
         updateSlider("llm-presence-penalty", llmPresencePenalty);
+
+        // Update streaming toggle
+        const streamingToggle = document.getElementById("enable-streaming");
+        if (streamingToggle) {
+            if (enableStreaming) {
+                streamingToggle.classList.add("active");
+            } else {
+                streamingToggle.classList.remove("active");
+            }
+            streamingToggle.setAttribute("aria-checked", String(enableStreaming));
+        }
 
         // Batch load personality traits
         const traitNames = ["affection", "playfulness", "intelligence", "empathy", "humor", "romance"];
@@ -832,10 +845,10 @@ async function loadSettingsData() {
         await updateStats();
 
         // Update API key input
-        const apiKeyInput = document.getElementById("openrouter-api-key");
+        const apiKeyInput = document.getElementById("provider-api-key");
         if (apiKeyInput) {
             const keyPref = window.KimiProviderUtils ? window.KimiProviderUtils.getKeyPrefForProvider(provider) : null;
-            const providerKey = keyPref && preferences[keyPref] ? preferences[keyPref] : genericKey;
+            const providerKey = keyPref && preferences[keyPref] ? preferences[keyPref] : apiKey;
             apiKeyInput.value = providerKey || "";
         }
         const providerSelect = document.getElementById("llm-provider");

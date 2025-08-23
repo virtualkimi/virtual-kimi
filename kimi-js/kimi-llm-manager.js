@@ -933,6 +933,8 @@ class KimiLLMManager {
             ? window.getUnifiedDefaults()
             : { temperature: 0.9, maxTokens: 400, top_p: 0.9, frequency_penalty: 0.9, presence_penalty: 0.8 };
 
+        const enableStreaming = await this.db.getPreference("enableStreaming", true);
+
         const llmSettings = {
             temperature: await this.db.getPreference("llmTemperature", unifiedDefaults.temperature),
             maxTokens: await this.db.getPreference("llmMaxTokens", unifiedDefaults.maxTokens),
@@ -944,7 +946,7 @@ class KimiLLMManager {
         const payload = {
             model: this.currentModel,
             messages: messages,
-            stream: true, // Enable streaming
+            stream: enableStreaming, // Use user preference for streaming
             temperature: typeof options.temperature === "number" ? options.temperature : llmSettings.temperature,
             max_tokens: typeof options.maxTokens === "number" ? options.maxTokens : llmSettings.maxTokens,
             top_p: typeof options.topP === "number" ? options.topP : llmSettings.top_p,
@@ -1061,6 +1063,8 @@ class KimiLLMManager {
             ? window.getUnifiedDefaults()
             : { temperature: 0.9, maxTokens: 400, top_p: 0.9, frequency_penalty: 0.9, presence_penalty: 0.8 };
 
+        const enableStreaming = await this.db.getPreference("enableStreaming", true);
+
         const llmSettings = {
             temperature: await this.db.getPreference("llmTemperature", unifiedDefaults.temperature),
             maxTokens: await this.db.getPreference("llmMaxTokens", unifiedDefaults.maxTokens),
@@ -1072,7 +1076,7 @@ class KimiLLMManager {
         const payload = {
             model: this.currentModel,
             messages: messages,
-            stream: true,
+            stream: enableStreaming,
             temperature: typeof options.temperature === "number" ? options.temperature : llmSettings.temperature,
             max_tokens: typeof options.maxTokens === "number" ? options.maxTokens : llmSettings.maxTokens,
             top_p: typeof options.topP === "number" ? options.topP : llmSettings.top_p,
@@ -1171,6 +1175,7 @@ class KimiLLMManager {
 
     async chatWithLocalStreaming(userMessage, onToken, options = {}) {
         const systemPromptContent = await this.assemblePrompt(userMessage);
+        const enableStreaming = await this.db.getPreference("enableStreaming", true);
 
         const payload = {
             model: this.currentModel || "llama2",
@@ -1179,7 +1184,7 @@ class KimiLLMManager {
                 ...this.conversationContext.slice(-this.maxContextLength),
                 { role: "user", content: userMessage }
             ],
-            stream: true
+            stream: enableStreaming
         };
 
         try {
@@ -1195,36 +1200,47 @@ class KimiLLMManager {
                 throw new Error("Ollama not available");
             }
 
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
             let fullResponse = "";
 
-            try {
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
+            if (enableStreaming) {
+                // Streaming mode
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
 
-                    const chunk = decoder.decode(value, { stream: true });
-                    const lines = chunk.split("\n").filter(line => line.trim());
+                try {
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
 
-                    for (const line of lines) {
-                        try {
-                            const parsed = JSON.parse(line);
-                            const content = parsed.message?.content;
-                            if (content) {
-                                fullResponse += content;
-                                onToken(content);
+                        const chunk = decoder.decode(value, { stream: true });
+                        const lines = chunk.split("\n").filter(line => line.trim());
+
+                        for (const line of lines) {
+                            try {
+                                const parsed = JSON.parse(line);
+                                const content = parsed.message?.content;
+                                if (content) {
+                                    fullResponse += content;
+                                    onToken(content);
+                                }
+                                if (parsed.done) {
+                                    break;
+                                }
+                            } catch (parseError) {
+                                console.warn("Failed to parse Ollama streaming chunk:", parseError);
                             }
-                            if (parsed.done) {
-                                break;
-                            }
-                        } catch (parseError) {
-                            console.warn("Failed to parse Ollama streaming chunk:", parseError);
                         }
                     }
+                } finally {
+                    reader.releaseLock();
                 }
-            } finally {
-                reader.releaseLock();
+            } else {
+                // Non-streaming mode
+                const data = await response.json();
+                fullResponse = data.message?.content || "";
+                if (fullResponse && onToken) {
+                    onToken(fullResponse);
+                }
             }
 
             // Add to context

@@ -140,7 +140,14 @@ document.addEventListener("DOMContentLoaded", async function () {
             const baseUrlInput = ApiUi.baseUrlInput();
             const modelIdInput = ApiUi.modelIdInput();
             const apiKeyInput = ApiUi.apiKeyInput();
-            if (baseUrlInput) baseUrlInput.value = baseUrl || "";
+
+            // Set base URL based on modifiability
+            if (baseUrlInput) {
+                const isModifiable = isUrlModifiable(provider);
+                baseUrlInput.value = baseUrl || "";
+                baseUrlInput.disabled = !isModifiable;
+                baseUrlInput.style.opacity = isModifiable ? "1" : "0.6";
+            }
             // Only prefill model for OpenRouter, others should show placeholder only
             if (modelIdInput) {
                 if (provider === "openrouter") {
@@ -193,6 +200,11 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
     });
 
+    // Helper function to check if URL is modifiable for current provider
+    function isUrlModifiable(provider) {
+        return provider === "openai-compatible" || provider === "ollama";
+    }
+
     const providerSelectEl = document.getElementById("llm-provider");
     if (providerSelectEl) {
         providerSelectEl.addEventListener("change", async function (e) {
@@ -241,7 +253,21 @@ document.addEventListener("DOMContentLoaded", async function () {
             const p = placeholders[provider] || placeholders.openai;
             if (baseUrlInput) {
                 baseUrlInput.placeholder = p.url;
-                baseUrlInput.value = provider === "openrouter" ? placeholders.openrouter.url : p.url;
+                // Only allow URL modification for custom and ollama providers
+                const isModifiable = isUrlModifiable(provider);
+
+                if (isModifiable) {
+                    // For custom and ollama: load saved URL or use default
+                    const savedUrl = await window.kimiDB.getPreference("llmBaseUrl", p.url);
+                    baseUrlInput.value = savedUrl;
+                    baseUrlInput.disabled = false;
+                    baseUrlInput.style.opacity = "1";
+                } else {
+                    // For other providers: fixed URL, not modifiable
+                    baseUrlInput.value = p.url;
+                    baseUrlInput.disabled = true;
+                    baseUrlInput.style.opacity = "0.6";
+                }
             }
             if (apiKeyInput) {
                 apiKeyInput.placeholder = p.keyPh;
@@ -263,7 +289,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             }
             if (window.kimiDB) {
                 await window.kimiDB.setPreference("llmProvider", provider);
-                await window.kimiDB.setPreference("llmBaseUrl", provider === "openrouter" ? placeholders.openrouter.url : p.url);
+
                 const apiKeyLabel = document.getElementById("api-key-label");
                 // Load provider-specific key into the input for clarity
                 const keyPref = window.KimiProviderUtils
@@ -296,6 +322,15 @@ document.addEventListener("DOMContentLoaded", async function () {
                     }
                 }
                 ApiUi.clearStatus();
+
+                // Save URL after all UI updates are complete
+                const isModifiable = isUrlModifiable(provider);
+                if (isModifiable && baseUrlInput) {
+                    await window.kimiDB.setPreference("llmBaseUrl", baseUrlInput.value);
+                } else {
+                    // For fixed providers, save the standard URL
+                    await window.kimiDB.setPreference("llmBaseUrl", p.url);
+                }
             }
         });
 
@@ -311,6 +346,27 @@ document.addEventListener("DOMContentLoaded", async function () {
                         console.warn("Failed to set model:", error.message);
                         // Reset to current model if setting failed
                         e.target.value = window.kimiLLM.currentModel || "";
+                    }
+                }
+            });
+        }
+
+        // Listen for Base URL changes and save for modifiable providers
+        const baseUrlInput = ApiUi.baseUrlInput();
+        if (baseUrlInput) {
+            baseUrlInput.addEventListener("blur", async function (e) {
+                const providerSelect = ApiUi.providerSelect();
+                const provider = providerSelect ? providerSelect.value : "openrouter";
+                const isModifiable = isUrlModifiable(provider);
+
+                if (isModifiable && window.kimiDB) {
+                    const newUrl = e.target.value.trim();
+                    if (newUrl) {
+                        try {
+                            await window.kimiDB.setPreference("llmBaseUrl", newUrl);
+                        } catch (error) {
+                            console.warn("Failed to save base URL:", error.message);
+                        }
                     }
                 }
             });
@@ -773,7 +829,6 @@ document.addEventListener("DOMContentLoaded", async function () {
         [],
         500
     );
-
     kimiInit.register(
         "dataManager",
         async () => {
