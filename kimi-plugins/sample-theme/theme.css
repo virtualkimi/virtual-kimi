@@ -104,11 +104,6 @@
     --feature-title-color: #6366f1;
     --feature-text-color: #a5b4fc;
 
-    /* Scrollbar */
-    --scrollbar-thumb-bg: rgba(59, 130, 246, 0.4);
-    --scrollbar-thumb-hover-bg: rgba(59, 130, 246, 0.6);
-    --scrollbar-thumb-active-bg: rgba(59, 130, 246, 0.8);
-
     /* Text Colors */
     --text-primary: #e0e7ef;
     --text-secondary: #a5b4fc;

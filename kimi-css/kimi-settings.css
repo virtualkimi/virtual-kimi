@@ -47,21 +47,21 @@
 }
 
 .settings-content::-webkit-scrollbar {
-    width: 8px;
+    width: var(--scrollbar-width);
 }
 
 .settings-content::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--scrollbar-track-bg);
     border-radius: 4px;
 }
 
 .settings-content::-webkit-scrollbar-thumb {
-    background: var(--primary-color);
+    background: var(--scrollbar-thumb-bg);
     border-radius: 4px;
 }
 
 .settings-content::-webkit-scrollbar-thumb:hover {
-    background: var(--accent-color);
+    background: var(--scrollbar-thumb-hover-bg);
 }
 
 @keyframes slideInUp {

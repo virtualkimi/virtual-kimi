@@ -269,7 +269,7 @@ document.addEventListener("DOMContentLoaded", async function () {
                 const keyPref = window.KimiProviderUtils
                     ? window.KimiProviderUtils.getKeyPrefForProvider(provider)
                     : "providerApiKey";
-                const storedKey = await window.kimiDB.getPreference("providerApiKey", "");
+                const storedKey = await window.kimiDB.getPreference(keyPref, "");
                 if (apiKeyInput && provider !== "ollama") apiKeyInput.value = storedKey || "";
                 const color = provider === "ollama" ? "#9e9e9e" : storedKey && storedKey.length > 0 ? "#4caf50" : "#9e9e9e";
                 ApiUi.setPresence(color);

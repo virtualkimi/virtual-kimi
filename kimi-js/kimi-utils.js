@@ -44,13 +44,23 @@ window.KimiValidationUtils = {
 // Provider utilities used across the app
 const KimiProviderUtils = {
     getKeyPrefForProvider(provider) {
-        // Centralized: always use 'providerApiKey' for all providers except Ollama
-        return provider === "ollama" ? null : "providerApiKey";
+        // Each provider should have its own separate API key storage
+        const providerKeys = {
+            openrouter: "openrouterApiKey",
+            openai: "openaiApiKey",
+            groq: "groqApiKey",
+            together: "togetherApiKey",
+            deepseek: "deepseekApiKey",
+            "openai-compatible": "customApiKey",
+            ollama: null
+        };
+        return providerKeys[provider] || "providerApiKey";
     },
     async getApiKey(db, provider) {
         if (!db) return null;
         if (provider === "ollama") return "__local__";
-        return await db.getPreference("providerApiKey");
+        const keyPref = this.getKeyPrefForProvider(provider);
+        return await db.getPreference(keyPref);
     },
     getLabelForProvider(provider) {
         const labels = {

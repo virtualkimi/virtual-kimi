@@ -1,28 +1,239 @@
 /* ===== CONSOLIDATED CSS VARIABLES - ENHANCED DYNAMIC THEMING ===== */
 :root {
-    /* Core Theme Colors - Default Pink Passion */
+    /* Core Theme Colors - Default Dark Theme Base */
+    --primary-color: #5e60ce;
+    --primary-rgb: 94, 96, 206;
+    --secondary-color: #23262f;
+    --accent-color: #8b5cf6;
+    --background-overlay: rgba(24, 26, 32, 0.85);
+    --interface-opacity: 0.7;
+    --gradient-start: #5e60ce;
+    --gradient-end: #8b5cf6;
+    --text-glow: 0 0 10px rgba(94, 96, 206, 0.3);
+    --button-hover: rgba(94, 96, 206, 0.15);
+    --animations-enabled: 1;
+    --switch-color: #5e60ce;
+
+    /* Contrast and Accessibility */
+    --contrast-ratio: 4.5; /* WCAG AA standard */
+    --text-on-primary: #ffffff;
+    --text-on-secondary: #e0e0e0;
+    --text-on-accent: #ffffff;
+    --text-on-background: #e0e0e0;
+    --border-opacity: 0.3;
+    --hover-opacity: 0.15;
+    --active-opacity: 0.25;
+
+    /* UI Component Colors - Chat Interface */
+    --chat-bg: rgba(24, 26, 32, 0.95);
+    --chat-text: var(--text-on-background);
+    --chat-header-bg: rgba(255, 255, 255, 0.05);
+    --chat-border: #5e60ce;
+    --chat-input-bg: rgba(255, 255, 255, 0.1);
+    --chat-input-text: var(--text-on-background);
+    --chat-input-placeholder: rgba(255, 255, 255, 0.6);
+    --chat-message-user-bg: #1e253c;
+    --chat-message-user-text: var(--text-on-background);
+    --chat-message-kimi-bg: #23262f;
+    --chat-message-kimi-text: var(--text-on-background);
+
+    /* Modal & Overlay Colors */
+    --modal-bg: rgba(24, 26, 32, 0.98);
+    --modal-border: #5e60ce;
+    --modal-header-bg: linear-gradient(135deg, #5e60ce, #8b5cf6);
+    --modal-text: var(--text-on-background);
+    --modal-title-color: #e0e0e0;
+    --modal-overlay-bg: rgba(0, 0, 0, 0.8);
+    --modal-close-hover-bg: rgba(255, 255, 255, 0.2);
+
+    /* Settings Panel & Tabs */
+    --settings-bg: #0f1114;
+    --settings-text: var(--text-on-background);
+    --settings-tab-bg: #181a20;
+    --settings-tab-color: #bfa6b6;
+    --settings-tab-hover-bg: rgba(255, 255, 255, var(--hover-opacity));
+    --settings-tab-hover-color: rgba(255, 255, 255, 0.9);
+    --settings-tab-active-bg: #5e60ce;
+    --settings-tab-active-color: var(--text-on-primary);
+    --settings-tab-border: #5e60ce;
+    --settings-section-bg: #1a1d23;
+    --settings-section-border: rgba(94, 96, 206, var(--border-opacity));
+    --settings-section-header-color: var(--text-on-background);
+
+    /* Form Element Colors */
+    --input-bg: rgba(255, 255, 255, 0.1);
+    --input-text: var(--text-on-background);
+    --input-border: #5e60ce;
+    --input-focus-bg: rgba(255, 255, 255, var(--hover-opacity));
+    --input-focus-border: #8b5cf6;
+    --input-placeholder: rgba(255, 255, 255, 0.6);
+
+    /* Button Colors */
+    --button-primary-bg: var(--primary-color);
+    --button-primary-text: var(--text-on-primary);
+    --button-primary-hover-bg: var(--accent-color);
+    --button-secondary-bg: rgba(255, 255, 255, 0.05);
+    --button-secondary-text: var(--text-on-background);
+    --button-secondary-hover-bg: rgba(255, 255, 255, var(--hover-opacity));
+    --button-danger-bg: #e74c3c;
+    --button-danger-text: #ffffff;
+    --button-danger-hover-bg: #c0392b;
+
+    /* Select & Dropdown Options */
+    --select-bg: var(--input-bg);
+    --select-text: var(--input-text);
+    --select-border: var(--input-border);
+    --select-option-bg: rgba(24, 26, 32, 0.95);
+    --select-option-text: var(--text-on-background);
+    --select-option-hover-bg: #5e60ce;
+    --select-option-hover-text: var(--text-on-primary);
+    --select-option-checked-bg: #8b5cf6;
+    --select-option-checked-text: var(--text-on-accent);
+    --select-option-disabled-bg: rgba(24, 26, 32, 0.5);
+    --select-option-disabled-text: #666;
+
+    /* Slider Components */
+    --slider-track-bg: rgba(255, 255, 255, 0.1);
+    --slider-track-active-bg: var(--primary-color);
+    --slider-thumb-bg: var(--primary-color);
+    --slider-thumb-hover-bg: var(--accent-color);
+    --slider-value-bg: #0f1114;
+    --slider-value-border: #5e60ce;
+    --slider-value-color: var(--text-on-background);
+
+    /* Toggle Switch */
+    --switch-bg-inactive: rgba(255, 255, 255, 0.05);
+    --switch-bg-active: linear-gradient(90deg, #5e60ce, #8b5cf6);
+    --switch-thumb-color: #ffffff;
+    --switch-thumb-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+
+    /* Mic Button & Pulse Effect */
+    --mic-button-bg: var(--button-hover);
+    --mic-button-border: #5e60ce;
+    --mic-button-shadow: 0 0 15px #5e60ce;
+    --mic-button-hover-bg: #5e60ce;
+    --mic-button-hover-shadow: 0 0 10px rgba(94, 96, 206, 0.5);
+    --mic-button-icon-color: var(--text-on-primary);
+    --mic-listening-border: #27ae60;
+    --mic-listening-shadow: 0 0 15px #27ae60;
+    --mic-pulse-color: rgba(39, 174, 96, 0.5);
+    --mic-pulse-listening-color: rgba(39, 174, 96, 0.4);
+
+    /* Video crossfade timing */
+    --video-fade-duration: 400ms;
+
+    /* Cards & Stats */
+    --card-bg: rgba(255, 255, 255, 0.02);
+    --card-border: rgba(255, 255, 255, 0.05);
+    --card-hover-bg: rgba(255, 255, 255, 0.05);
+    --card-text: var(--text-on-background);
+    --stat-value-color: #8b5cf6;
+    --stat-label-color: rgba(224, 224, 224, 0.7);
+
+    /* Plugin Cards */
+    --plugin-card-bg: linear-gradient(135deg, #1a1d23 80%, rgba(24, 26, 32, 0.98) 100%);
+    --plugin-card-border: #5e60ce;
+    --plugin-card-title-color: var(--text-on-background);
+    --plugin-card-desc-color: rgba(224, 224, 224, 0.7);
+    --plugin-card-author-color: rgba(224, 224, 224, 0.5);
+    --plugin-type-badge-bg: #8b5cf6;
+    --plugin-type-badge-text: var(--text-on-accent);
+    --plugin-active-badge-bg: linear-gradient(90deg, #5e60ce, #8b5cf6);
+    --plugin-active-badge-text: var(--text-on-primary);
+
+    /* Help Modal */
+    --help-modal-bg: rgba(24, 26, 32, 0.98);
+    --help-modal-border: #5e60ce;
+    --help-content-color: var(--text-on-background);
+    --help-section-border: rgba(255, 255, 255, 0.1);
+    --creator-card-bg: rgba(255, 255, 255, 0.02);
+    --creator-card-border: rgba(255, 255, 255, 0.05);
+    --creator-avatar-bg: linear-gradient(135deg, #5e60ce, #8b5cf6);
+    --creator-name-color: #8b5cf6;
+    --creator-role-bg: linear-gradient(135deg, #5e60ce, #8b5cf6);
+    --creator-role-color: var(--text-on-primary);
+    --philosophy-bg: rgba(94, 96, 206, 0.05);
+    --philosophy-border: rgba(94, 96, 206, var(--border-opacity));
+    --philosophy-border-left: #5e60ce;
+    --feature-item-bg: rgba(255, 255, 255, 0.02);
+    --feature-item-border: rgba(94, 96, 206, var(--border-opacity));
+    --feature-icon-color: #8b5cf6;
+    --feature-title-color: #8b5cf6;
+    --feature-text-color: rgba(224, 224, 224, 0.7);
+    --guide-step-bg: rgba(255, 255, 255, 0.02);
+    --guide-step-number-bg: rgba(94, 96, 206, var(--hover-opacity));
+    --guide-step-number-color: var(--primary-color);
+    --tip-item-bg: rgba(255, 255, 255, 0.02);
+    --tip-item-border: var(--feature-item-border);
+
+    /* Unified Scrollbar System */
+    --scrollbar-width: 8px !important;
+    --scrollbar-track-bg: rgba(255, 255, 255, 0.02) !important;
+    --scrollbar-thumb-bg: rgba(94, 96, 206, 0.4) !important;
+    --scrollbar-thumb-hover-bg: rgba(94, 96, 206, 0.6) !important;
+    --scrollbar-thumb-active-bg: rgba(94, 96, 206, 0.8) !important;
+    --scrollbar-corner-bg: rgba(255, 255, 255, 0.05) !important;
+
+    /* Model Colors */
+    --model-card-bg: rgba(255, 255, 255, 0.02);
+    --model-card-border: rgba(255, 255, 255, 0.05);
+    --model-card-hover-bg: rgba(255, 255, 255, 0.05);
+    --model-card-selected-border: var(--primary-color);
+    --model-card-selected-shadow: 0 0 0 2px rgba(94, 96, 206, var(--border-opacity));
+    --model-name-color: var(--text-on-background);
+    --model-description-color: rgba(224, 224, 224, 0.7);
+    --model-strength-color: #5e60ce;
+    --model-strength-text: var(--text-on-primary);
+    --model-provider-color: #8b5cf6;
+    --model-provider-text: var(--text-on-accent);
+
+    /* Text Colors */
+    --text-primary: var(--text-on-background);
+    --text-secondary: #9ca3af;
+    --text-muted: rgba(224, 224, 224, 0.6);
+
+    /* Character Selection Colors */
+    --character-card-bg: rgba(255, 255, 255, 0.02);
+    --character-card-border: rgba(255, 255, 255, 0.05);
+    --character-card-hover-bg: rgba(255, 255, 255, 0.05);
+    --character-selected-border: #8b5cf6;
+    --character-selected-bg: rgba(94, 96, 206, 0.1);
+    --character-name-color: var(--text-on-background);
+
+    /* Waiting Indicator */
+    --waiting-indicator-color: var(--primary-color);
+    --loading-spinner-color: var(--primary-color);
+
+    /* Progress Bar */
+    --progress-bg: rgba(255, 255, 255, 0.05);
+    --progress-fill-bg: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+    --progress-text-color: var(--text-on-background);
+
+    /* Transcript */
+    --transcript-bg: rgba(0, 0, 0, 0.9);
+    --transcript-text: var(--text-on-background);
+    --transcript-border: var(--primary-color);
+}
+
+/* ===== OPTIMIZED THEME VARIATIONS ===== */
+[data-theme="pink"] {
+    /* Core Theme Colors - Pink Passion */
     --primary-color: #ff6b9d;
     --primary-rgb: 255, 107, 157;
     --secondary-color: #ffeaa7;
     --accent-color: #fd79a8;
     --background-overlay: rgba(255, 107, 157, 0.15);
-    --interface-opacity: 0.7;
     --gradient-start: #ff6b9d;
     --gradient-end: #fd79a8;
     --text-glow: 0 0 10px rgba(255, 107, 157, 0.5);
     --button-hover: rgba(255, 107, 157, 0.3);
-    --animations-enabled: 1;
     --switch-color: var(--primary-color);
 
     /* Contrast and Accessibility */
-    --contrast-ratio: 4.5; /* WCAG AA standard */
     --text-on-primary: #ffffff;
     --text-on-secondary: #222222;
     --text-on-accent: #ffffff;
     --text-on-background: #ffffff;
-    --border-opacity: 0.3;
-    --hover-opacity: 0.15;
-    --active-opacity: 0.25;
 
     /* UI Component Colors - Chat Interface */
     --chat-bg: rgba(255, 107, 157, 0.9);
@@ -75,24 +286,8 @@
     --button-secondary-bg: rgba(255, 255, 255, 0.1);
     --button-secondary-text: var(--text-on-background);
     --button-secondary-hover-bg: rgba(255, 255, 255, var(--hover-opacity));
-    --button-danger-bg: #e74c3c;
-    --button-danger-text: #ffffff;
-    --button-danger-hover-bg: #c0392b;
 
-    /* Select & Dropdown Options */
-    --select-bg: var(--input-bg);
-    --select-text: var(--input-text);
-    --select-border: var(--input-border);
-    --select-option-bg: rgba(40, 44, 52, 0.95);
-    --select-option-text: white;
-    --select-option-hover-bg: var(--primary-color);
-    --select-option-hover-text: var(--text-on-primary);
-    --select-option-checked-bg: var(--accent-color);
-    --select-option-checked-text: var(--text-on-accent);
-    --select-option-disabled-bg: rgba(40, 44, 52, 0.5);
-    --select-option-disabled-text: #666;
-
-    /* Slider Components */
+    /* All other pink theme variables... */
     --slider-track-bg: rgba(255, 255, 255, 0.1);
     --slider-track-active-bg: var(--primary-color);
     --slider-thumb-bg: var(--primary-color);
@@ -104,8 +299,6 @@
     /* Toggle Switch */
     --switch-bg-inactive: rgba(255, 255, 255, 0.15);
     --switch-bg-active: linear-gradient(90deg, var(--primary-color), var(--accent-color));
-    --switch-thumb-color: #ffffff;
-    --switch-thumb-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 
     /* Mic Button & Pulse Effect */
     --mic-button-bg: var(--button-hover);
@@ -114,83 +307,13 @@
     --mic-button-hover-bg: var(--primary-color);
     --mic-button-hover-shadow: var(--text-glow);
     --mic-button-icon-color: var(--text-on-primary);
-    --mic-listening-border: #27ae60;
-    --mic-listening-shadow: 0 0 15px #27ae60;
-    --mic-pulse-color: rgba(39, 174, 96, 0.5);
-    --mic-pulse-listening-color: rgba(39, 174, 96, 0.4);
-
-    /* Video crossfade timing */
-    --video-fade-duration: 400ms;
 
     /* Cards & Stats */
     --card-bg: rgba(255, 255, 255, 0.05);
     --card-border: rgba(255, 255, 255, 0.1);
     --card-hover-bg: rgba(255, 255, 255, 0.08);
-    --card-text: var(--text-on-background);
     --stat-value-color: var(--primary-color);
     --stat-label-color: rgba(255, 255, 255, 0.7);
-
-    /* Plugin Cards */
-    --plugin-card-bg: linear-gradient(135deg, #22121a 80%, var(--modal-bg) 100%);
-    --plugin-card-border: var(--primary-color);
-    --plugin-card-title-color: var(--text-on-background);
-    --plugin-card-desc-color: #e0cfe6;
-    --plugin-card-author-color: #bfa6b6;
-    --plugin-type-badge-bg: var(--accent-color);
-    --plugin-type-badge-text: var(--text-on-accent);
-    --plugin-active-badge-bg: linear-gradient(90deg, var(--primary-color), var(--accent-color));
-    --plugin-active-badge-text: var(--text-on-primary);
-
-    /* Help Modal */
-    --help-modal-bg: var(--modal-bg);
-    --help-modal-border: var(--modal-border);
-    --help-content-color: var(--text-on-background);
-    --help-section-border: rgba(255, 255, 255, 0.1);
-    --creator-card-bg: rgba(255, 255, 255, 0.05);
-    --creator-card-border: rgba(255, 255, 255, 0.1);
-    --creator-avatar-bg: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-    --creator-name-color: var(--primary-color);
-    --creator-role-bg: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-    --creator-role-color: var(--text-on-secondary);
-    --philosophy-bg: rgba(255, 154, 158, 0.1);
-    --philosophy-border: rgba(255, 154, 158, var(--border-opacity));
-    --philosophy-border-left: var(--primary-color);
-    --feature-item-bg: rgba(255, 255, 255, 0.05);
-    --feature-item-border: rgba(255, 255, 255, 0.1);
-    --feature-icon-color: #ffeaa7;
-    --feature-title-color: #ffeaa7;
-    --feature-text-color: rgba(255, 255, 255, 0.7);
-    --guide-step-bg: rgba(255, 255, 255, 0.05);
-    --guide-step-number-bg: rgba(255, 107, 157, var(--hover-opacity));
-    --guide-step-number-color: var(--primary-color);
-    --tip-item-bg: var(--feature-item-bg);
-    --tip-item-border: var(--feature-item-border);
-
-    /* Unified Scrollbar System */
-    --scrollbar-width: 8px;
-    --scrollbar-track-bg: rgba(255, 255, 255, 0.05);
-    --scrollbar-thumb-bg: rgba(255, 107, 157, 0.4);
-    --scrollbar-thumb-hover-bg: rgba(255, 107, 157, 0.6);
-    --scrollbar-thumb-active-bg: rgba(255, 107, 157, 0.8);
-    --scrollbar-corner-bg: rgba(255, 255, 255, 0.05);
-
-    /* Model Colors */
-    --model-card-bg: var(--card-bg);
-    --model-card-border: var(--card-border);
-    --model-card-hover-bg: var(--card-hover-bg);
-    --model-card-selected-border: var(--primary-color);
-    --model-card-selected-shadow: 0 0 0 2px rgba(255, 154, 158, var(--border-opacity));
-    --model-name-color: var(--text-on-background);
-    --model-description-color: rgba(255, 255, 255, 0.7);
-    --model-strength-color: var(--primary-color);
-    --model-strength-text: var(--text-on-primary);
-    --model-provider-color: var(--accent-color);
-    --model-provider-text: var(--text-on-accent);
-
-    /* Text Colors */
-    --text-primary: var(--text-on-background);
-    --text-secondary: #aaa;
-    --text-muted: rgba(255, 255, 255, 0.6);
 
     /* Character Selection Colors */
     --character-card-bg: var(--card-bg);
@@ -199,23 +322,8 @@
     --character-selected-border: var(--primary-color);
     --character-selected-bg: rgba(255, 107, 157, 0.13);
     --character-name-color: var(--text-on-background);
-
-    /* Waiting Indicator */
-    --waiting-indicator-color: var(--primary-color);
-    --loading-spinner-color: var(--primary-color);
-
-    /* Progress Bar */
-    --progress-bg: rgba(255, 255, 255, 0.1);
-    --progress-fill-bg: linear-gradient(90deg, var(--primary-color), var(--accent-color));
-    --progress-text-color: var(--text-on-background);
-
-    /* Transcript */
-    --transcript-bg: rgba(0, 0, 0, 0.7);
-    --transcript-text: var(--text-on-background);
-    --transcript-border: var(--primary-color);
 }
 
-/* ===== OPTIMIZED THEME VARIATIONS ===== */
 [data-theme="blue"] {
     --primary-color: #74b9ff;
     --primary-rgb: 116, 185, 255;
@@ -284,11 +392,6 @@
     /* Select Options */
     --select-option-hover-bg: #74b9ff;
     --select-option-checked-bg: #0984e3;
-
-    /* Scrollbar */
-    --scrollbar-thumb-bg: rgba(116, 185, 255, 0.4);
-    --scrollbar-thumb-hover-bg: rgba(116, 185, 255, 0.6);
-    --scrollbar-thumb-active-bg: rgba(116, 185, 255, 0.8);
 
     /* Model Colors */
     --model-strength-color: #0984e3;
@@ -374,11 +477,6 @@
     /* Select Options */
     --select-option-hover-bg: #a29bfe;
     --select-option-checked-bg: #6c5ce7;
-
-    /* Scrollbar */
-    --scrollbar-thumb-bg: rgba(162, 155, 254, 0.4);
-    --scrollbar-thumb-hover-bg: rgba(162, 155, 254, 0.6);
-    --scrollbar-thumb-active-bg: rgba(162, 155, 254, 0.8);
 
     /* Model Colors */
     --model-strength-color: #6c5ce7;
@@ -507,11 +605,6 @@
     /* Select Options */
     --select-option-hover-bg: #27ae60;
     --select-option-checked-bg: #16a085;
-
-    /* Scrollbar */
-    --scrollbar-thumb-bg: rgba(39, 174, 96, 0.4);
-    --scrollbar-thumb-hover-bg: rgba(39, 174, 96, 0.6);
-    --scrollbar-thumb-active-bg: rgba(39, 174, 96, 0.8);
 
     /* Model Colors */
     --model-strength-color: #27ae60;
@@ -657,12 +750,6 @@
     --select-option-text: var(--text-on-background);
     --select-option-hover-bg: #5e60ce;
     --select-option-checked-bg: #8b5cf6;
-
-    /* Scrollbar */
-    --scrollbar-track-bg: rgba(255, 255, 255, 0.02);
-    --scrollbar-thumb-bg: rgba(94, 96, 206, 0.4);
-    --scrollbar-thumb-hover-bg: rgba(94, 96, 206, 0.6);
-    --scrollbar-thumb-active-bg: rgba(94, 96, 206, 0.8);
 
     /* Model Colors */
     --model-card-bg: rgba(255, 255, 255, 0.02);
@@ -864,22 +951,22 @@ body {
 
 /* Custom scrollbar for transcript container */
 .transcript-container::-webkit-scrollbar {
-    width: 8px;
+    width: var(--scrollbar-width);
 }
 
 .transcript-container::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--scrollbar-track-bg);
     border-radius: 4px;
 }
 
 .transcript-container::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.3);
+    background: var(--scrollbar-thumb-bg);
     border-radius: 4px;
     transition: background 0.3s ease;
 }
 
 .transcript-container::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.5);
+    background: var(--scrollbar-thumb-hover-bg);
 }
 
 #transcript {

@@ -119,7 +119,7 @@ class KimiDatabase {
             { key: "voicePitch", value: 1.1 },
             { key: "voiceVolume", value: 0.8 },
             { key: "selectedCharacter", value: "kimi" },
-            { key: "colorTheme", value: "purple" },
+            { key: "colorTheme", value: "dark" },
             { key: "interfaceOpacity", value: 0.8 },
             { key: "animationsEnabled", value: true },
             { key: "showTranscript", value: true },

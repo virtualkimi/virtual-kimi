@@ -3,7 +3,7 @@ class KimiAppearanceManager extends KimiBaseManager {
     constructor(database) {
         super();
         this.db = database;
-        this.currentTheme = "purple";
+        this.currentTheme = "dark";
         this.interfaceOpacity = 0.8;
         this.animationsEnabled = true;
     }
@@ -33,7 +33,7 @@ class KimiAppearanceManager extends KimiBaseManager {
         if (!this.db) return;
 
         try {
-            this.currentTheme = await this.db.getPreference("colorTheme", window.KIMI_CONFIG?.DEFAULTS?.THEME ?? "purple");
+            this.currentTheme = await this.db.getPreference("colorTheme", window.KIMI_CONFIG?.DEFAULTS?.THEME ?? "dark");
             this.interfaceOpacity = await this.db.getPreference(
                 "interfaceOpacity",
                 window.KIMI_CONFIG?.DEFAULTS?.INTERFACE_OPACITY ?? 0.8
@@ -192,7 +192,7 @@ class KimiAppearanceManager extends KimiBaseManager {
     getThemeName(theme) {
         const themeNames = {
             dark: "Dark Night",
-            default: "Passionate Pink",
+            pink: "Passionate Pink",
             blue: "Ocean Blue",
             purple: "Mystic Purple",
             green: "Emerald Forest"

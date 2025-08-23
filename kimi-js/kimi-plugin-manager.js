@@ -67,10 +67,10 @@ class KimiPluginManager {
         } else {
             // Restore previous or default theme depuis Dexie
             if (window.kimiDB && window.kimiDB.getPreference) {
-                const userTheme = await window.kimiDB.getPreference("colorTheme", "purple");
+                const userTheme = await window.kimiDB.getPreference("colorTheme", "dark");
                 document.documentElement.setAttribute("data-theme", userTheme);
             } else {
-                document.documentElement.setAttribute("data-theme", "purple");
+                document.documentElement.setAttribute("data-theme", "dark");
             }
         }
         this.renderPluginList();

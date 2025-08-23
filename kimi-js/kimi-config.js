@@ -3,7 +3,7 @@ window.KIMI_CONFIG = {
     // Default values for all components
     DEFAULTS: {
         LANGUAGE: "en",
-        THEME: "purple",
+        THEME: "dark",
         INTERFACE_OPACITY: 0.8,
         ANIMATIONS_ENABLED: true,
         VOICE_RATE: 1.1,
@@ -70,7 +70,7 @@ window.KIMI_CONFIG = {
     // Available themes
     THEMES: {
         dark: "Dark Night",
-        default: "Passionate Pink",
+        pink: "Passionate Pink",
         blue: "Ocean Blue",
         purple: "Mystic Purple",
         green: "Emerald Forest"
