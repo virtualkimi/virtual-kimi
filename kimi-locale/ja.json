@@ -242,5 +242,11 @@
     "delete_memory_button_title": "このメモリを削除",
     "memory_management": "メモリ管理",
     "add": "追加",
-    "api_key_label": "API Key"
+    "api_key_label": "API Key",
+    "models_search_placeholder": "モデルをフィルタ...",
+    "models_recommended_title": "おすすめの Openrouter モデル",
+    "models_all_title": "すべての Openrouter モデル",
+    "button_show": "表示",
+    "button_hide": "非表示",
+    "button_refresh": "更新"
 }

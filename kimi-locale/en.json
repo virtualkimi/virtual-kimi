@@ -243,5 +243,11 @@
     "help_providers": "You can use multiple AI providers: OpenRouter, OpenAI, Groq, Together, DeepSeek, Custom OpenAI-compatible, or Local (Ollama). Enter the Base URL and Model ID when required, save your API key per provider, then use ‘Test API Key’.",
     "api_key_presence_hint": "Green = API key saved for current provider. Grey = no key saved.",
     "api_key_test_hint": "Green = API connectivity verified. Grey = not tested or failed.",
-    "api_key_label": "API Key"
+    "api_key_label": "API Key",
+    "models_search_placeholder": "Filter models...",
+    "models_recommended_title": "Recommended Openrouter models",
+    "models_all_title": "All Openrouter models",
+    "button_show": "Show",
+    "button_hide": "Hide",
+    "button_refresh": "Refresh"
 }

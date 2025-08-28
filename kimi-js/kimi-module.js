@@ -1228,7 +1228,12 @@ async function loadAvailableModels() {
         searchInput.type = "text";
         searchInput.className = "kimi-input";
         searchInput.id = "models-search";
-        searchInput.placeholder = "Filter models...";
+        // use i18n placeholder key
+        if (window.kimiI18nManager && typeof window.kimiI18nManager.t === "function") {
+            searchInput.setAttribute("data-i18n-placeholder", "models_search_placeholder");
+        } else {
+            searchInput.placeholder = "Filter models...";
+        }
         searchWrap.appendChild(searchInput);
         modelsContainer.appendChild(searchWrap);
         if (typeof loadAvailableModels._searchValue === "string") {
@@ -1240,7 +1245,8 @@ async function loadAvailableModels() {
             recSection.className = "models-section recommended-models";
             const title = document.createElement("div");
             title.className = "models-section-title";
-            title.textContent = "Recommended Openrouter models";
+            // i18n aware title
+            title.setAttribute("data-i18n", "models_recommended_title");
             recSection.appendChild(title);
             const list = document.createElement("div");
             list.className = "models-list";
@@ -1260,16 +1266,27 @@ async function loadAvailableModels() {
             toggleBtn.type = "button";
             toggleBtn.className = "kimi-button";
             toggleBtn.style.marginLeft = "8px";
-            toggleBtn.textContent = loadAvailableModels._allCollapsed === false ? "Hide" : "Show";
+            // toggle show/hide label via i18n when available
+            if (window.kimiI18nManager && typeof window.kimiI18nManager.t === "function") {
+                const currentKey = loadAvailableModels._allCollapsed === false ? "button_hide" : "button_show";
+                toggleBtn.setAttribute("data-i18n", currentKey);
+                toggleBtn.textContent = window.kimiI18nManager.t(currentKey);
+            } else {
+                toggleBtn.textContent = loadAvailableModels._allCollapsed === false ? "Hide" : "Show";
+            }
             const label = document.createElement("span");
-            label.textContent = "All Openrouter models";
+            label.setAttribute("data-i18n", "models_all_title");
             header.appendChild(label);
             header.appendChild(toggleBtn);
             const refreshBtn = document.createElement("button");
             refreshBtn.type = "button";
             refreshBtn.className = "kimi-button";
             refreshBtn.style.marginLeft = "8px";
-            refreshBtn.textContent = "Refresh";
+            if (window.kimiI18nManager && typeof window.kimiI18nManager.t === "function") {
+                refreshBtn.setAttribute("data-i18n", "button_refresh");
+            } else {
+                refreshBtn.textContent = "Refresh";
+            }
             refreshBtn.addEventListener("click", async () => {
                 try {
                     refreshBtn.disabled = true;
@@ -1302,7 +1319,13 @@ async function loadAvailableModels() {
                 const nowCollapsed = list.style.display !== "none";
                 list.style.display = nowCollapsed ? "none" : "block";
                 loadAvailableModels._allCollapsed = nowCollapsed;
-                toggleBtn.textContent = nowCollapsed ? "Show" : "Hide";
+                if (window.kimiI18nManager && typeof window.kimiI18nManager.t === "function") {
+                    const key = nowCollapsed ? "button_show" : "button_hide";
+                    toggleBtn.setAttribute("data-i18n", key);
+                    toggleBtn.textContent = window.kimiI18nManager.t(key);
+                } else {
+                    toggleBtn.textContent = nowCollapsed ? "Show" : "Hide";
+                }
             });
             allSection.appendChild(header);
             allSection.appendChild(list);

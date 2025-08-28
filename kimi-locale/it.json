@@ -242,5 +242,11 @@
     "delete_memory_button_title": "Elimina questa memoria",
     "memory_management": "Gestione della Memoria",
     "add": "Aggiungi",
-    "api_key_label": "API Key"
+    "api_key_label": "API Key",
+    "models_search_placeholder": "Filtra modelli...",
+    "models_recommended_title": "Modelli Openrouter consigliati",
+    "models_all_title": "Tutti i modelli Openrouter",
+    "button_show": "Mostra",
+    "button_hide": "Nascondi",
+    "button_refresh": "Aggiorna"
 }

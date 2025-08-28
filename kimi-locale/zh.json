@@ -242,5 +242,11 @@
     "delete_memory_button_title": "删除该记忆",
     "memory_management": "记忆管理",
     "add": "添加",
-    "api_key_label": "API Key"
+    "api_key_label": "API Key",
+    "models_search_placeholder": "筛选模型...",
+    "models_recommended_title": "推荐的 Openrouter 模型",
+    "models_all_title": "所有 Openrouter 模型",
+    "button_show": "显示",
+    "button_hide": "隐藏",
+    "button_refresh": "刷新"
 }
