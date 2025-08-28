@@ -1,5 +1,24 @@
 # Virtual Kimi Changelog
 
+# [1.1.0] - 2025-08-28
+
+### Added
+
+- **Recommended LLMs**: Updated the list of recommended LLM models to reflect current recommendations and improvements.
+
+### Changed
+
+- **Settings modal UI/UX**: Updated tab layout and visual behavior in the settings modal for clearer navigation and improved usability.
+
+### Fixed
+
+- **Memory features UX**: Fixed multiple UI/UX issues in the memory system to ensure reliable capture, display, and management of remembered items.
+- **Miscellaneous bug fixes**: Corrected various small bugs across the application.
+
+### Internationalization
+
+- **Interface translations**: Added new strings and translation keys to support the updated UI elements.
+
 # [1.0.9] - 2025-08-23
 
 ### Major System Improvements
