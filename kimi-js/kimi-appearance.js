@@ -5,6 +5,7 @@ class KimiAppearanceManager extends KimiBaseManager {
         this.db = database;
         this.currentTheme = "dark";
         this.interfaceOpacity = 0.8;
+        // animations are always enabled by default; toggle removed
         this.animationsEnabled = true;
     }
 
@@ -15,17 +16,8 @@ class KimiAppearanceManager extends KimiBaseManager {
             this.applyInterfaceOpacity(this.interfaceOpacity);
             this.applyAnimationSettings(this.animationsEnabled);
             this.setupAppearanceControls();
-            this.syncAnimationToggleState();
         } catch (error) {
             console.error("KimiAppearanceManager initialization error:", error);
-        }
-    }
-
-    syncAnimationToggleState() {
-        const animationsToggle = document.getElementById("animations-toggle");
-        if (animationsToggle) {
-            animationsToggle.classList.toggle("active", this.animationsEnabled);
-            animationsToggle.setAttribute("aria-checked", this.animationsEnabled ? "true" : "false");
         }
     }
 
@@ -38,10 +30,7 @@ class KimiAppearanceManager extends KimiBaseManager {
                 "interfaceOpacity",
                 window.KIMI_CONFIG?.DEFAULTS?.INTERFACE_OPACITY ?? 0.8
             );
-            this.animationsEnabled = await this.db.getPreference(
-                "animationsEnabled",
-                window.KIMI_CONFIG?.DEFAULTS?.ANIMATIONS_ENABLED ?? true
-            );
+            // animations preference removed; always enabled by default
         } catch (error) {
             console.error("Error loading appearance settings:", error);
         }
@@ -51,7 +40,7 @@ class KimiAppearanceManager extends KimiBaseManager {
         try {
             this.setupThemeSelector();
             this.setupOpacitySlider();
-            this.setupAnimationsToggle();
+            // animations toggle removed
         } catch (error) {
             console.error("Error setting up appearance controls:", error);
         }
@@ -91,32 +80,6 @@ class KimiAppearanceManager extends KimiBaseManager {
         });
     }
 
-    setupAnimationsToggle() {
-        const animationsToggle = document.getElementById("animations-toggle");
-        if (!animationsToggle) return;
-
-        animationsToggle.classList.toggle("active", this.animationsEnabled);
-        animationsToggle.setAttribute("aria-checked", this.animationsEnabled ? "true" : "false");
-
-        // Remove any existing listener to prevent conflicts
-        if (this._animationsClickHandler) {
-            animationsToggle.removeEventListener("click", this._animationsClickHandler);
-        }
-
-        this._animationsClickHandler = async () => {
-            try {
-                this.animationsEnabled = !this.animationsEnabled;
-                animationsToggle.classList.toggle("active", this.animationsEnabled);
-                animationsToggle.setAttribute("aria-checked", this.animationsEnabled ? "true" : "false");
-                await this.toggleAnimations(this.animationsEnabled);
-            } catch (error) {
-                console.error("Error toggling animations:", error);
-            }
-        };
-
-        animationsToggle.addEventListener("click", this._animationsClickHandler);
-    }
-
     async changeTheme(theme) {
         try {
             this.currentTheme = theme;
@@ -146,18 +109,7 @@ class KimiAppearanceManager extends KimiBaseManager {
         }
     }
 
-    async toggleAnimations(enabled) {
-        try {
-            this.animationsEnabled = enabled;
-            this.applyAnimationSettings(enabled);
-
-            if (this.db) {
-                await this.db.setPreference("animationsEnabled", enabled);
-            }
-        } catch (error) {
-            console.error("Error toggling animations:", error);
-        }
-    }
+    // Animations toggle removed: keep animations enabled at all times
 
     applyTheme(theme) {
         document.documentElement.setAttribute("data-theme", theme);
@@ -168,25 +120,13 @@ class KimiAppearanceManager extends KimiBaseManager {
     }
 
     applyAnimationSettings(enabled) {
-        document.documentElement.setAttribute("data-animations", enabled ? "true" : "false");
-        document.documentElement.style.setProperty("--animations-enabled", enabled ? "1" : "0");
-
-        // Ensure body class reflects animation state
-        if (enabled) {
-            document.body.classList.remove("no-animations");
-            document.body.classList.add("animations-enabled");
-        } else {
-            document.body.classList.remove("animations-enabled");
-            document.body.classList.add("no-animations");
-        }
+        // Force-enable animations by default; CSS now respects prefers-reduced-motion.
+        document.documentElement.style.setProperty("--animations-enabled", "1");
+        document.body.classList.add("animations-enabled");
     }
 
     cleanup() {
-        const animationsToggle = document.getElementById("animations-toggle");
-        if (animationsToggle && this._animationsClickHandler) {
-            animationsToggle.removeEventListener("click", this._animationsClickHandler);
-            this._animationsClickHandler = null;
-        }
+        // animations toggle removed; nothing specific to cleanup here
     }
 
     getThemeName(theme) {
@@ -202,17 +142,8 @@ class KimiAppearanceManager extends KimiBaseManager {
 
     forceSyncUIState() {
         // Force synchronization of UI state to prevent inconsistencies
-        const animationsToggle = document.getElementById("animations-toggle");
-        if (animationsToggle) {
-            // Remove any conflicting classes or states
-            animationsToggle.classList.remove("active");
-            // Re-apply correct state
-            animationsToggle.classList.toggle("active", this.animationsEnabled);
-            animationsToggle.setAttribute("aria-checked", this.animationsEnabled ? "true" : "false");
-
-            // Ensure CSS custom properties are in sync
-            this.applyAnimationSettings(this.animationsEnabled);
-        }
+        // Ensure CSS custom properties are in sync
+        this.applyAnimationSettings(this.animationsEnabled);
     }
 }
 

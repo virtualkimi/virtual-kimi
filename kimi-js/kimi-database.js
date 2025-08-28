@@ -121,7 +121,6 @@ class KimiDatabase {
             { key: "selectedCharacter", value: "kimi" },
             { key: "colorTheme", value: "dark" },
             { key: "interfaceOpacity", value: 0.8 },
-            { key: "animationsEnabled", value: true },
             { key: "showTranscript", value: true },
             { key: "enableStreaming", value: true },
             { key: "voiceEnabled", value: true },
@@ -346,6 +345,17 @@ class KimiDatabase {
                     updated: new Date().toISOString()
                 });
                 console.log(`🔧 Migration: Updated Bella affection from 70% to ${newValue}% for better progression`);
+            }
+
+            // MIGRATION: Remove deprecated animations preference if exists
+            try {
+                const animPref = await this.db.preferences.get("animationsEnabled");
+                if (animPref) {
+                    await this.db.preferences.delete("animationsEnabled");
+                    console.log("🔧 Migration: Removed deprecated preference 'animationsEnabled'");
+                }
+            } catch (mErr) {
+                // Non-blocking: ignore migration error
             }
         } catch {}
     }

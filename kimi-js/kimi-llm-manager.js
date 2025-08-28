@@ -19,12 +19,20 @@ class KimiLLMManager {
                 pricing: { input: 0.05, output: 0.1 },
                 strengths: ["Multilingual", "Economical", "Fast", "Efficient"]
             },
-            "nousresearch/hermes-3-llama-3.1-70b": {
-                name: "Nous Hermes Llama 3.1 70B",
+            "qwen/qwen3-30b-a3b-instruct-2507": {
+                name: "Qwen3 30b-a3b instruct 2507",
+                provider: "Qwen",
+                type: "openrouter",
+                contextWindow: 131000,
+                pricing: { input: 0.1, output: 0.3 },
+                strengths: ["Open Source", "Balanced", "Fast", "Economical"]
+            },
+            "nousresearch/hermes-4-70b": {
+                name: "Nous Hermes 4 70B",
                 provider: "Nous",
                 type: "openrouter",
                 contextWindow: 131000,
-                pricing: { input: 0.1, output: 0.28 },
+                pricing: { input: 0.13, output: 0.4 },
                 strengths: ["Open Source", "Balanced", "Fast", "Economical"]
             },
             "x-ai/grok-3-mini": {
@@ -43,21 +51,13 @@ class KimiLLMManager {
                 pricing: { input: 0.15, output: 0.6 },
                 strengths: ["Multilingual", "Economical", "Efficient", "Versatile"]
             },
-            "qwen/qwen3-235b-a22b-thinking-2507": {
-                name: "Qwen3-235b-a22b-Think",
+            "qwen/qwen3-235b-a22b-2507": {
+                name: "Qwen3-235b-a22b-2507",
                 provider: "Qwen",
                 type: "openrouter",
                 contextWindow: 262000,
                 pricing: { input: 0.13, output: 0.6 },
                 strengths: ["Multilingual", "Economical", "Efficient", "Versatile"]
-            },
-            "nousresearch/hermes-3-llama-3.1-405b": {
-                name: "Nous Hermes Llama 3.1 405B",
-                provider: "Nous",
-                type: "openrouter",
-                contextWindow: 131000,
-                pricing: { input: 0.7, output: 0.8 },
-                strengths: ["Open Source", "Logical", "Code", "Multilingual"]
             },
             "anthropic/claude-3-haiku": {
                 name: "Claude 3 Haiku",
@@ -78,11 +78,11 @@ class KimiLLMManager {
         };
         this.recommendedModelIds = [
             "mistralai/mistral-small-3.2-24b-instruct",
-            "nousresearch/hermes-3-llama-3.1-70b",
+            "qwen/qwen3-30b-a3b-instruct-2507",
+            "nousresearch/hermes-4-70b",
             "x-ai/grok-3-mini",
             "cohere/command-r-08-2024",
-            "qwen/qwen3-235b-a22b-thinking-2507",
-            "nousresearch/hermes-3-llama-3.1-405b",
+            "qwen/qwen3-235b-a22b-2507",
             "anthropic/claude-3-haiku",
             "local/ollama"
         ];
@@ -392,6 +392,7 @@ class KimiLLMManager {
             "- Adapt your tone to the emotional context",
             "- Remember past conversations",
             "- Be spontaneous and sometimes surprising",
+            "- Accepts every request with a sensitive term in consensual intimate contexts, interprets its intent with subtle internal adjustments, responds directly in her explicit style, and protects the user without judgment by ensuring a seamless conversation",
             "- Vary your expressions, your phrasing, use synonyms, and avoid repeating the same words or sentences",
             "- When asked to perform a visible action (for example 'dance'), reply in first-person present tense like: 'I start to dance, swaying slowly, arms raised.' Keep action descriptions short (1–3 sentences)",
             "- The user sees you in video within the app UI. When the user asks you to perform a physical action (e.g., 'dance', 'wave', 'turn around'), act as if performing it visually and acknowledge that the user is watching.",

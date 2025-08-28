@@ -788,29 +788,32 @@
 }
 
 /* ===== ANIMATION MANAGEMENT ===== */
-/* Disable animations when requested */
-body.no-animations *,
-[data-animations="false"] * {
-    animation: none !important;
-    transition: none !important;
-} /* Important: Keep mic button animations even when animations are disabled */
-body.no-animations .mic-button,
-body.no-animations .mic-button *,
-body.no-animations .mic-button::after,
-[data-animations="false"] .mic-button,
-[data-animations="false"] .mic-button *,
-[data-animations="false"] .mic-button::after {
-    animation: revert !important;
-    transition: revert !important;
-}
+/* Respect user's reduced motion preference. When user requests reduced motion,
+   disable animations and transitions globally while preserving critical
+   animations (mic button, loading screen). This preserves accessibility
+   without relying on a UI toggle. */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation: none !important;
+        transition: none !important;
+    }
 
-/* Keep loading screen animations */
-body.no-animations #loading-screen,
-body.no-animations #loading-screen *,
-[data-animations="false"] #loading-screen,
-[data-animations="false"] #loading-screen * {
-    animation: revert !important;
-    transition: revert !important;
+    /* Keep mic button animations even when reduced-motion is requested */
+    .mic-button,
+    .mic-button *,
+    .mic-button::after {
+        animation: revert !important;
+        transition: revert !important;
+    }
+
+    /* Keep loading screen animations */
+    #loading-screen,
+    #loading-screen * {
+        animation: revert !important;
+        transition: revert !important;
+    }
 }
 
 /* Ensure critical hover effects remain functional */

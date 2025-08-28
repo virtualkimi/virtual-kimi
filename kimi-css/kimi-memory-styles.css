@@ -218,6 +218,17 @@
     gap: 8px;
 }
 
+.memory-item-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--memory-modal-text, #e0e0e0);
+    margin-right: 12px;
+    max-width: 60%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .memory-category {
     background: var(--primary-color);
     color: white;
@@ -319,6 +330,55 @@
 .memory-source {
     cursor: help;
     text-decoration: underline dotted;
+}
+
+/* Source excerpt content shown under the trigger */
+.memory-source {
+    position: relative;
+    outline: none;
+}
+
+.memory-source:focus {
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.14);
+    border-radius: 4px;
+}
+
+.memory-source-content {
+    margin-top: 8px;
+    padding: 10px 12px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #f1f1f1;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+    max-width: 100%;
+    white-space: pre-wrap;
+    word-break: break-word;
+    transition:
+        opacity 0.18s ease,
+        transform 0.18s ease;
+    opacity: 0;
+    transform: translateY(-6px);
+    z-index: 2;
+}
+
+.memory-source-content[style*="display: block"] {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Make sure content aligns visually under the memory item */
+.memory-item .memory-source-content {
+    margin-left: 0;
+}
+
+@media (max-width: 480px) {
+    .memory-source-content {
+        font-size: 0.95rem;
+        padding: 12px;
+    }
 }
 
 .memory-actions {

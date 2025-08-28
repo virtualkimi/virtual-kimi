@@ -509,6 +509,29 @@ class KimiMemorySystem {
         return Math.min(1.0, Math.max(0.1, confidence));
     }
 
+    // Generate a short title (2-5 words max) from content for auto-extracted memories
+    generateTitleFromContent(content) {
+        if (!content || typeof content !== "string") return "";
+        // Remove surrounding punctuation and collapse whitespace
+        const cleaned = content
+            .replace(/[\n\r]+/g, " ")
+            .replace(/["'“”‘’–—:;()\[\]{}]+/g, "")
+            .trim();
+        const words = cleaned.split(/\s+/).filter(Boolean);
+
+        if (words.length === 0) return "";
+        // Prefer 3 words when available, minimum 2 when possible, maximum 5
+        let take;
+        if (words.length >= 3) take = 3;
+        else take = words.length; // 1 or 2
+        take = Math.min(5, Math.max(1, take));
+
+        const slice = words.slice(0, take);
+        // Capitalize first word for nicer title
+        slice[0] = slice[0].charAt(0).toUpperCase() + slice[0].slice(1);
+        return slice.join(" ");
+    }
+
     // Check if this is an update to existing memory rather than new info
     async isMemoryUpdate(category, content, existingMemories) {
         const categoryMemories = existingMemories.filter(m => m.category === category);
@@ -651,6 +674,13 @@ class KimiMemorySystem {
                 category: memoryData.category || "personal",
                 type: memoryData.type || "manual",
                 content: memoryData.content,
+                // Title: use provided title or generate for auto_extracted
+                title:
+                    memoryData.title && typeof memoryData.title === "string"
+                        ? memoryData.title
+                        : memoryData.type === "auto_extracted"
+                          ? this.generateTitleFromContent(memoryData.content)
+                          : "",
                 sourceText: memoryData.sourceText || "",
                 confidence: memoryData.confidence || 1.0,
                 timestamp: memoryData.timestamp || now,

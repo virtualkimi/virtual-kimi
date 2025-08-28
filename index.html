@@ -19,7 +19,7 @@
     <meta name="author" content="Jean & Kimi">
     <meta name="robots" content="index, follow">
     <meta name="language" content="EN">
-    <link rel="canonical" href="https://virtualkimi.com/virtual-kimi-app/index.html" />
+    <link rel="canonical" href="https://virtualkimi.com/virtual-kimi-app/" />
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
@@ -581,11 +581,7 @@
                         </div>
 
                         <div class="config-row">
-                            <label class="config-label" data-i18n="animations">Animations</label>
-                            <div class="config-control">
-                                <div class="toggle-switch" id="animations-toggle" role="switch" aria-checked="false"
-                                    tabindex="0" aria-label="Animations"></div>
-                            </div>
+                            <!-- Animations toggle removed: animations always enabled by default -->
                         </div>
                     </div>
 
@@ -796,17 +792,21 @@
                                 <i class="fas fa-search memory-search-icon"></i>
                             </div>
                             <select class="kimi-select" id="memory-filter-category">
-                                <option value="">All Categories</option>
-                                <option value="personal">Personal Info</option>
-                                <option value="preferences">Likes & Dislikes</option>
-                                <option value="relationships">Relationships</option>
-                                <option value="activities">Activities & Hobbies</option>
-                                <option value="goals">Goals & Plans</option>
-                                <option value="experiences">Experiences</option>
-                                <option value="important">Important Events</option>
+                                <option value="" data-i18n="all_categories">All Categories</option>
+                                <option value="personal" data-i18n="memory_category_personal">Personal Info</option>
+                                <option value="preferences" data-i18n="memory_category_preferences">Likes & Dislikes
+                                </option>
+                                <option value="relationships" data-i18n="memory_category_relationships">Relationships
+                                </option>
+                                <option value="activities" data-i18n="memory_category_activities">Activities & Hobbies
+                                </option>
+                                <option value="goals" data-i18n="memory_category_goals">Goals & Plans</option>
+                                <option value="experiences" data-i18n="memory_category_experiences">Experiences</option>
+                                <option value="important" data-i18n="memory_category_important">Important Events
+                                </option>
                             </select>
-                            <button class="kimi-button" id="memory-export">
-                                <i class="fas fa-download"></i> Export Memories
+                            <button class="kimi-button" id="memory-export" data-i18n="memory_export">
+                                <i class="fas fa-download"></i> <span data-i18n="memory_export"></span>
                             </button>
                         </div>
 

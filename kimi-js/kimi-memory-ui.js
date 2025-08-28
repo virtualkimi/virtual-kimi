@@ -69,6 +69,25 @@ class KimiMemoryUI {
                 }
             });
         }
+
+        // Delegated handler for memory-source clicks / touch / keyboard
+        const memoryList = document.getElementById("memory-list");
+        if (memoryList) {
+            // Click and touch
+            memoryList.addEventListener("click", e => this.handleMemorySourceToggle(e));
+            memoryList.addEventListener("touchstart", e => this.handleMemorySourceToggle(e));
+
+            // Keyboard accessibility: Enter / Space when focused on .memory-source
+            memoryList.addEventListener("keydown", e => {
+                const target = e.target;
+                if (target && target.classList && target.classList.contains("memory-source")) {
+                    if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        this.toggleSourceContentForElement(target);
+                    }
+                }
+            });
+        }
     }
 
     async toggleMemorySystem() {
@@ -245,6 +264,7 @@ class KimiMemoryUI {
                 html += `
                     <div class="memory-item ${isAutomatic ? "memory-auto" : "memory-manual"}" data-memory-id="${memory.id}">
                         <div class="memory-header">
+                            <div class="memory-item-title">${window.KimiValidationUtils && window.KimiValidationUtils.escapeHtml ? window.KimiValidationUtils.escapeHtml(memory.title || "") : memory.title || ""}${!memory.title ? "" : ""}</div>
                             <div class="memory-badges">
                                 <span class="memory-type ${memory.type}">${memory.type === "auto_extracted" ? "🤖 Auto" : "✋ Manual"}</span>
                                 <span class="memory-confidence confidence-${this.getConfidenceLevel(confidence)}">${confidence}%</span>
@@ -252,6 +272,9 @@ class KimiMemoryUI {
                 <span class="memory-importance importance-${importanceLevel}" title="Importance: ${importancePct}% (${importanceLevel})">${importanceLevel.charAt(0).toUpperCase() + importanceLevel.slice(1)}</span>
                             </div>
                         </div>
+                        ${
+                            !memory.title
+                                ? `
                         <div class="memory-preview">
                             <div class="memory-preview-text ${isLongContent ? "memory-preview-short" : ""}" id="preview-${memory.id}">
                                 ${this.highlightMemoryContent(previewText)}
@@ -263,30 +286,42 @@ class KimiMemoryUI {
                                     ${this.highlightMemoryContent(memory.content)}
                                 </div>
                                 <button class="memory-expand-btn" onclick="kimiMemoryUI.toggleMemoryContent('${memory.id}')">
-                                    <i class="fas fa-chevron-down" id="icon-${memory.id}"></i> Voir plus
+                                    <i class="fas fa-chevron-down" id="icon-${memory.id}"></i> <span data-i18n="view_more"></span>
                                 </button>
                             `
                                     : ""
                             }
                         </div>
+                        `
+                                : ""
+                        }
             ${tagsHtml}
                         <div class="memory-meta">
                             <span class="memory-date">${this.formatDate(memory.timestamp)}</span>
                             ${
                                 memory.sourceText
-                                    ? `<span class="memory-source" title="${
+                                    ? `<span class="memory-source" data-i18n="memory_source_label" title="${
                                           window.KimiValidationUtils && window.KimiValidationUtils.escapeHtml
                                               ? window.KimiValidationUtils.escapeHtml(memory.sourceText)
                                               : memory.sourceText
-                                      }">📝 Extrait de conversation</span>`
-                                    : `<span>📝 Ajouté manuellement</span>`
+                                      }"></span>`
+                                    : `<span data-i18n="memory_manually_added"></span>`
                             }
                         </div>
+                            ${
+                                memory.sourceText
+                                    ? `<div class="memory-source-content" id="source-content-${memory.id}" style="display:none;">${
+                                          window.KimiValidationUtils && window.KimiValidationUtils.escapeHtml
+                                              ? window.KimiValidationUtils.escapeHtml(memory.sourceText)
+                                              : memory.sourceText
+                                      }</div>`
+                                    : ""
+                            }
                         <div class="memory-actions">
-                            <button class="memory-edit-btn" onclick="kimiMemoryUI.editMemory('${memory.id}')" title="Modifier cette mémoire">
+                            <button class="memory-edit-btn" onclick="kimiMemoryUI.editMemory('${memory.id}')" data-i18n-title="edit_memory_button_title">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button class="memory-delete-btn" onclick="kimiMemoryUI.deleteMemory('${memory.id}')" title="Supprimer cette mémoire">
+                            <button class="memory-delete-btn" onclick="kimiMemoryUI.deleteMemory('${memory.id}')" data-i18n-title="delete_memory_button_title">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -301,6 +336,11 @@ class KimiMemoryUI {
         });
 
         memoryList.innerHTML = html;
+
+        // Apply translations to dynamic content
+        if (window.applyTranslations && typeof window.applyTranslations === "function") {
+            window.applyTranslations();
+        }
     }
 
     // Map importance value [0..1] to level string
@@ -340,6 +380,13 @@ class KimiMemoryUI {
     }
 
     formatCategoryName(category) {
+        // Try to resolve via i18n keys first, fallback to hardcoded English
+        const i18nKey = `memory_category_${category}`;
+        if (window.kimiI18nManager && typeof window.kimiI18nManager.t === "function") {
+            const val = window.kimiI18nManager.t(i18nKey);
+            if (val && val !== i18nKey) return val;
+        }
+
         const names = {
             personal: "Personal Information",
             preferences: "Likes & Dislikes",
@@ -349,6 +396,7 @@ class KimiMemoryUI {
             experiences: "Shared Experiences",
             important: "Important Events"
         };
+
         return names[category] || category.charAt(0).toUpperCase() + category.slice(1);
     }
 
@@ -420,12 +468,60 @@ class KimiMemoryUI {
             previewShort.style.display = "block";
             previewFull.style.display = "none";
             icon.className = "fas fa-chevron-down";
-            expandBtn.innerHTML = '<i class="fas fa-chevron-down"></i> Voir plus';
+            expandBtn.innerHTML = '<i class="fas fa-chevron-down"></i> <span data-i18n="view_more"></span>';
         } else {
             previewShort.style.display = "none";
             previewFull.style.display = "block";
             icon.className = "fas fa-chevron-up";
-            expandBtn.innerHTML = '<i class="fas fa-chevron-up"></i> Voir moins';
+            expandBtn.innerHTML = '<i class="fas fa-chevron-up"></i> <span data-i18n="view_less"></span>';
+        }
+
+        // Re-apply translations for the new button label
+        if (window.applyTranslations && typeof window.applyTranslations === "function") {
+            window.applyTranslations();
+        }
+    }
+
+    // Handle delegated click/touch events for .memory-source
+    handleMemorySourceToggle(e) {
+        try {
+            const el = e.target.closest && e.target.closest(".memory-source");
+            if (!el) return;
+            // Prevent triggering parent handlers
+            e.stopPropagation();
+            e.preventDefault();
+            this.toggleSourceContentForElement(el);
+        } catch (err) {
+            console.error("Error handling memory-source toggle", err);
+        }
+    }
+
+    // Toggle the adjacent .memory-source-content for a given .memory-source element
+    toggleSourceContentForElement(sourceEl) {
+        if (!sourceEl) return;
+        // The memory id is present on the nearest .memory-item
+        const item = sourceEl.closest(".memory-item");
+        if (!item) return;
+        const id = item.getAttribute("data-memory-id");
+        if (!id) return;
+
+        const contentEl = document.getElementById(`source-content-${id}`);
+        if (!contentEl) return;
+
+        const isVisible = contentEl.style.display !== "none" && contentEl.style.display !== "";
+
+        // Close any other open source contents
+        document.querySelectorAll(".memory-source-content").forEach(el => {
+            if (el !== contentEl) el.style.display = "none";
+        });
+
+        if (isVisible) {
+            contentEl.style.display = "none";
+            sourceEl.setAttribute("aria-expanded", "false");
+        } else {
+            // simple sliding animation via max-height for smoother appearance
+            contentEl.style.display = "block";
+            sourceEl.setAttribute("aria-expanded", "true");
         }
     }
 
@@ -470,30 +566,70 @@ class KimiMemoryUI {
 
             dialog.innerHTML = `
                 <h3 style="margin: 0 0 20px 0; color: var(--text-primary);">
-                    <i class="fas fa-edit"></i> Edit Memory
+                    <i class="fas fa-edit"></i> <span data-i18n="edit_memory_title"></span>
                 </h3>
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500;" data-i18n="label_title"></label>
+                    <input id="edit-memory-title" class="kimi-input" style="width:100%;" value="${
+                        window.KimiValidationUtils && window.KimiValidationUtils.escapeHtml
+                            ? window.KimiValidationUtils.escapeHtml(memory.title || "")
+                            : memory.title || ""
+                    }" placeholder="Optional title for this memory" />
+                </div>
                 <div style="margin-bottom: 16px;">
-                    <label style="display: block; margin-bottom: 8px; font-weight: 500;">Category:</label>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500;" data-i18n="label_category"></label>
                     <select id="edit-memory-category" class="kimi-select" style="width: 100%;">
-                        <option value="personal" ${memory.category === "personal" ? "selected" : ""}>Personal Info</option>
-                        <option value="preferences" ${memory.category === "preferences" ? "selected" : ""}>Likes & Dislikes</option>
-                        <option value="relationships" ${memory.category === "relationships" ? "selected" : ""}>Relationships</option>
-                        <option value="activities" ${memory.category === "activities" ? "selected" : ""}>Activities & Hobbies</option>
-                        <option value="goals" ${memory.category === "goals" ? "selected" : ""}>Goals & Plans</option>
-                        <option value="experiences" ${memory.category === "experiences" ? "selected" : ""}>Experiences</option>
-                        <option value="important" ${memory.category === "important" ? "selected" : ""}>Important Events</option>
+                        <option value="personal" ${memory.category === "personal" ? "selected" : ""}>${
+                            window.kimiI18nManager && window.kimiI18nManager.t
+                                ? window.kimiI18nManager.t("memory_category_personal")
+                                : "Personal Info"
+                        }</option>
+                        <option value="preferences" ${memory.category === "preferences" ? "selected" : ""}>${
+                            window.kimiI18nManager && window.kimiI18nManager.t
+                                ? window.kimiI18nManager.t("memory_category_preferences")
+                                : "Likes & Dislikes"
+                        }</option>
+                        <option value="relationships" ${memory.category === "relationships" ? "selected" : ""}>${
+                            window.kimiI18nManager && window.kimiI18nManager.t
+                                ? window.kimiI18nManager.t("memory_category_relationships")
+                                : "Relationships"
+                        }</option>
+                        <option value="activities" ${memory.category === "activities" ? "selected" : ""}>${
+                            window.kimiI18nManager && window.kimiI18nManager.t
+                                ? window.kimiI18nManager.t("memory_category_activities")
+                                : "Activities & Hobbies"
+                        }</option>
+                        <option value="goals" ${memory.category === "goals" ? "selected" : ""}>${
+                            window.kimiI18nManager && window.kimiI18nManager.t
+                                ? window.kimiI18nManager.t("memory_category_goals")
+                                : "Goals & Plans"
+                        }</option>
+                        <option value="experiences" ${memory.category === "experiences" ? "selected" : ""}>${
+                            window.kimiI18nManager && window.kimiI18nManager.t
+                                ? window.kimiI18nManager.t("memory_category_experiences")
+                                : "Experiences"
+                        }</option>
+                        <option value="important" ${memory.category === "important" ? "selected" : ""}>${
+                            window.kimiI18nManager && window.kimiI18nManager.t
+                                ? window.kimiI18nManager.t("memory_category_important")
+                                : "Important Events"
+                        }</option>
                     </select>
                 </div>
                 <div style="margin-bottom: 20px;">
-                    <label style="display: block; margin-bottom: 8px; font-weight: 500;">Content:</label>
-                    <textarea id="edit-memory-content" class="kimi-input" style="width: 100%; height: 100px; resize: vertical;" placeholder="Memory content...">${memory.content}</textarea>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500;" data-i18n="label_content"></label>
+                    <textarea id="edit-memory-content" class="kimi-input" style="width: 100%; height: 100px; resize: vertical;" placeholder="Memory content...">${
+                        window.KimiValidationUtils && window.KimiValidationUtils.escapeHtml
+                            ? window.KimiValidationUtils.escapeHtml(memory.sourceText || memory.content || "")
+                            : memory.sourceText || memory.content || ""
+                    }</textarea>
                 </div>
                 <div style="display: flex; gap: 12px; justify-content: flex-end;">
-                    <button id="cancel-edit" class="kimi-button" style="background: #6c757d;">
-                        <i class="fas fa-times"></i> Cancel
+                    <button id="cancel-edit" class="kimi-button" style="background: #6c757d;" data-i18n="cancel">
+                        <i class="fas fa-times"></i> <span data-i18n="cancel"></span>
                     </button>
                     <button id="save-edit" class="kimi-button">
-                        <i class="fas fa-save"></i> Save
+                        <i class="fas fa-save"></i> <span data-i18n="save"></span>
                     </button>
                 </div>
             `;
@@ -507,42 +643,57 @@ class KimiMemoryUI {
             });
 
             dialog.querySelector("#save-edit").addEventListener("click", async () => {
+                const newTitle = dialog.querySelector("#edit-memory-title").value.trim();
                 const newCategory = dialog.querySelector("#edit-memory-category").value;
                 const newContent = dialog.querySelector("#edit-memory-content").value.trim();
 
                 if (!newContent) {
-                    this.showFeedback("Le contenu ne peut pas être vide", "error");
+                    this.showFeedback(
+                        window.kimiI18nManager ? window.kimiI18nManager.t("validation_empty_message") : "Content cannot be empty",
+                        "error"
+                    );
                     return;
                 }
 
-                console.log(`🔄 Tentative de mise à jour de la mémoire ID: ${memoryId}`);
-                console.log("Nouvelles données:", { category: newCategory, content: newContent });
+                console.log(`🔄 Attempting to update memory ID: ${memoryId}`);
+                console.log("New data:", { category: newCategory, content: newContent });
 
                 try {
+                    // Also update sourceText so the "📝 Memory of the conversation" shows edited content
                     const result = await this.memorySystem.updateMemory(memoryId, {
+                        title: newTitle,
                         category: newCategory,
-                        content: newContent
+                        content: newContent,
+                        sourceText: newContent
                     });
 
-                    console.log("Résultat de l'update:", result);
+                    console.log("Update result:", result);
 
                     if (result === true) {
-                        // Fermer le modal
+                        // Close the modal
                         document.body.removeChild(overlay);
 
-                        // Forcer le rechargement complet
+                        // Force full reload
                         await this.loadMemories();
                         await this.updateMemoryStats();
 
-                        this.showFeedback("Mémoire mise à jour avec succès");
-                        console.log("✅ Interface mise à jour");
+                        this.showFeedback(window.kimiI18nManager ? window.kimiI18nManager.t("saved") : "Saved");
+                        console.log("✅ UI updated");
                     } else {
-                        this.showFeedback("Erreur: Impossible de mettre à jour la mémoire", "error");
-                        console.error("❌ Update échoué, résultat:", result);
+                        this.showFeedback(
+                            window.kimiI18nManager
+                                ? window.kimiI18nManager.t("fallback_general_error")
+                                : "Error: unable to update memory",
+                            "error"
+                        );
+                        console.error("❌ Update failed, result:", result);
                     }
                 } catch (error) {
                     console.error("Error updating memory:", error);
-                    this.showFeedback("Erreur lors de la mise à jour de la mémoire", "error");
+                    this.showFeedback(
+                        window.kimiI18nManager ? window.kimiI18nManager.t("fallback_general_error") : "Error updating memory",
+                        "error"
+                    );
                 }
             });
 
@@ -635,22 +786,22 @@ class KimiMemoryUI {
         }
     }
 
-    // Force refresh de l'interface (utile pour debug)
+    // Force refresh of the memory UI (useful for debugging)
     async forceRefresh() {
-        console.log("🔄 Force refresh de l'interface mémoire...");
+        console.log("🔄 Force refresh of memory UI...");
         try {
             if (this.memorySystem) {
-                // Migrer les IDs si nécessaire
+                // Migrate IDs if necessary
                 await this.memorySystem.migrateIncompatibleIDs();
 
-                // Recharger les mémoires
+                // Reload memories
                 await this.loadMemories();
                 await this.updateMemoryStats();
 
-                console.log("✅ Refresh forcé terminé");
+                console.log("✅ Forced refresh completed");
             }
         } catch (error) {
-            console.error("❌ Erreur lors du refresh forcé:", error);
+            console.error("❌ Error during forced refresh:", error);
         }
     }
 

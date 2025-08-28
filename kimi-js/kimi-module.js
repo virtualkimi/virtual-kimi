@@ -1560,7 +1560,6 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     const enableStreamingToggle = document.getElementById("enable-streaming");
     const colorThemeSelect = document.getElementById("color-theme");
     const interfaceOpacitySlider = document.getElementById("interface-opacity");
-    const animationsToggle = document.getElementById("animations-toggle");
 
     // SIMPLE FIX: Initialize _kimiListenerCleanup to prevent undefined error
     if (!window._kimiListenerCleanup) {
