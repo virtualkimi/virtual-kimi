@@ -1150,6 +1150,15 @@ button:focus,
     font-size: 0.9rem;
     outline: none;
     transition: all 0.3s ease;
+
+    /* Make textarea behave like the previous single-line input */
+    box-sizing: border-box;
+    resize: none; /* prevent manual resizing */
+    /* show approximately 2 lines by default, allow up to ~4 lines */
+    min-height: 58px;
+    max-height: 160px; /* allow multi-line but limit growth */
+    line-height: 1.2;
+    overflow: auto;
 }
 
 #chat-input::placeholder {

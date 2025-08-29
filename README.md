@@ -9,7 +9,7 @@
 
 # Virtual Kimi - AI Companion Application 💖
 
-Web-based AI companion girlfriends featuring adaptive personalities, intelligent memory systems, and immersive conversational experiences.
+Web-based AI girlfriend and companion featuring adaptive personalities, intelligent memory systems, and immersive conversational experiences.
 
 ## Overview
 
@@ -43,16 +43,18 @@ Built with vanilla JavaScript and modern web APIs, it offers a rich, responsive 
 
 ### 🤖 **Advanced AI Integration**
 
-**Available recommended models and pricing for Openrouter (per 1M tokens):**
+Recommended models (IDs and short notes — updated Aug 2025):
 
-- **Mistral-small-3.2**: 0.05$ input, 0.1$ output (128k context)
-- **Nous Hermes Llama 3.1 70B**: 0.1$ input, 0.28$ output (131k context)
-- **Cohere Command-R-08-2024**: 0.15$ input, 0.6$ output (131k context)
-- **Qwen3-235b-a22b-think**: 0.13$ input, 0.6$ output (262k context)
-- **Grok 3 mini**: 0.3$ input, 0.5$ output (131k context)
-- **Nous Hermes Llama 3.1 405B**: 0.7$ input, 0.8$ output (131k context)
-- **Anthropic Claude 3 Haiku**: 0.25$ input, 1.25$ output (131k context)
-- **Local Model (Ollama)**: 0$ input, 0$ output (4k context, runs offline — _experimental, not fully functional yet_)
+- mistralai/mistral-small-3.2-24b-instruct — Mistral-small-3.2 (128k context, economical)
+- qwen/qwen3-30b-a3b-instruct-2507 — Qwen3 30b (131k context)
+- nousresearch/hermes-4-70b — Nous Hermes 4 70B (131k context)
+- x-ai/grok-3-mini — Grok 3 mini (131k context)
+- cohere/command-r-08-2024 — Cohere Command-R (128k context)
+- qwen/qwen3-235b-a22b-2507 — Qwen3-235b (262k context)
+- anthropic/claude-3-haiku — Claude 3 Haiku (large context)
+- local/ollama — Local Model (Ollama, experimental, 4k context)
+
+Notes: model IDs in the app are authoritative; pricing/context values are indicative and may change with providers.
 
 ### 👥 **Multiple AI Personalities**
 
@@ -93,7 +95,7 @@ All personality traits operate on a 0-100 scale:
 
 - Real-time video responses matching detected emotions
 - Smooth transitions between emotional states
-- Character-specific visual libraries with 50+ video clips
+- Character-specific visual libraries with ~240 video clips (approx. 60 per main character)
 - Context-aware video selection system
 
 ### 🎨 **Customizable Interface**
@@ -129,7 +131,7 @@ All personality traits operate on a 0-100 scale:
 
 - **Frontend**: Vanilla JavaScript (ES6+), HTML5, CSS3
 - **Database**: IndexedDB with Dexie.js
-- **AI Integration**: OpenRouter API
+- **AI Integration**: OpenRouter (default), OpenAI-compatible, Cohere, Anthropic, Groq, Together, or local Ollama
 - **Speech**: Web Speech API
 - **Audio**: Web Audio API
 
@@ -152,31 +154,26 @@ Get 50% bonus Credits in your first month with this code referral 7BR9GT2WQ6JF -
 
 ---
 
-### 🗂️ Module Structure
+### Project Structure (current)
 
-```
+Top-level files and main modules:
 
-├── Core System
-│ ├── kimi-script.js # Main initialization
-│ ├── kimi-database.js # Data persistence layer
-│ ├── kimi-config.js # Configuration management
-│ └── kimi-security.js # Security utilities
-├── AI & Memory
-│ ├── kimi-llm-manager.js # LLM integration
-│ ├── kimi-emotion-system.js # Emotion analysis
-│ ├── kimi-memory-system.js # Intelligent memory
-│ └── kimi-memory-ui.js # Memory interface
-├── Interface & Media
-│ ├── kimi-appearance.js # Theme management
-│ ├── kimi-voices.js # Speech synthesis
-│ ├── kimi-utils.js # Utility classes
-│ └── kimi-module.js # Core functions
-├── Localization
-│ └── kimi-locale/ # Translation files
-└── Extensions
-└── kimi-plugins/ # Plugin system
-
-```
+- index.html — Main application entry
+- virtual-kimi (static assets & landing): virtual-kimi\*.html
+- kimi-js/
+    - kimi-script.js — App initialization & orchestration
+    - kimi-database.js — IndexedDB persistence (Dexie)
+    - kimi-config.js — Runtime configuration
+    - kimi-security.js — Security utilities
+    - kimi-llm-manager.js — LLM integration and model list
+    - kimi-emotion-system.js — Emotion analysis
+    - kimi-memory-system.js — Memory extraction & storage
+    - kimi-memory-ui.js — Memory management UI
+    - kimi-appearance.js, kimi-voices.js, kimi-utils.js, kimi-module.js, etc.
+- kimi-css/ — styles and themes
+- kimi-plugins/ — local plugins (sample-theme, sample-behavior, sample-voice)
+- kimi-locale/ — translations and i18n files
+- dexie.min.js — local DB helper
 
 ### Data Flow
 
@@ -189,8 +186,10 @@ Get 50% bonus Credits in your first month with this code referral 7BR9GT2WQ6JF -
 
 ### Prerequisites
 
-- Modern web browser (Chrome, Edge, Firefox recommended)
-- OpenRouter API key (optional but recommended for full functionality)
+- Modern web browser (Chrome, Edge or recent Firefox recommended). The app is plain HTML/CSS/JS and runs locally in a browser — no build step is required.
+- (Optional) OpenRouter API key or another compatible provider API key if you want remote LLM access. The app can run without a key using local-only features, but AI responses will be limited.
+- HTTPS is required for microphone access and some browser TTS features. For full voice/microphone features, open the app via a local server (see Quick Start). If you only open `index.html` directly, most features still work but microphone may be blocked by the browser.
+- Dexie.js is included for IndexedDB persistence (no installation required; file `dexie.min.js` is bundled).
 
 ### Quick Start
 
@@ -213,13 +212,26 @@ Get 50% bonus Credits in your first month with this code referral 7BR9GT2WQ6JF -
 3. **Configure API access**
 
     - Open Settings → AI & Models
-    - Add your OpenRouter API key
-    - Select preferred AI model
+    - Provider: choose the LLM provider to use. Supported options in the app include `openrouter` (recommended), `openai`/OpenAI-compatible endpoints, and `ollama` (local). The selected provider is saved in the app preferences.
+    - API key: paste your provider API key into the API Key field. Keys are saved locally in your browser's IndexedDB (preferences) so they never leave your machine except when the app sends requests to the selected provider.
+    - Base URL: if you use a non‑default provider or an OpenAI-compatible endpoint, set the provider base URL (Settings → AI & Models → Base URL). This overrides the built-in default endpoints.
+    - Model selection: choose a model ID from the list. The app's authoritative model list is defined in `kimi-js/kimi-llm-manager.js`. If the provider does not support the selected model, the app will attempt a best-match fallback or show an error.
+    - Test API key: use the app's built-in test function (Settings → Test API) to validate your key; this performs a minimal request and reports success or the provider error message.
+    - Local (Ollama) usage: to use a local model with `ollama`, run your local Ollama-compatible server (the app uses `http://localhost:11434/api/chat`). Select provider `ollama` and set model ID accordingly. Local models are experimental and work only if the local server is running.
+    - No key behavior: the app runs without an API key for local UI features and stored data, but remote LLM responses require a valid provider/key. If no key is configured the app will return friendly fallback messages for AI features.
+
+    Troubleshooting notes:
+
+    - If you see HTTP 401: verify the API key for the selected provider.
+    - If you see HTTP 429 or rate-limit errors: wait a moment or choose a different model/provider account.
+    - If the model is reported as unavailable (422-like errors): verify the model ID and, if needed, refresh the remote model list in Settings.
+    - For OpenRouter-specific issues: check the Base URL is `https://openrouter.ai/api/v1/chat/completions` (default) unless you use a custom endpoint.
 
 4. **Customize your experience**
+    - Choose your language and preferred voice
     - Choose a character in Personality tab
     - Enable memory system in Data tab
-    - Adjust themes in Appearance tab
+    - Adjust themes and UI opacity in Appearance tab
 
 ### Production Deployment
 
@@ -234,11 +246,12 @@ For production deployment, ensure:
 
 ### API Integration
 
-The application supports multiple AI providers through OpenRouter:
+The application supports multiple AI providers; choose and configure your provider in Settings → AI & Models.
 
 - Mistral models
 - Nous Hermes models
 - Qwen3 models
+- xAI models
 - Open-source alternatives
 
 ### Memory System Configuration
@@ -261,15 +274,17 @@ const memoryCategories = [
 ### Project Structure
 
 ```
-virtual-kimi/
-├── index.html              # Main application
-├── virtualkimi.html         # Landing page
-├── kimi-*.js               # Core modules
-├── kimi-locale/            # Localization
-├── kimi-plugins/           # Plugin examples
-├── kimi-videos/            # Character videos
-├── kimi-icons/             # Character assets
-└── docs/                   # Documentation
+<repo root>
+├── index.html
+├── README.md
+├── LICENSE.md
+├── package.json
+├── kimi-js/           # core JS modules (kimi-*.js)
+├── kimi-locale/       # translations (en.json, fr.json, ...)
+├── kimi-plugins/      # plugin examples
+├── kimi-videos/       # character video clips
+├── kimi-icons/        # image assets and favicons
+└── dexie.min.js       # IndexedDB helper
 ```
 
 ### Adding New Features
@@ -345,7 +360,7 @@ console.log(report.status); // 'HEALTHY' or 'NEEDS_ATTENTION'
 
 - All data stored locally in browser
 - No telemetry or analytics
-- API keys encrypted in local storage
+- API keys in your local storage
 - User content never sent to external servers (except chosen AI provider)
 
 ### Security Measures
@@ -360,7 +375,8 @@ console.log(report.status); // 'HEALTHY' or 'NEEDS_ATTENTION'
 ### Common Issues
 
 - **Microphone not working**: Ensure HTTPS and browser permissions
-- **API errors**: Verify OpenRouter key and model availability
+- **API errors / provider issues**: Verify the API key and selected provider for the chosen model. This app supports multiple providers (OpenRouter, OpenAI-compatible endpoints, Groq, Together, Cohere, Anthropic, local/Ollama, etc.). Make sure the provider-specific base URL, model ID and API key are correctly configured in Settings → AI & Models.
+- **Text-to-Speech (TTS) voices**: The app uses the browser Web Speech API for TTS. For best voice support, use modern Chromium-based browsers (Edge or Chrome) which generally provide better built-in voices and compatibility. If voices are missing or sound low quality, try Edge/Chrome or install additional TTS engines on your system.
 - **Performance issues**: Clear browser cache, check available memory
 - **Memory system not learning**: Ensure system is enabled in Data tab
 
@@ -380,28 +396,19 @@ We welcome contributions! Please see our contributing guidelines:
 - Test across multiple browsers
 - Update documentation for new features
 
-## 🔄 TODO / Roadmap
+## 🔄 TODO / Roadmap (current priorities)
 
-- [ ] Full support for local models (Ollama integration, offline mode)
-- [ ] Voice plugin system (custom voices, TTS engines)
-- [ ] Behavior plugin system (custom AI behaviors)
-- [ ] Better advanced memory management UI
+- [ ] Full support for local models (Ollama integration — currently experimental)
+- [ ] Voice plugin system (custom voices, TTS engines) — planned
+- [ ] Behavior plugin system (custom AI behaviors) — planned
+- [ ] Improve advanced memory management UI and ranked memory snapshot features (in-progress)
 - [ ] More character personalities and backgrounds
 - [ ] In-app onboarding and help system
-- [ ] Enhanced mobile experience (UI/UX)
-- [ ] More granular privacy controls
-- [ ] User profile and persistent settings sync (optional)
-- [ ] Community plugin/theme sharing platform
-- [ ] Improved error reporting and diagnostics
-- [ ] Accessibility improvements (screen reader, contrast, etc.)
-- [ ] Automated testing and CI/CD pipeline
-- [ ] Documentation in multiple languages
-- [ ] Performance profiling and optimization for large histories
-- [ ] Create new character videos better matching specific contexts
-- [ ] Improve emotion and context logic
-- [ ] Enhance memory management and logic
-
----
+- [ ] Better mobile UI/UX and accessibility improvements
+- [ ] More granular privacy controls and explicit user consent flows
+- [ ] Automated testing and CI/CD pipeline (unit + basic UI tests)
+- [ ] Performance profiling and optimization for large conversation histories
+- [ ] Documentation updates to reflect implemented features (models, API handling, plugin validation)
 
 ## 📜 License
 

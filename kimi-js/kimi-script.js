@@ -545,6 +545,21 @@ document.addEventListener("DOMContentLoaded", async function () {
                 }
             }
         });
+        (function (el) {
+            if (!el) return;
+            const pad =
+                (p => (p ? parseFloat(p) : 0))(getComputedStyle(el).paddingTop) +
+                (p => (p ? parseFloat(p) : 0))(getComputedStyle(el).paddingBottom);
+            const lh = parseFloat(getComputedStyle(el).lineHeight) || 18,
+                max = lh * 4 + pad;
+            const a = () => {
+                el.style.height = "auto";
+                el.style.height = Math.min(el.scrollHeight, max) + "px";
+            };
+            el.addEventListener("input", a);
+            el.addEventListener("focus", a);
+            setTimeout(a, 0);
+        })(chatInput);
         console.log("Chat input event listener attached");
     } else {
         console.error("Chat input not found");

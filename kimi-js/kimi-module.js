@@ -1451,9 +1451,14 @@ async function loadAvailableModels() {
         console.error("Error loading available models:", error);
         const errorDiv = document.createElement("div");
         errorDiv.className = "models-error-message";
+        // Escape any content from error.message to prevent XSS when inserted into innerHTML
+        const safeMsg =
+            window.KimiValidationUtils && window.KimiValidationUtils.escapeHtml
+                ? window.KimiValidationUtils.escapeHtml(error.message || String(error))
+                : String(error.message || error);
         errorDiv.innerHTML = `
-                <p>❌ Error loading models: ${error.message}</p>
-            `;
+    <p>❌ Error loading models: ${safeMsg}</p>
+    `;
         modelsContainer.appendChild(errorDiv);
     } finally {
         loadAvailableModels._loading = false;

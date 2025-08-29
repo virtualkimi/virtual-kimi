@@ -1,17 +1,36 @@
 # Virtual Kimi Changelog
 
+# [1.1.2] - 2025-08-30
+
+### Improvements
+
+- Improved memory and prompt generation to avoid duplicate memory sections and display accurate per-character counters.
+
+### Added
+
+- A concise "7-day summary" feature that extracts high-signal conversation highlights for quick reference.
+
+### Notes
+
+- Voice UI and TTS: Only Microsoft Edge and Google Chrome will display the voice selection list and support voice playback of messages; other browsers may not expose compatible voices.
+
+### Bug Fixes
+
+- Fixed import/export functions for preferences and data to ensure exported files can be re-imported correctly.
+
+- Fixed some small bugs related to memory, video playback, and preference import/export.
+
 # [1.1.1] - 2025-08-29
 
 ### Improvements
 
-- Improved language and voice selection logic: normalization, fallback, and robust preference management across all modules.
+- Microsoft Edge and Google Chrome Only : Improved language and voice selection logic: normalization, fallback, and robust preference management across all modules.
 - Enhanced voice compatibility and ensured consistent language handling.
 
 ### Bug Fixes
 
 - Fixed issue where videos could freeze after opening or closing the memory modal or changing memory sections.
 - Added automatic reset to neutral video state after UI interactions to prevent stuck/frozen videos.
-- Fixed import/export functions for preferences and data to ensure exported files can be re-imported correctly.
 
 # [1.1.0] - 2025-08-28
 

@@ -218,6 +218,9 @@ class KimiMemorySystem {
 
             // Migrer les IDs incompatibles si nécessaire
             await this.migrateIncompatibleIDs();
+
+            // Start background migration to populate keywords for existing memories (non-blocking)
+            this.populateKeywordsForAllMemories().catch(e => console.warn("Keyword population failed", e));
         } catch (error) {
             console.error("Memory system initialization error:", error);
         }
@@ -674,6 +677,8 @@ class KimiMemorySystem {
                 category: memoryData.category || "personal",
                 type: memoryData.type || "manual",
                 content: memoryData.content,
+                // precomputed keywords for faster matching and relevance
+                keywords: this.deriveKeywords(memoryData.content),
                 // Title: use provided title or generate for auto_extracted
                 title:
                     memoryData.title && typeof memoryData.title === "string"
@@ -1008,12 +1013,16 @@ class KimiMemorySystem {
             character = character || this.selectedCharacter;
 
             if (this.db.db.memories) {
-                return await this.db.db.memories
+                const memories = await this.db.db.memories
                     .where("[character+category]")
                     .equals([character, category])
                     .and(m => m.isActive)
                     .reverse()
                     .sortBy("timestamp");
+
+                // Update lastAccess/accessCount for top results to improve prioritization
+                this._touchMemories(memories, 10).catch(() => {});
+                return memories;
             }
         } catch (error) {
             console.error("Error getting memories by category:", error);
@@ -1035,7 +1044,12 @@ class KimiMemorySystem {
                     .reverse()
                     .sortBy("timestamp");
 
-                console.log(`Retrieved ${memories.length} memories for character: ${character}`);
+                if (window.KIMI_DEBUG_MEMORIES) {
+                    console.log(`Retrieved ${memories.length} memories for character: ${character}`);
+                }
+
+                // Touch top memories to update access metrics
+                this._touchMemories(memories, 10).catch(() => {});
                 return memories;
             }
         } catch (error) {
@@ -1050,8 +1064,16 @@ class KimiMemorySystem {
         try {
             const memories = await this.getMemoriesByCategory(memoryData.category);
 
+            // Precompute keywords for new memory
+            const newKeys = this.deriveKeywords(memoryData.content || "");
+
             // Enhanced similarity check with multiple criteria
             for (const memory of memories) {
+                // Prefilter by keyword overlap to reduce false positives and improve perf
+                const memKeys = memory.keywords || this.deriveKeywords(memory.content || "");
+                const overlap = newKeys.filter(k => memKeys.includes(k)).length;
+                if (newKeys.length > 0 && overlap === 0) continue; // no shared keywords -> likely different
+
                 const contentSimilarity = this.calculateSimilarity(memory.content, memoryData.content);
 
                 // Different thresholds based on category
@@ -1140,6 +1162,20 @@ class KimiMemorySystem {
         return Math.min(1.0, similarity);
     }
 
+    // Derive a set of normalized keywords from text
+    deriveKeywords(text) {
+        if (!text || typeof text !== "string") return [];
+        return [
+            ...new Set(
+                text
+                    .toLowerCase()
+                    .replace(/[\p{P}\p{S}]/gu, " ")
+                    .split(/\s+/)
+                    .filter(w => w.length > 2 && !(this.isCommonWord && this.isCommonWord(w)))
+            )
+        ];
+    }
+
     async cleanupOldMemories() {
         if (!this.db) return;
 
@@ -1147,21 +1183,48 @@ class KimiMemorySystem {
             // Retrieve all active memories for the current character
             const memories = await this.getAllMemories();
 
-            // If the number of memories exceeds the limit (this.maxMemoryEntries),
-            // delete the least important/oldest ones to keep only the most relevant.
-            if (memories.length > this.maxMemoryEntries) {
-                // Sort by importance (confidence) and recency (timestamp)
-                memories.sort((a, b) => {
-                    // Score = confidence * age (the higher the score, the less priority the memory has)
-                    const scoreA = a.confidence * (Date.now() - new Date(a.timestamp).getTime());
-                    const scoreB = b.confidence * (Date.now() - new Date(b.timestamp).getTime());
+            const maxEntries = window.KIMI_MAX_MEMORIES || this.maxMemoryEntries || 100;
+            const ttlDays = window.KIMI_MEMORY_TTL_DAYS || 365;
+
+            // Soft-expire memories older than TTL by marking isActive=false
+            const now = Date.now();
+            const ttlMs = ttlDays * 24 * 60 * 60 * 1000;
+            for (const mem of memories) {
+                const created = new Date(mem.timestamp).getTime();
+                if (now - created > ttlMs) {
+                    try {
+                        await this.updateMemory(mem.id, { isActive: false });
+                    } catch (e) {
+                        console.warn("Failed to soft-expire memory", mem.id, e);
+                    }
+                }
+            }
+
+            // Refresh active memories after TTL purge
+            const activeMemories = (await this.getAllMemories()).filter(m => m.isActive);
+
+            // If still more than maxEntries, mark lowest-priority ones inactive (soft delete)
+            if (activeMemories.length > maxEntries) {
+                // Sort by a combined score: low importance + old timestamp + low access
+                activeMemories.sort((a, b) => {
+                    const scoreA =
+                        (a.importance || 0.5) * -1 +
+                        (a.accessCount || 0) * 0.01 +
+                        new Date(a.timestamp).getTime() / (1000 * 60 * 60 * 24);
+                    const scoreB =
+                        (b.importance || 0.5) * -1 +
+                        (b.accessCount || 0) * 0.01 +
+                        new Date(b.timestamp).getTime() / (1000 * 60 * 60 * 24);
                     return scoreB - scoreA;
                 });
 
-                // Delete all memories beyond the limit
-                const toDelete = memories.slice(this.maxMemoryEntries);
-                for (const memory of toDelete) {
-                    await this.deleteMemory(memory.id);
+                const toDeactivate = activeMemories.slice(maxEntries);
+                for (const mem of toDeactivate) {
+                    try {
+                        await this.updateMemory(mem.id, { isActive: false });
+                    } catch (e) {
+                        console.warn("Failed to deactivate memory", mem.id, e);
+                    }
                 }
             }
         } catch (error) {
@@ -1180,7 +1243,10 @@ class KimiMemorySystem {
 
             if (!context) {
                 // Return most important and recent memories
-                return this.selectMostImportantMemories(allMemories, limit);
+                const res = this.selectMostImportantMemories(allMemories, limit);
+                // touch top results to update access metrics
+                this._touchMemories(res, limit).catch(() => {});
+                return res;
             }
 
             // Score memories based on relevance to context
@@ -1195,7 +1261,13 @@ class KimiMemorySystem {
             // Filter out very low relevance memories
             const relevantMemories = scoredMemories.filter(m => m.relevanceScore > 0.1);
 
-            return relevantMemories.slice(0, limit);
+            const out = relevantMemories.slice(0, limit).map(r => r);
+            // touch top results to update access metrics
+            this._touchMemories(
+                out.map(r => r),
+                limit
+            ).catch(() => {});
+            return out;
         } catch (error) {
             console.error("Error getting relevant memories:", error);
             return [];
@@ -1239,18 +1311,30 @@ class KimiMemorySystem {
         let score = 0;
 
         // Enhanced content similarity with keyword matching
-        score += this.calculateSimilarity(memory.content, context) * 0.4;
+        score += this.calculateSimilarity(memory.content, context) * 0.35;
 
-        // Keyword matching bonus
-        let keywordMatches = 0;
-        for (const word of contextWords) {
-            if (memoryWords.includes(word)) {
-                keywordMatches++;
+        // Keyword overlap boost (derived keywords)
+        try {
+            const memKeys = memory.keywords || this.deriveKeywords(memory.content || "");
+            const ctxKeys = this.deriveKeywords(context || "");
+            const keyOverlap = ctxKeys.filter(k => memKeys.includes(k)).length;
+            if (ctxKeys.length > 0) {
+                score += (keyOverlap / ctxKeys.length) * 0.25; // significant boost for keyword overlap
+            }
+        } catch (e) {
+            // fallback to original keyword matching
+            let keywordMatches = 0;
+            for (const word of contextWords) {
+                if (memoryWords.includes(word)) {
+                    keywordMatches++;
+                }
+            }
+            if (contextWords.length > 0) {
+                score += (keywordMatches / contextWords.length) * 0.3;
             }
         }
-        if (contextWords.length > 0) {
-            score += (keywordMatches / contextWords.length) * 0.3;
-        }
+
+        // (legacy keyword matching handled above)
 
         // Category relevance bonus based on context
         score += this.getCategoryRelevance(memory.category, context) * 0.1;
@@ -1451,6 +1535,36 @@ class KimiMemorySystem {
         }
     }
 
+    // Touch multiple memories to update lastAccess and accessCount
+    async _touchMemories(memories, limit = 5) {
+        if (!this.db || !Array.isArray(memories) || memories.length === 0) return;
+        try {
+            const top = memories.slice(0, limit);
+            const ops = [];
+            for (const m of top) {
+                try {
+                    const id = m.id;
+                    const existing = await this.db.db.memories.get(id);
+                    if (existing) {
+                        const lastAccess = existing.lastAccess ? new Date(existing.lastAccess).getTime() : 0;
+                        const minMinutes = window.KIMI_MEMORY_TOUCH_MINUTES || 60;
+                        const now = Date.now();
+                        if (now - lastAccess > minMinutes * 60 * 1000) {
+                            existing.accessCount = (existing.accessCount || 0) + 1;
+                            existing.lastAccess = new Date();
+                            ops.push(this.db.db.memories.put(existing));
+                        }
+                    }
+                } catch (e) {
+                    console.warn("Error touching memory", m && m.id, e);
+                }
+            }
+            await Promise.all(ops);
+        } catch (e) {
+            console.warn("Error in _touchMemories", e);
+        }
+    }
+
     // ===== MEMORY SCORING & RANKING =====
     scoreMemory(memory) {
         // Factors: importance (0-1), recency, frequency, confidence
@@ -1469,8 +1583,15 @@ class KimiMemorySystem {
         const freq = Math.log10((memory.accessCount || 0) + 1) / Math.log10(50); // normalized frequency (cap ~50)
         const importance = typeof memory.importance === "number" ? memory.importance : 0.5;
         const confidence = typeof memory.confidence === "number" ? memory.confidence : 0.5;
-        // Weighted sum
-        const score = importance * 0.35 + recency * 0.2 + freq * 0.15 + confidence * 0.2 + freshness * 0.1;
+        // Weighted sum using global knobs
+        const wImportance = window.KIMI_WEIGHT_IMPORTANCE || 0.35;
+        const wRecency = window.KIMI_WEIGHT_RECENCY || 0.2;
+        const wFrequency = window.KIMI_WEIGHT_FREQUENCY || 0.15;
+        const wConfidence = window.KIMI_WEIGHT_CONFIDENCE || 0.2;
+        const wFreshness = window.KIMI_WEIGHT_FRESHNESS || 0.1;
+
+        const score =
+            importance * wImportance + recency * wRecency + freq * wFrequency + confidence * wConfidence + freshness * wFreshness;
         return Number(score.toFixed(6));
     }
 
@@ -1479,9 +1600,11 @@ class KimiMemorySystem {
         if (!all.length) return [];
         // Optional basic context relevance boost
         const ctxLower = (contextText || "").toLowerCase();
+        // Favor pinned memories by boosting their base score
         return all
             .map(m => {
                 let baseScore = this.scoreMemory(m);
+                if (m.tags && m.tags.includes && m.tags.includes("pinned")) baseScore += 0.2;
                 if (ctxLower && m.content && ctxLower.includes(m.content.toLowerCase().split(" ")[0])) {
                     baseScore += 0.05; // tiny relevance boost
                 }
@@ -1490,6 +1613,203 @@ class KimiMemorySystem {
             .sort((a, b) => b.score - a.score)
             .slice(0, limit)
             .map(r => r.memory);
+    }
+
+    // Pin/unpin APIs to manually mark important memories
+    async pinMemory(memoryId) {
+        if (!this.db) return false;
+        try {
+            const m = await this.db.db.memories.get(memoryId);
+            if (!m) return false;
+            const tags = new Set([...(m.tags || []), "pinned"]);
+            await this.db.db.memories.update(memoryId, { tags: [...tags], importance: Math.max(m.importance || 0.5, 0.95) });
+            return true;
+        } catch (e) {
+            console.error("Error pinning memory", e);
+            return false;
+        }
+    }
+
+    async unpinMemory(memoryId) {
+        if (!this.db) return false;
+        try {
+            const m = await this.db.db.memories.get(memoryId);
+            if (!m) return false;
+            const tags = new Set([...(m.tags || [])]);
+            tags.delete("pinned");
+            await this.db.db.memories.update(memoryId, { tags: [...tags] });
+            return true;
+        } catch (e) {
+            console.error("Error unpinning memory", e);
+            return false;
+        }
+    }
+
+    // Summarize recent memories into a non-destructive summary memory
+    async summarizeRecentMemories(days = 7, options = { category: null, archiveSources: false }) {
+        if (!this.db) return null;
+        try {
+            const cutoff = Date.now() - (days || 7) * 24 * 60 * 60 * 1000;
+            const all = await this.getAllMemories();
+            // Exclude existing summaries to avoid summarizing summaries repeatedly
+            const recent = all.filter(
+                m =>
+                    new Date(m.timestamp).getTime() >= cutoff &&
+                    m.isActive &&
+                    m.type !== "summary" &&
+                    !(m.tags && m.tags.includes("summary"))
+            );
+            if (!recent.length) return null;
+
+            // Group by top keyword
+            const groups = {};
+            for (const m of recent) {
+                const keys = m.keywords && m.keywords.length ? m.keywords : this.deriveKeywords(m.content || "");
+                const top = keys[0] || "misc";
+                groups[top] = groups[top] || [];
+                groups[top].push(m);
+            }
+
+            // Build a simple summary per group
+            const summaries = [];
+            for (const [k, items] of Object.entries(groups)) {
+                const contents = items.map(i => i.content).slice(0, 6);
+                summaries.push(`${k}: ${contents.join(" | ")}`);
+            }
+
+            const summaryContent = `Summary (${days}d): ` + summaries.join(" \n");
+
+            const summaryJson = { summary: summaries };
+
+            const summaryMemory = {
+                category: options.category || "experiences",
+                type: "summary",
+                content: summaryContent,
+                sourceText: summaryContent,
+                summaryJson: JSON.stringify(summaryJson),
+                confidence: 0.9,
+                timestamp: new Date(),
+                character: this.selectedCharacter,
+                isActive: true,
+                tags: ["summary"]
+            };
+
+            const saved = await this.addMemory(summaryMemory);
+
+            // Optionally archive sources (soft-deactivate)
+            if (options.archiveSources) {
+                for (const m of recent) {
+                    try {
+                        await this.updateMemory(m.id, { isActive: false });
+                    } catch (e) {
+                        console.warn("Failed to archive source memory", m.id, e);
+                    }
+                }
+            }
+
+            return saved;
+        } catch (e) {
+            console.error("Error summarizing memories", e);
+            return null;
+        }
+    }
+
+    // Summarize recent memories and replace sources (hard delete) - destructive
+    async summarizeAndReplace(days = 7, options = { category: null }) {
+        if (!this.db) return null;
+        try {
+            const cutoff = Date.now() - (days || 7) * 24 * 60 * 60 * 1000;
+            const all = await this.getAllMemories();
+            // Exclude existing summaries to avoid recursive summarization
+            const recent = all.filter(
+                m =>
+                    new Date(m.timestamp).getTime() >= cutoff &&
+                    m.isActive &&
+                    m.type !== "summary" &&
+                    !(m.tags && m.tags.includes("summary"))
+            );
+            if (!recent.length) return null;
+
+            // Build aggregate content from readable fields in chronological order
+            recent.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            const texts = recent
+                .map(r => {
+                    const raw =
+                        (r.title && r.title.trim()) ||
+                        (r.sourceText && r.sourceText.trim()) ||
+                        (r.content && r.content.trim()) ||
+                        "";
+                    if (!raw) return "";
+                    // Normalize whitespace and remove stray leading punctuation
+                    let t = raw.replace(/\s+/g, " ").replace(/^[^\p{L}\p{N}]+/u, "");
+                    // Capitalize first meaningful letter
+                    if (t && t.length > 0) t = t.charAt(0).toUpperCase() + t.slice(1);
+                    return t;
+                })
+                .filter(Boolean)
+                .slice(0, 200);
+
+            const summaryContent = `Summary (${days}d):\n` + texts.map(t => `- ${t}`).join("\n");
+
+            const summaryJson = { summary: texts };
+
+            const summaryMemory = {
+                category: options.category || "experiences",
+                type: "summary",
+                title: `Summary - last ${days} days`,
+                content: summaryContent,
+                // Store the actual summary also in sourceText so editors/UIs show it
+                sourceText: summaryContent,
+                summaryJson: JSON.stringify(summaryJson),
+                confidence: 0.95,
+                timestamp: new Date(),
+                character: this.selectedCharacter,
+                isActive: true,
+                tags: ["summary", "replaced"]
+            };
+
+            // Add summary directly to DB to avoid addMemory's merge logic
+            let saved = null;
+            if (this.db && this.db.db && this.db.db.memories) {
+                try {
+                    const id = await this.db.db.memories.add(summaryMemory);
+                    summaryMemory.id = id;
+                    saved = summaryMemory;
+                    console.log("Summary added with ID:", id);
+                    // Read back the saved record to verify stored fields
+                    try {
+                        const savedRec = await this.db.db.memories.get(id);
+                        console.log("Saved summary record:", { id, content: savedRec.content, sourceText: savedRec.sourceText });
+                    } catch (e) {
+                        console.warn("Unable to read back saved summary", e);
+                    }
+                } catch (e) {
+                    console.error("Failed to write summary directly to DB", e);
+                }
+            } else {
+                // Fallback to addMemory if DB not available
+                saved = await this.addMemory(summaryMemory);
+            }
+
+            // Hard-delete sources
+            for (const m of recent) {
+                try {
+                    if (this.db && this.db.db && this.db.db.memories) {
+                        await this.db.db.memories.delete(m.id);
+                    }
+                } catch (e) {
+                    console.warn("Failed to delete source memory", m.id, e);
+                }
+            }
+
+            // Notify LLM to refresh context
+            this.notifyLLMContextUpdate();
+
+            return saved;
+        } catch (e) {
+            console.error("Error in summarizeAndReplace", e);
+            return null;
+        }
     }
 
     // MEMORY STATISTICS
@@ -1608,6 +1928,33 @@ class KimiMemorySystem {
             return true;
         } catch (error) {
             console.error("❌ Erreur lors de la migration:", error);
+            return false;
+        }
+    }
+
+    // Background migration: populate keywords for all existing memories if missing
+    async populateKeywordsForAllMemories() {
+        if (!this.db || !this.db.db.memories) return false;
+        try {
+            console.log("🔧 Starting background keyword population...");
+            const all = await this.db.db.memories.toArray();
+            const ops = [];
+            for (const mem of all) {
+                if (!mem.keywords || !Array.isArray(mem.keywords) || mem.keywords.length === 0) {
+                    const keys = this.deriveKeywords(mem.content || "");
+                    ops.push(this.db.db.memories.update(mem.id, { keywords: keys }));
+                }
+                // batch in small chunks to avoid blocking
+                if (ops.length >= 50) {
+                    await Promise.all(ops);
+                    ops.length = 0;
+                }
+            }
+            if (ops.length) await Promise.all(ops);
+            console.log("✅ Keyword population complete");
+            return true;
+        } catch (e) {
+            console.warn("Error populating keywords", e);
             return false;
         }
     }

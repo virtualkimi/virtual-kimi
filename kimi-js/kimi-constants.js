@@ -348,7 +348,7 @@ window.KIMI_PERSONALITY_KEYWORDS = {
             negative: ["cold", "distant", "indifferent", "rejection", "loneliness", "breakup", "sad"]
         },
         affection: {
-            positive: ["affection", "tenderness", "close", "warmth", "kind", "caring", "cuddle", "love", "adore"],
+            positive: ["affection", "tenderness", "close", "warmth", "kind", "caring", "cuddle", "love", "adore", "lovely"],
             negative: [
                 "mean",
                 "cold",
@@ -425,7 +425,18 @@ window.KIMI_PERSONALITY_KEYWORDS = {
             ]
         },
         affection: {
-            positive: ["affection", "tendresse", "proche", "chaleur", "gentil", "attentionné", "câlin", "aimer", "adorer"],
+            positive: [
+                "affection",
+                "tendresse",
+                "proche",
+                "chaleur",
+                "gentil",
+                "attentionné",
+                "câlin",
+                "aimer",
+                "adorer",
+                "adorable"
+            ],
             negative: [
                 "méchant",
                 "méchante",
@@ -731,6 +742,86 @@ window.KIMI_PERSONALITY_KEYWORDS = {
         listening: ["听", "听听", "倾听", "说", "说话", "问题", "提问", "告诉我"]
     }
 };
+
+// Negators and smoothing defaults (configurable at runtime)
+window.KIMI_NEGATORS = window.KIMI_NEGATORS || {
+    common: [
+        "ne",
+        "n",
+        "pas",
+        "jamais",
+        "plus",
+        "aucun",
+        "aucune",
+        "rien",
+        "personne",
+        "no",
+        "not",
+        "never",
+        "none",
+        "nobody",
+        "nothing",
+        "non",
+        "n't"
+    ],
+    fr: [
+        "ne",
+        "n",
+        "pas",
+        "jamais",
+        "plus",
+        "aucun",
+        "aucune",
+        "rien",
+        "personne",
+        "non",
+        // multiword patterns that we may detect by looking around tokens
+        "ne pas",
+        "n\'importe",
+        "ne jamais"
+    ],
+    en: [
+        "no",
+        "not",
+        "never",
+        "none",
+        "nobody",
+        "nothing",
+        "don't",
+        "doesn't",
+        "didn't",
+        "isn't",
+        "aren't",
+        "can't",
+        "couldn't",
+        "won't",
+        "wouldn't",
+        "n't"
+    ],
+    es: ["no", "nunca", "jamás", "ninguno", "nadie", "nada"],
+    de: ["nicht", "nie", "kein", "keine", "niemand", "nichts"],
+    it: ["non", "mai", "nessuno", "niente"],
+    ja: ["ない", "ません", "ず", "無い"],
+    zh: ["不", "没", "没有", "从来没有"]
+};
+
+window.KIMI_NEGATION_WINDOW = window.KIMI_NEGATION_WINDOW || 3; // tokens to look back for negation
+window.KIMI_SMOOTHING_ALPHA = window.KIMI_SMOOTHING_ALPHA || 0.3;
+window.KIMI_PERSIST_THRESHOLD = window.KIMI_PERSIST_THRESHOLD || 0.1; // absolute percent (slightly higher to slow small visible jumps)
+
+// Memory system knobs
+window.KIMI_MAX_MEMORIES = window.KIMI_MAX_MEMORIES || 100; // default max memory entries per character
+window.KIMI_MEMORY_TTL_DAYS = window.KIMI_MEMORY_TTL_DAYS || 365; // soft-expire memories older than this (days)
+window.KIMI_MEMORY_MERGE_THRESHOLD = window.KIMI_MEMORY_MERGE_THRESHOLD || 0.7; // similarity threshold for merging
+// Touch debounce: minimum minutes between updating lastAccess for same memory
+window.KIMI_MEMORY_TOUCH_MINUTES = window.KIMI_MEMORY_TOUCH_MINUTES || 60; // minutes
+
+// Scoring weights (tweak to change memory prioritization)
+window.KIMI_WEIGHT_IMPORTANCE = window.KIMI_WEIGHT_IMPORTANCE || 0.35;
+window.KIMI_WEIGHT_RECENCY = window.KIMI_WEIGHT_RECENCY || 0.2;
+window.KIMI_WEIGHT_FREQUENCY = window.KIMI_WEIGHT_FREQUENCY || 0.15;
+window.KIMI_WEIGHT_CONFIDENCE = window.KIMI_WEIGHT_CONFIDENCE || 0.2;
+window.KIMI_WEIGHT_FRESHNESS = window.KIMI_WEIGHT_FRESHNESS || 0.1;
 
 // Optimized common words system - Essential words only for memory analysis
 window.KIMI_COMMON_WORDS = {

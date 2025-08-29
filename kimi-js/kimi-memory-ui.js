@@ -3,6 +3,16 @@ class KimiMemoryUI {
     constructor() {
         this.memorySystem = null;
         this.isInitialized = false;
+        // Debounce helpers for UI refresh to coalesce multiple DB reads
+        this._debounceTimers = {};
+    }
+
+    debounce(key, fn, wait = 350) {
+        if (this._debounceTimers[key]) clearTimeout(this._debounceTimers[key]);
+        this._debounceTimers[key] = setTimeout(() => {
+            fn();
+            delete this._debounceTimers[key];
+        }, wait);
     }
 
     async init() {
@@ -86,6 +96,9 @@ class KimiMemoryUI {
             memoryList.addEventListener("click", e => this.handleMemorySourceToggle(e));
             memoryList.addEventListener("touchstart", e => this.handleMemorySourceToggle(e));
 
+            // General delegated click handler for memory actions (summarize, etc.)
+            memoryList.addEventListener("click", e => this.handleMemoryListClick(e));
+
             // Keyboard accessibility: Enter / Space when focused on .memory-source
             memoryList.addEventListener("keydown", e => {
                 const target = e.target;
@@ -96,6 +109,22 @@ class KimiMemoryUI {
                     }
                 }
             });
+        }
+    }
+
+    // Delegated click handler for actions inside the memory list
+    async handleMemoryListClick(e) {
+        try {
+            // pin buttons removed by configuration
+
+            const summarizeBtn = e.target.closest && e.target.closest("#memory-summarize-btn");
+            if (summarizeBtn) {
+                e.stopPropagation();
+                await this.handleSummarizeAction();
+                return;
+            }
+        } catch (err) {
+            console.error("Error handling memory list click", err);
         }
     }
 
@@ -183,9 +212,12 @@ class KimiMemoryUI {
         if (!this.memorySystem) return;
 
         try {
-            const memories = await this.memorySystem.getAllMemories();
-            console.log("Loading memories into UI:", memories.length);
-            this.renderMemories(memories);
+            // Use debounce to avoid multiple rapid DB reads
+            this.debounce("loadMemories", async () => {
+                const memories = await this.memorySystem.getAllMemories();
+                console.log("Loading memories into UI:", memories.length);
+                this.renderMemories(memories);
+            });
         } catch (error) {
             console.error("Error loading memories:", error);
         }
@@ -248,6 +280,13 @@ class KimiMemoryUI {
         }, {});
 
         let html = "";
+
+        // Toolbar with summarize action
+        html += `
+            <div class="memory-toolbar" style="display:flex; gap:8px; align-items:center; margin-bottom:12px;">
+                <button id="memory-summarize-btn" class="kimi-button" title="Summarize recent memories">📝 Summarize last 7 days</button>
+            </div>
+        `;
         Object.entries(groupedMemories).forEach(([category, categoryMemories]) => {
             html += `
                 <div class="memory-category-group">
@@ -277,6 +316,7 @@ class KimiMemoryUI {
                             <div class="memory-badges">
                                 <span class="memory-type ${memory.type}">${memory.type === "auto_extracted" ? "🤖 Auto" : "✋ Manual"}</span>
                                 <span class="memory-confidence confidence-${this.getConfidenceLevel(confidence)}">${confidence}%</span>
+                                ${memory.type === "summary" || (memory.tags && memory.tags.includes("summary")) ? `<span class="memory-summary-badge" style="background:var(--accent-color);color:white;padding:2px 6px;border-radius:12px;margin-left:8px;font-size:0.8em;">Summary</span>` : ""}
                                 ${isLongContent ? `<span class="memory-length">${wordCount} mots</span>` : ""}
                 <span class="memory-importance importance-${importanceLevel}" title="Importance: ${importancePct}% (${importanceLevel})">${importanceLevel.charAt(0).toUpperCase() + importanceLevel.slice(1)}</span>
                             </div>
@@ -326,14 +366,14 @@ class KimiMemoryUI {
                                       }</div>`
                                     : ""
                             }
-                        <div class="memory-actions">
-                            <button class="memory-edit-btn" onclick="kimiMemoryUI.editMemory('${memory.id}')" data-i18n-title="edit_memory_button_title">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="memory-delete-btn" onclick="kimiMemoryUI.deleteMemory('${memory.id}')" data-i18n-title="delete_memory_button_title">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
+                                <div class="memory-actions">
+                                    <button class="memory-edit-btn" onclick="kimiMemoryUI.editMemory('${memory.id}')" data-i18n-title="edit_memory_button_title">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="memory-delete-btn" onclick="kimiMemoryUI.deleteMemory('${memory.id}')" data-i18n-title="delete_memory_button_title">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
                     </div>
                 `;
             });
@@ -344,7 +384,24 @@ class KimiMemoryUI {
             `;
         });
 
-        memoryList.innerHTML = html;
+        // Minimal runtime guard: block accidental <script> tags in generated HTML
+        // This is a non-intrusive safety check that prevents XSS when the
+        // assembled `html` somehow contains script tags. In normal operation
+        // the content is escaped via KimiValidationUtils and highlightMemoryContent(),
+        // so this will not run; it only activates on suspicious input.
+        try {
+            if (/\<\s*script\b/i.test(html)) {
+                console.warn("Blocked suspicious <script> tag in memory HTML rendering");
+                // Fallback: render as safe text to avoid executing injected scripts
+                memoryList.textContent = html;
+            } else {
+                memoryList.innerHTML = html;
+            }
+        } catch (e) {
+            // On any unexpected error, fallback to safe text rendering
+            console.error("Error while rendering memories, falling back to safe text:", e);
+            memoryList.textContent = html;
+        }
 
         // Apply translations to dynamic content
         if (window.applyTranslations && typeof window.applyTranslations === "function") {
@@ -724,7 +781,8 @@ class KimiMemoryUI {
         try {
             await this.memorySystem.deleteMemory(memoryId);
             await this.loadMemories();
-            await this.updateMemoryStats();
+            // Debounced stats update
+            this.debounce("updateStats", async () => await this.updateMemoryStats());
             this.showFeedback("Memory deleted");
         } catch (error) {
             console.error("Error deleting memory:", error);
@@ -752,6 +810,33 @@ class KimiMemoryUI {
         } catch (error) {
             console.error("Error exporting memories:", error);
             this.showFeedback("Error exporting memories", "error");
+        }
+    }
+
+    // pin functionality removed
+
+    async handleSummarizeAction() {
+        if (!this.memorySystem) return;
+        try {
+            // Destructive confirmation modal
+            const confirmMsg = `This action will create a single summary memory for the last 7 days and permanently DELETE the source memories. This is irreversible. Do you want to continue?`;
+            if (!confirm(confirmMsg)) {
+                this.showFeedback("Summary canceled");
+                return;
+            }
+
+            this.showFeedback("Creating summary and replacing sources...");
+            const result = await this.memorySystem.summarizeAndReplace(7, {});
+            if (result) {
+                this.showFeedback("Summary created and sources deleted");
+                await this.loadMemories();
+                await this.updateMemoryStats();
+            } else {
+                this.showFeedback("No recent memories to summarize");
+            }
+        } catch (e) {
+            console.error("Error creating destructive summary", e);
+            this.showFeedback("Error creating summary", "error");
         }
     }
 

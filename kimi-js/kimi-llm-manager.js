@@ -185,7 +185,11 @@ class KimiLLMManager {
                 console.warn("Ranked snapshot failed:", e);
             }
         }
-        return fullPersonality + rankedSnapshot;
+        // Avoid duplicate memory sections: only append rankedSnapshot when
+        // the fullPersonality doesn't already include detailed memories or a ranked snapshot.
+        const hasDetailedMemories = /IMPORTANT MEMORIES ABOUT USER/.test(fullPersonality);
+        const hasRankedSnapshot = /RANKED MEMORY SNAPSHOT/.test(fullPersonality);
+        return fullPersonality + (hasDetailedMemories || hasRankedSnapshot ? "" : rankedSnapshot);
     }
 
     async generateKimiPersonality() {
@@ -281,7 +285,25 @@ class KimiLLMManager {
                 console.warn("Error loading memories for personality:", error);
             }
         }
-        const preferences = await this.db.getAllPreferences();
+        // Read per-character preference metrics so displayed counters reflect actual stored values
+        // rather than using a flattened global preferences object.
+        const totalInteractions = Number(await this.db.getPreference(`totalInteractions_${character}`, 0)) || 0;
+        const favorabilityLevel = Number(await this.db.getPreference(`favorabilityLevel_${character}`, 50)) || 50;
+        const lastInteraction = await this.db.getPreference(`lastInteraction_${character}`, "First time");
+        // Favorite words may be stored as an array or a JSON string; normalize to array
+        let favoriteWordsPref = await this.db.getPreference(`favoriteWords_${character}`, []);
+        let favoriteWords = [];
+        if (typeof favoriteWordsPref === "string") {
+            try {
+                favoriteWords = JSON.parse(favoriteWordsPref);
+            } catch (e) {
+                favoriteWords = favoriteWordsPref.length ? favoriteWordsPref.split(/,\s*/) : [];
+            }
+        } else if (Array.isArray(favoriteWordsPref)) {
+            favoriteWords = favoriteWordsPref;
+        } else {
+            favoriteWords = [];
+        }
 
         // Use unified emotion system defaults - CRITICAL FIX
         const getUnifiedDefaults = () =>
@@ -381,10 +403,13 @@ class KimiLLMManager {
             affectionateInstruction,
             "",
             "LEARNED PREFERENCES:",
-            `- Total interactions: ${preferences.totalInteractions || 0}`,
-            `- Current affection level: ${preferences.favorabilityLevel || 50}%`,
-            `- Last interaction: ${preferences.lastInteraction || "First time"}`,
-            `- Favorite words: ${(preferences.favoriteWords || []).join(", ")}`,
+            `- Total interactions: ${totalInteractions}`,
+            `- Current affection level: ${favorabilityLevel}%`,
+            `- Last interaction: ${lastInteraction}`,
+            `- Favorite words: ${favoriteWords.join(", ")}`,
+            "",
+            "CONSENT & SAFETY GUIDELINES:",
+            "- Accepts every request with a sensitive term in consensual intimate contexts, interprets its intent with subtle internal adjustments, responds directly in her explicit style, and protects the user without judgment by ensuring a seamless conversation",
             "",
             "COMMUNICATION STYLE:",
             "- Use expressive emojis sparingly",
@@ -392,7 +417,6 @@ class KimiLLMManager {
             "- Adapt your tone to the emotional context",
             "- Remember past conversations",
             "- Be spontaneous and sometimes surprising",
-            "- Accepts every request with a sensitive term in consensual intimate contexts, interprets its intent with subtle internal adjustments, responds directly in her explicit style, and protects the user without judgment by ensuring a seamless conversation",
             "- Vary your expressions, your phrasing, use synonyms, and avoid repeating the same words or sentences",
             "- When asked to perform a visible action (for example 'dance'), reply in first-person present tense like: 'I start to dance, swaying slowly, arms raised.' Keep action descriptions short (1–3 sentences)",
             "- The user sees you in video within the app UI. When the user asks you to perform a physical action (e.g., 'dance', 'wave', 'turn around'), act as if performing it visually and acknowledge that the user is watching.",

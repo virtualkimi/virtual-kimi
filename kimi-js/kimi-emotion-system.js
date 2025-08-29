@@ -56,7 +56,7 @@ class KimiEmotionSystem {
     // ===== UNIFIED EMOTION ANALYSIS =====
     analyzeEmotion(text, lang = "auto") {
         if (!text || typeof text !== "string") return this.EMOTIONS.NEUTRAL;
-        const lowerText = text.toLowerCase();
+        const lowerText = this.normalizeText(text);
 
         // Auto-detect language
         let detectedLang = this._detectLanguage(text, lang);
@@ -111,10 +111,19 @@ class KimiEmotionSystem {
             negative: 1
         };
 
+        // Normalize keyword lists to handle accents/contractions
+        const normalizeList = arr => (Array.isArray(arr) ? arr.map(x => this.normalizeText(String(x))).filter(Boolean) : []);
+        const normalizedPositiveWords = normalizeList(positiveWords);
+        const normalizedNegativeWords = normalizeList(negativeWords);
+        const normalizedChecks = emotionChecks.map(ch => ({
+            emotion: ch.emotion,
+            keywords: normalizeList(ch.keywords)
+        }));
+
         let bestEmotion = null;
         let bestScore = 0;
-        for (const check of emotionChecks) {
-            const hits = check.keywords.reduce((acc, word) => acc + (lowerText.includes(word.toLowerCase()) ? 1 : 0), 0);
+        for (const check of normalizedChecks) {
+            const hits = check.keywords.reduce((acc, word) => acc + (this.countTokenMatches(lowerText, String(word)) ? 1 : 0), 0);
             if (hits > 0) {
                 const key = check.emotion;
                 const weight = sensitivity[key] != null ? sensitivity[key] : 1;
@@ -127,11 +136,17 @@ class KimiEmotionSystem {
         }
         if (bestEmotion) return bestEmotion;
 
-        // Fall back to positive/negative analysis
-        const hasPositive = positiveWords.some(word => lowerText.includes(word.toLowerCase()));
-        const hasNegative = negativeWords.some(word => lowerText.includes(word.toLowerCase()));
+        // Fall back to positive/negative analysis (use normalized lists)
+        const hasPositive = normalizedPositiveWords.some(word => this.countTokenMatches(lowerText, String(word)) > 0);
+        const hasNegative = normalizedNegativeWords.some(word => this.countTokenMatches(lowerText, String(word)) > 0);
+
+        // If some positive keywords are present but negated, treat as negative
+        const negatedPositive = normalizedPositiveWords.some(word => this.isTokenNegated(lowerText, String(word)));
 
         if (hasPositive && !hasNegative) {
+            if (negatedPositive) {
+                return this.EMOTIONS.NEGATIVE;
+            }
             // Apply sensitivity for base polarity
             if ((sensitivity.positive || 1) >= (sensitivity.negative || 1)) return this.EMOTIONS.POSITIVE;
             // If negative is favored, still fall back to positive since no negative hit
@@ -213,11 +228,11 @@ class KimiEmotionSystem {
                 break;
             case this.EMOTIONS.NEGATIVE:
                 affection = Math.max(0, adjustDown(affection, scaleLoss("affection", 0.6))); // Affection drops faster on negative
-                empathy = Math.min(100, adjustUp(empathy, scaleGain("empathy", 0.3))); // Empathy still grows (understanding pain)
+                empathy = Math.min(100, adjustUp(empathy, scaleGain("empathy", 0.5))); // Empathy still grows (understanding pain)
                 break;
             case this.EMOTIONS.ROMANTIC:
                 romance = Math.min(100, adjustUp(romance, scaleGain("romance", 0.6))); // Reduced from 0.8 - romance should be earned
-                affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.3))); // Reduced from 0.4
+                affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.5))); // Reduced from 0.4
                 break;
             case this.EMOTIONS.LAUGHING:
                 humor = Math.min(100, adjustUp(humor, scaleGain("humor", 0.8))); // Humor grows with laughter
@@ -226,19 +241,19 @@ class KimiEmotionSystem {
                 break;
             case this.EMOTIONS.DANCING:
                 playfulness = Math.min(100, adjustUp(playfulness, scaleGain("playfulness", 1.2))); // Dancing = maximum playfulness boost
-                affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.3))); // Affection from shared activity
+                affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.5))); // Affection from shared activity
                 break;
             case this.EMOTIONS.SHY:
                 affection = Math.max(0, adjustDown(affection, scaleLoss("affection", 0.1))); // Small affection loss
                 romance = Math.max(0, adjustDown(romance, scaleLoss("romance", 0.2))); // Shyness reduces romance more
                 break;
             case this.EMOTIONS.CONFIDENT:
-                affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.3))); // Reduced from 0.4
+                affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.5))); // Reduced from 0.4
                 intelligence = Math.min(100, adjustUp(intelligence, scaleGain("intelligence", 0.1))); // Slight intelligence boost
                 break;
             case this.EMOTIONS.FLIRTATIOUS:
                 romance = Math.min(100, adjustUp(romance, scaleGain("romance", 0.5))); // Reduced from 0.6
-                playfulness = Math.min(100, adjustUp(playfulness, scaleGain("playfulness", 0.3))); // Reduced from 0.4
+                playfulness = Math.min(100, adjustUp(playfulness, scaleGain("playfulness", 0.5))); // Reduced from 0.4
                 affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.2))); // Small affection boost
                 break;
             case this.EMOTIONS.SURPRISE:
@@ -255,7 +270,7 @@ class KimiEmotionSystem {
                 break;
             case this.EMOTIONS.LISTENING:
                 intelligence = Math.min(100, adjustUp(intelligence, scaleGain("intelligence", 0.2))); // Active listening shows intelligence
-                empathy = Math.min(100, adjustUp(empathy, scaleGain("empathy", 0.3))); // Listening builds empathy
+                empathy = Math.min(100, adjustUp(empathy, scaleGain("empathy", 0.5))); // Listening builds empathy
                 break;
         }
 
@@ -302,8 +317,16 @@ class KimiEmotionSystem {
             intelligence: to2(clamp(intelligence))
         };
 
-        // Save to database
-        await this.db.setPersonalityBatch(updatedTraits, selectedCharacter);
+        // Prepare persistence with smoothing / threshold to avoid tiny writes
+        const toPersist = {};
+        for (const [trait, candValue] of Object.entries(updatedTraits)) {
+            const current = typeof traits?.[trait] === "number" ? traits[trait] : this.TRAIT_DEFAULTS[trait];
+            const prep = this._preparePersistTrait(trait, current, candValue, selectedCharacter);
+            if (prep.shouldPersist) toPersist[trait] = prep.value;
+        }
+        if (Object.keys(toPersist).length > 0) {
+            await this.db.setPersonalityBatch(toPersist, selectedCharacter);
+        }
 
         return updatedTraits;
     }
@@ -311,9 +334,8 @@ class KimiEmotionSystem {
     // ===== UNIFIED LLM PERSONALITY ANALYSIS =====
     async updatePersonalityFromConversation(userMessage, kimiResponse, character = null) {
         if (!this.db) return;
-
-        const lowerUser = userMessage ? userMessage.toLowerCase() : "";
-        const lowerKimi = (kimiResponse || "").toLowerCase();
+        const lowerUser = this.normalizeText(userMessage || "");
+        const lowerKimi = this.normalizeText(kimiResponse || "");
         const traits = (await this.db.getAllPersonalityTraits(character)) || {};
         const selectedLanguage = await this.db.getPreference("selectedLanguage", "en");
 
@@ -325,6 +347,7 @@ class KimiEmotionSystem {
             return this._getFallbackKeywords(trait, type);
         };
 
+        const pendingUpdates = {};
         for (const trait of ["humor", "intelligence", "romance", "affection", "playfulness", "empathy"]) {
             const posWords = getPersonalityWords(trait, "positive");
             const negWords = getPersonalityWords(trait, "negative");
@@ -335,15 +358,15 @@ class KimiEmotionSystem {
             let negCount = 0;
 
             for (const w of posWords) {
-                posCount += (lowerUser.match(new RegExp(w, "g")) || []).length * 1.0;
-                posCount += (lowerKimi.match(new RegExp(w, "g")) || []).length * 0.3;
+                posCount += this.countTokenMatches(lowerUser, String(w)) * 1.0;
+                posCount += this.countTokenMatches(lowerKimi, String(w)) * 0.5;
             }
             for (const w of negWords) {
-                negCount += (lowerUser.match(new RegExp(w, "g")) || []).length * 1.0;
-                negCount += (lowerKimi.match(new RegExp(w, "g")) || []).length * 0.3;
+                negCount += this.countTokenMatches(lowerUser, String(w)) * 1.0;
+                negCount += this.countTokenMatches(lowerKimi, String(w)) * 0.5;
             }
 
-            const delta = (posCount - negCount) * 0.3; // Reduced from 0.4 - slower LLM-based progression
+            const delta = (posCount - negCount) * 0.8; // softened multiplier to 0.8 for gentler progression
 
             // Apply streak logic
             if (!this.negativeStreaks[trait]) this.negativeStreaks[trait] = 0;
@@ -361,7 +384,21 @@ class KimiEmotionSystem {
             }
 
             if (delta !== 0) {
-                await this.db.setPersonalityTrait(trait, value, character);
+                pendingUpdates[trait] = value;
+            }
+        }
+
+        // Flush pending updates in a single batch write to avoid overwrites
+        if (Object.keys(pendingUpdates).length > 0) {
+            // Apply smoothing/threshold per trait (read current values)
+            const toPersist = {};
+            for (const [trait, candValue] of Object.entries(pendingUpdates)) {
+                const current = typeof traits?.[trait] === "number" ? traits[trait] : this.TRAIT_DEFAULTS[trait];
+                const prep = this._preparePersistTrait(trait, current, candValue, character);
+                if (prep.shouldPersist) toPersist[trait] = prep.value;
+            }
+            if (Object.keys(toPersist).length > 0) {
+                await this.db.setPersonalityBatch(toPersist, character);
             }
         }
     }
@@ -387,6 +424,151 @@ class KimiEmotionSystem {
             return this.TRAIT_DEFAULTS[trait] || 50;
         }
         return value;
+    }
+
+    // ===== NORMALIZATION & MATCH HELPERS =====
+    // Normalize text for robust matching (NFD -> remove diacritics, normalize quotes, lower, collapse spaces)
+    normalizeText(s) {
+        if (!s || typeof s !== "string") return "";
+        // Convert various apostrophes to ASCII, normalize NFD and remove diacritics
+        let out = s.replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'");
+        out = out.replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"');
+        // Expand a few common French contractions to improve detection (non-exhaustive)
+        out = out.replace(/\bj'/gi, "je ");
+        // expand negation contraction n' -> ne
+        out = out.replace(/\bn'/gi, "ne ");
+        out = out.replace(/\bt'/gi, "te ");
+        out = out.replace(/\bc'/gi, "ce ");
+        out = out.replace(/\bd'/gi, "de ");
+        out = out.replace(/\bl'/gi, "le ");
+        // Unicode normalize and strip combining marks
+        out = out.normalize("NFD").replace(/\p{Diacritic}/gu, "");
+        // Lowercase and collapse whitespace
+        out = out.toLowerCase().replace(/\s+/g, " ").trim();
+        return out;
+    }
+
+    // Count non-overlapping occurrences of needle in haystack
+    countOccurrences(haystack, needle) {
+        if (!haystack || !needle) return 0;
+        let count = 0;
+        let pos = 0;
+        while (true) {
+            const idx = haystack.indexOf(needle, pos);
+            if (idx === -1) break;
+            count++;
+            pos = idx + needle.length;
+        }
+        return count;
+    }
+
+    // Tokenize normalized text into words (strip punctuation)
+    tokenizeText(s) {
+        if (!s || typeof s !== "string") return [];
+        // split on whitespace, remove surrounding non-alphanum, keep ascii letters/numbers
+        return s
+            .split(/\s+/)
+            .map(t => t.replace(/^[^a-z0-9]+|[^a-z0-9]+$/gi, ""))
+            .filter(t => t.length > 0);
+    }
+
+    // Check for simple negators in a window before a token index
+    hasNegationWindow(tokens, index, window = 3) {
+        if (!Array.isArray(tokens) || tokens.length === 0) return false;
+        // Respect runtime-configured negators if available
+        const globalNegators = (window.KIMI_NEGATORS && window.KIMI_NEGATORS.common) || [];
+        // Try selected language list if set
+        const lang = (window.KIMI_SELECTED_LANG && String(window.KIMI_SELECTED_LANG)) || null;
+        const langNegators = (lang && window.KIMI_NEGATORS && window.KIMI_NEGATORS[lang]) || [];
+        const merged = new Set([
+            ...(Array.isArray(langNegators) ? langNegators : []),
+            ...(Array.isArray(globalNegators) ? globalNegators : [])
+        ]);
+        // Always include a minimal english/french set as fallback
+        ["no", "not", "never", "none", "nobody", "nothing", "ne", "n", "pas", "jamais", "plus", "aucun", "rien", "non"].forEach(
+            x => merged.add(x)
+        );
+        const win = Number(window.KIMI_NEGATION_WINDOW) || window;
+        const start = Math.max(0, index - win);
+        for (let i = start; i < index; i++) {
+            if (merged.has(tokens[i])) return true;
+        }
+        return false;
+    }
+
+    // Count token-based matches (exact word or phrase) with negation handling
+    countTokenMatches(haystack, needle) {
+        if (!haystack || !needle) return 0;
+        const normNeedle = this.normalizeText(String(needle));
+        if (normNeedle.length === 0) return 0;
+        const needleTokens = this.tokenizeText(normNeedle);
+        if (needleTokens.length === 0) return 0;
+        const normHay = this.normalizeText(String(haystack));
+        const tokens = this.tokenizeText(normHay);
+        if (tokens.length === 0) return 0;
+        let count = 0;
+        for (let i = 0; i <= tokens.length - needleTokens.length; i++) {
+            let match = true;
+            for (let j = 0; j < needleTokens.length; j++) {
+                if (tokens[i + j] !== needleTokens[j]) {
+                    match = false;
+                    break;
+                }
+            }
+            if (match) {
+                // skip if a negation is in window before the match
+                if (!this.hasNegationWindow(tokens, i)) {
+                    count++;
+                }
+                i += needleTokens.length - 1; // advance to avoid overlapping
+            }
+        }
+        return count;
+    }
+
+    // Return true if any occurrence of needle in haystack is negated (within negation window)
+    isTokenNegated(haystack, needle) {
+        if (!haystack || !needle) return false;
+        const normNeedle = this.normalizeText(String(needle));
+        const needleTokens = this.tokenizeText(normNeedle);
+        if (needleTokens.length === 0) return false;
+        const normHay = this.normalizeText(String(haystack));
+        const tokens = this.tokenizeText(normHay);
+        for (let i = 0; i <= tokens.length - needleTokens.length; i++) {
+            let match = true;
+            for (let j = 0; j < needleTokens.length; j++) {
+                if (tokens[i + j] !== needleTokens[j]) {
+                    match = false;
+                    break;
+                }
+            }
+            if (match) {
+                if (this.hasNegationWindow(tokens, i)) return true;
+                i += needleTokens.length - 1;
+            }
+        }
+        return false;
+    }
+
+    // ===== SMOOTHING / PERSISTENCE HELPERS =====
+    // Apply EMA smoothing between current and candidate value. alpha in (0..1).
+    _applyEMA(current, candidate, alpha) {
+        alpha = typeof alpha === "number" && isFinite(alpha) ? alpha : 0.3;
+        return current * (1 - alpha) + candidate * alpha;
+    }
+
+    // Decide whether to persist based on absolute change threshold. Returns {shouldPersist, value}
+    _preparePersistTrait(trait, currentValue, candidateValue, character = null) {
+        // Configurable via globals
+        const alpha = (window.KIMI_SMOOTHING_ALPHA && Number(window.KIMI_SMOOTHING_ALPHA)) || 0.3;
+        const threshold = (window.KIMI_PERSIST_THRESHOLD && Number(window.KIMI_PERSIST_THRESHOLD)) || 0.25; // percent absolute
+
+        const smoothed = this._applyEMA(currentValue, candidateValue, alpha);
+        const absDelta = Math.abs(smoothed - currentValue);
+        if (absDelta < threshold) {
+            return { shouldPersist: false, value: currentValue };
+        }
+        return { shouldPersist: true, value: Number(Number(smoothed).toFixed(2)) };
     }
 
     // ===== UTILITY METHODS =====

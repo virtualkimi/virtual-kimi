@@ -3,6 +3,12 @@ class KimiDatabase {
     constructor() {
         this.dbName = "KimiDB";
         this.db = new Dexie(this.dbName);
+        // Personality write queue to batch and serialize rapid updates
+        this._personalityQueue = {};
+        this._personalityFlushTimer = null;
+        this._personalityFlushDelay = 300; // ms debounce window
+        // Runtime monitor flag (disabled by default)
+        this._monitorPersonalityWrites = false;
         this.db
             .version(3)
             .stores({
@@ -654,18 +660,90 @@ class KimiDatabase {
     async setPersonalityTrait(trait, value, character = null) {
         if (!character) character = await this.getSelectedCharacter();
 
-        // Invalidate cache
-        if (window.KimiCacheManager && typeof window.KimiCacheManager.delete === "function") {
-            window.KimiCacheManager.delete(`trait_${character}_${trait}`);
-            window.KimiCacheManager.delete(`all_traits_${character}`);
+        // For safety, enqueue the update to batch rapid writes and avoid overwrites
+        this.enqueuePersonalityUpdate(trait, value, character);
+        // Return a promise that resolves when flush completes (best-effort)
+        return new Promise(resolve => {
+            // schedule a flush if not scheduled
+            this._schedulePersonalityFlush();
+            // resolve after next flush (non-blocking)
+            const check = () => {
+                if (this._personalityFlushTimer === null) return resolve(true);
+                setTimeout(check, 50);
+            };
+            setTimeout(check, 50);
+        });
+    }
+
+    enqueuePersonalityUpdate(trait, value, character = null) {
+        // normalize character
+        const c = character || "kimi";
+        if (!this._personalityQueue[c]) this._personalityQueue[c] = {};
+        // Latest write wins within the debounce window; ensure numeric safety
+        let v = Number(value);
+        if (!isFinite(v) || isNaN(v)) {
+            // fallback to existing value if available
+            v = this.getPersonalityTrait(trait, null, c).catch(() => 50);
+        }
+        this._personalityQueue[c][trait] = Number(v);
+        this._schedulePersonalityFlush();
+        if (this._monitorPersonalityWrites) {
+            try {
+                console.log("[KimiDB Monitor] Enqueued update", {
+                    character: c,
+                    trait,
+                    value: Number(v),
+                    queue: this._personalityQueue[c]
+                });
+            } catch (e) {}
+        }
+    }
+
+    _schedulePersonalityFlush() {
+        if (this._personalityFlushTimer) return;
+        this._personalityFlushTimer = setTimeout(() => this._flushPersonalityQueue(), this._personalityFlushDelay);
+    }
+
+    async _flushPersonalityQueue() {
+        if (!this._personalityQueue || Object.keys(this._personalityQueue).length === 0) {
+            if (this._personalityFlushTimer) {
+                clearTimeout(this._personalityFlushTimer);
+                this._personalityFlushTimer = null;
+            }
+            return;
         }
 
-        return this.db.personality.put({
-            trait: trait,
-            character: character,
-            value: value,
-            updated: new Date().toISOString()
-        });
+        const queue = this._personalityQueue;
+        this._personalityQueue = {};
+        if (this._personalityFlushTimer) {
+            clearTimeout(this._personalityFlushTimer);
+            this._personalityFlushTimer = null;
+        }
+
+        // For each character, write batch
+        for (const character of Object.keys(queue)) {
+            const traitsObj = queue[character];
+            try {
+                if (this._monitorPersonalityWrites) {
+                    try {
+                        console.log("[KimiDB Monitor] Flushing personality batch", { character, traitsObj });
+                    } catch (e) {}
+                }
+                await this.setPersonalityBatch(traitsObj, character);
+                if (this._monitorPersonalityWrites) {
+                    try {
+                        console.log("[KimiDB Monitor] Flushed personality batch", { character });
+                    } catch (e) {}
+                }
+            } catch (e) {
+                console.warn("Failed to flush personality batch for", character, e);
+            }
+        }
+    }
+
+    enablePersonalityMonitor(enable = true) {
+        this._monitorPersonalityWrites = !!enable;
+        console.log(`[KimiDB Monitor] enabled=${this._monitorPersonalityWrites}`);
     }
 
     async getPersonalityTrait(trait, defaultValue = null, character = null) {

@@ -126,9 +126,13 @@ class KimiVoiceManager {
         const isFirefox = typeof InstallTrigger !== "undefined" || ua.toLowerCase().includes("firefox");
         const isSafari = /Safari\//.test(ua) && !/Chrom(e|ium)\//.test(ua) && !/Edg\//.test(ua);
         const isEdge = /Edg\//.test(ua);
-        const isChrome = /Chrome\//.test(ua) && !isEdge && !isOpera;
+        // Detect Brave explicitly: navigator.brave exists in many Brave builds, UA may also include 'Brave'
+        const isBrave =
+            (!!navigator.brave && typeof navigator.brave.isBrave === "function") || ua.toLowerCase().includes("brave");
+        const isChrome = /Chrome\//.test(ua) && !isEdge && !isOpera && !isBrave;
         if (isFirefox) return "firefox";
         if (isOpera) return "opera";
+        if (isBrave) return "brave";
         if (isSafari) return "safari";
         if (isEdge) return "edge";
         if (isChrome) return "chrome";
@@ -340,7 +344,15 @@ class KimiVoiceManager {
         }
 
         // Use female voice if found, otherwise first compatible voice, with proper fallback
-        this.currentVoice = femaleVoice || filteredVoices[0] || null;
+        // KEEP legacy auto-selection behavior only for Chrome/Edge where it was reliable.
+        // For other browsers (Firefox/Brave/Opera), avoid auto-selecting to prevent wrong default (e.g., Hortense).
+        const browser = this.browser || this._detectBrowser();
+        if (browser === "chrome" || browser === "edge") {
+            this.currentVoice = femaleVoice || filteredVoices[0] || null;
+        } else {
+            // Do not auto-select on less predictable browsers
+            this.currentVoice = femaleVoice && filteredVoices.length > 1 ? femaleVoice : null;
+        }
 
         if (!this.currentVoice) {
             console.warn("🎤 No voices available for speech synthesis - this may resolve automatically when voices load");
@@ -377,11 +389,13 @@ class KimiVoiceManager {
 
         const filteredVoices = this.getVoicesForLanguage(this.selectedLanguage);
 
-        if (filteredVoices.length === 0) {
-            // Add a placeholder option when no voices are available
+        // If browser is not Chrome or Edge, do NOT expose voice options even when voices exist.
+        // This avoids misleading users on Brave/Firefox/Opera/Safari who might think TTS is supported when it's not.
+        const browser = this.browser || this._detectBrowser();
+        if ((browser !== "chrome" && browser !== "edge") || filteredVoices.length === 0) {
             const noVoicesOption = document.createElement("option");
             noVoicesOption.value = "none";
-            noVoicesOption.textContent = "No voices available (loading...)";
+            noVoicesOption.textContent = "No voices available for this browser";
             noVoicesOption.disabled = true;
             voiceSelect.appendChild(noVoicesOption);
         } else {
@@ -482,8 +496,8 @@ class KimiVoiceManager {
             );
         }
 
-        // Last resort: return all voices
-        if (filteredVoices.length === 0) filteredVoices = this.availableVoices;
+        // Do not fall back to all voices: if none match, return empty array so UI shows "no voices available"
+        if (filteredVoices.length === 0) return [];
         return filteredVoices;
     }
 
