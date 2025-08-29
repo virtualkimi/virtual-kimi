@@ -33,13 +33,19 @@ class KimiMemoryUI {
         // Add memory button
         const addMemoryBtn = document.getElementById("add-memory");
         if (addMemoryBtn) {
-            addMemoryBtn.addEventListener("click", () => this.addManualMemory());
+            addMemoryBtn.addEventListener("click", () => {
+                this.addManualMemory();
+                ensureVideoNeutralOnUIChange();
+            });
         }
 
         // Memory modal close
         const memoryClose = document.getElementById("memory-close");
         if (memoryClose) {
-            memoryClose.addEventListener("click", () => this.closeMemoryModal());
+            memoryClose.addEventListener("click", () => {
+                this.closeMemoryModal();
+                ensureVideoNeutralOnUIChange();
+            });
         }
 
         // Memory export
@@ -51,7 +57,10 @@ class KimiMemoryUI {
         // Memory filter
         const memoryFilter = document.getElementById("memory-filter-category");
         if (memoryFilter) {
-            memoryFilter.addEventListener("change", () => this.filterMemories());
+            memoryFilter.addEventListener("change", () => {
+                this.filterMemories();
+                ensureVideoNeutralOnUIChange();
+            });
         }
 
         // Memory search
@@ -881,3 +890,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 window.KimiMemoryUI = KimiMemoryUI;
+
+function ensureVideoNeutralOnUIChange() {
+    if (window.kimiVideo && window.kimiVideo.getCurrentVideoInfo) {
+        const info = window.kimiVideo.getCurrentVideoInfo();
+        if (info && info.ended) window.kimiVideo.returnToNeutral();
+    }
+}

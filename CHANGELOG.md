@@ -1,12 +1,23 @@
 # Virtual Kimi Changelog
 
+# [1.1.1] - 2025-08-29
+
+### Improvements
+
+- Improved language and voice selection logic: normalization, fallback, and robust preference management across all modules.
+- Enhanced voice compatibility and ensured consistent language handling.
+
+### Bug Fixes
+
+- Fixed issue where videos could freeze after opening or closing the memory modal or changing memory sections.
+- Added automatic reset to neutral video state after UI interactions to prevent stuck/frozen videos.
+- Fixed import/export functions for preferences and data to ensure exported files can be re-imported correctly.
+
 # [1.1.0] - 2025-08-28
 
-### Added
+### Changed
 
 - **Recommended LLMs**: Updated the list of recommended LLM models to reflect current recommendations and improvements.
-
-### Changed
 
 - **Settings modal UI/UX**: Updated tab layout and visual behavior in the settings modal for clearer navigation and improved usability.
 

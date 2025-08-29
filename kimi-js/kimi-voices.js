@@ -207,7 +207,8 @@ class KimiVoiceManager {
         // Only get language from DB if not already set
         if (!this.selectedLanguage) {
             const selectedLanguage = await this.db?.getPreference("selectedLanguage", "en");
-            this.selectedLanguage = selectedLanguage || "en";
+            // Normalize legacy formats (en-US, en_US, us:en -> en) using shared util
+            this.selectedLanguage = window.KimiLanguageUtils.normalizeLanguageCode(selectedLanguage || "en") || "en";
         }
 
         const savedVoice = await this.db?.getPreference("selectedVoice", "auto");
@@ -409,7 +410,14 @@ class KimiVoiceManager {
         if (e.target.value === "auto") {
             console.log(`🎤 Voice set to automatic selection for language "${this.selectedLanguage}"`);
             await this.db?.setPreference("selectedVoice", "auto");
-            this.currentVoice = null; // Trigger auto-selection next time
+            this.currentVoice = null; // clear immediate in-memory voice
+            // Re-initialize voices synchronously so currentVoice is set before other code reacts
+            try {
+                await this.initVoices();
+            } catch (err) {
+                // If init fails, leave currentVoice null but don't throw
+                console.warn("🎤 initVoices failed after setting auto:", err);
+            }
         } else {
             this.currentVoice = this.availableVoices.find(voice => voice.name === e.target.value);
             console.log(`🎤 Voice manually selected: "${this.currentVoice?.name}" (${this.currentVoice?.lang})`);
@@ -451,15 +459,31 @@ class KimiVoiceManager {
         return languageMap[langShort] || langShort;
     }
 
+    // language normalization handled by window.KimiLanguageUtils.normalizeLanguageCode
+
     getVoicesForLanguage(language) {
-        let filteredVoices = this.availableVoices.filter(voice => voice.lang.toLowerCase().startsWith(language));
-        if (filteredVoices.length === 0) {
-            filteredVoices = this.availableVoices.filter(voice => voice.lang.toLowerCase().includes(language));
+        const norm = window.KimiLanguageUtils.normalizeLanguageCode(language || "");
+        // First pass: voices whose lang primary subtag starts with normalized code
+        let filteredVoices = this.availableVoices.filter(voice => {
+            try {
+                const vlang = String(voice.lang || "").toLowerCase();
+                return vlang.startsWith(norm);
+            } catch (e) {
+                return false;
+            }
+        });
+
+        // Second pass: voices that contain the code anywhere
+        if (filteredVoices.length === 0 && norm) {
+            filteredVoices = this.availableVoices.filter(voice =>
+                String(voice.lang || "")
+                    .toLowerCase()
+                    .includes(norm)
+            );
         }
-        if (filteredVoices.length === 0) {
-            // As last resort, return all voices
-            filteredVoices = this.availableVoices;
-        }
+
+        // Last resort: return all voices
+        if (filteredVoices.length === 0) filteredVoices = this.availableVoices;
         return filteredVoices;
     }
 
@@ -551,8 +575,32 @@ class KimiVoiceManager {
     }
 
     async speak(text, options = {}) {
-        if (!text || !this.currentVoice) {
-            console.warn("Unable to speak: empty text or voice not initialized");
+        // If no text or voice not ready, attempt short retries for voice initialization
+        if (!text) {
+            console.warn("Unable to speak: empty text");
+            return;
+        }
+
+        const maxRetries = 3;
+        let attempt = 0;
+        while (!this.currentVoice && attempt < maxRetries) {
+            // Small jittered backoff
+            const wait = 100 + Math.floor(Math.random() * 200); // 100-300ms
+            await new Promise(r => setTimeout(r, wait));
+            // If voices available, try to init
+            if (this.availableVoices.length > 0) {
+                // attempt to pick a voice for the current language
+                try {
+                    await this.initVoices();
+                } catch (e) {
+                    // ignore and retry
+                }
+            }
+            attempt++;
+        }
+
+        if (!this.currentVoice) {
+            console.warn("Unable to speak: voice not initialized after retries");
             return;
         }
         this.clearTranscriptTimeout();
@@ -1258,7 +1306,7 @@ class KimiVoiceManager {
     async handleLanguageChange(e) {
         const newLang = e.target.value;
         const oldLang = this.selectedLanguage;
-        console.log(`� Language changing: "${oldLang}" → "${newLang}"`);
+        console.log(`🎤 Language changing: "${oldLang}" → "${newLang}"`);
 
         this.selectedLanguage = newLang;
         await this.db?.setPreference("selectedLanguage", newLang);
@@ -1268,16 +1316,31 @@ class KimiVoiceManager {
             await window.kimiI18nManager.setLanguage(newLang);
         }
 
-        // ALWAYS reset voice when changing language to ensure compatibility
-        const currentVoicePref = await this.db?.getPreference("selectedVoice", "auto");
+        // Check saved voice compatibility: only reset to 'auto' if incompatible
+        try {
+            const currentVoicePref = await this.db?.getPreference("selectedVoice", "auto");
+            // Clear in-memory currentVoice to allow re-selection
+            this.currentVoice = null;
 
-        // Reset voice selection to force re-selection for new language
-        this.currentVoice = null;
+            if (currentVoicePref && currentVoicePref !== "auto") {
+                // If saved voice name exists, check if it's present among filtered voices for the new language
+                const filtered = this.getVoicesForLanguage(newLang);
+                const compatible = filtered.some(v => v.name === currentVoicePref);
+                if (!compatible) {
+                    // Only write 'auto' when incompatible
+                    await this.db?.setPreference("selectedVoice", "auto");
+                }
+            }
 
-        // CRITICAL: Reset voice preference to "auto" to prevent old voice from being reused
-        await this.db?.setPreference("selectedVoice", "auto");
-
-        await this.initVoices();
+            // Re-init voices to pick a correct voice for the new language
+            await this.initVoices();
+        } catch (err) {
+            // On error, fall back to safe behavior: init voices and set 'auto'
+            try {
+                await this.db?.setPreference("selectedVoice", "auto");
+            } catch {}
+            await this.initVoices();
+        }
 
         if (this.currentVoice) {
             console.log(`🎤 Voice selected for "${newLang}": "${this.currentVoice.name}" (${this.currentVoice.lang})`);

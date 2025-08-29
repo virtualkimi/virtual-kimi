@@ -89,6 +89,51 @@ class KimiDatabase {
             });
     }
 
+    async setConversationsBatch(conversationsArray) {
+        if (!Array.isArray(conversationsArray)) return;
+        try {
+            await this.db.conversations.clear();
+            if (conversationsArray.length) {
+                await this.db.conversations.bulkPut(conversationsArray);
+            }
+        } catch (error) {
+            console.error("Error restoring conversations:", error);
+        }
+    }
+
+    async setLLMModelsBatch(modelsArray) {
+        if (!Array.isArray(modelsArray)) return;
+        try {
+            await this.db.llmModels.clear();
+            if (modelsArray.length) {
+                await this.db.llmModels.bulkPut(modelsArray);
+            }
+        } catch (error) {
+            console.error("Error restoring LLM models:", error);
+        }
+    }
+
+    async getAllMemories() {
+        try {
+            return await this.db.memories.toArray();
+        } catch (error) {
+            console.warn("Error getting all memories:", error);
+            return [];
+        }
+    }
+
+    async setAllMemories(memoriesArray) {
+        if (!Array.isArray(memoriesArray)) return;
+        try {
+            await this.db.memories.clear();
+            if (memoriesArray.length) {
+                await this.db.memories.bulkPut(memoriesArray);
+            }
+        } catch (error) {
+            console.error("Error restoring memories:", error);
+        }
+    }
+
     async init() {
         await this.db.open();
         await this.initializeDefaultsIfNeeded();
@@ -357,6 +402,58 @@ class KimiDatabase {
             } catch (mErr) {
                 // Non-blocking: ignore migration error
             }
+
+            // MIGRATION: Normalize legacy selectedLanguage values to primary subtag (e.g., 'en-US'|'en_US'|'us:en' -> 'en')
+            try {
+                const langRecord = await this.db.preferences.get("selectedLanguage");
+                if (langRecord && typeof langRecord.value === "string") {
+                    let raw = String(langRecord.value).toLowerCase();
+                    // handle 'us:en' -> take part after ':'
+                    if (raw.includes(":")) {
+                        const parts = raw.split(":");
+                        raw = parts[parts.length - 1];
+                    }
+                    raw = raw.replace("_", "-");
+                    const primary = raw.includes("-") ? raw.split("-")[0] : raw;
+                    if (primary && primary !== langRecord.value) {
+                        await this.db.preferences.put({
+                            key: "selectedLanguage",
+                            value: primary,
+                            updated: new Date().toISOString()
+                        });
+                        console.log(`🔧 Migration: Normalized selectedLanguage '${langRecord.value}' -> '${primary}'`);
+                    }
+                }
+            } catch (normErr) {
+                // Non-blocking
+            }
+
+            // FORCED MIGRATION: Normalize any preference keys containing the word 'language' to primary subtag
+            // WARNING: This is destructive by design and will overwrite values without backup as requested.
+            try {
+                const allPrefs = await this.db.preferences.toArray();
+                const langKeyRegex = /\blanguage\b/i;
+                let modified = 0;
+                for (const p of allPrefs) {
+                    if (!p || typeof p.key !== "string" || typeof p.value !== "string") continue;
+                    if (!langKeyRegex.test(p.key)) continue;
+                    let raw = String(p.value).toLowerCase();
+                    if (raw.includes(":")) raw = raw.split(":").pop();
+                    raw = raw.replace("_", "-");
+                    const primary = raw.includes("-") ? raw.split("-")[0] : raw;
+                    if (primary && primary !== p.value) {
+                        await this.db.preferences.put({ key: p.key, value: primary, updated: new Date().toISOString() });
+                        modified++;
+                    }
+                }
+                if (modified) {
+                    console.log(
+                        `🔧 Forced Migration: Normalized ${modified} language-related preference(s) to primary subtag (no backup)`
+                    );
+                }
+            } catch (fmErr) {
+                console.warn("Forced migration failed:", fmErr);
+            }
         } catch {}
     }
 
@@ -488,6 +585,28 @@ class KimiDatabase {
                 } catch (e) {
                     // If decryption fails, fallback to raw value
                     console.warn("Failed to decrypt legacy API key; returning raw value", e);
+                }
+            }
+
+            // Normalize specific preferences for backward-compatibility
+            if (key === "selectedLanguage" && typeof value === "string") {
+                try {
+                    let raw = String(value).toLowerCase();
+                    if (raw.includes(":")) raw = raw.split(":").pop();
+                    raw = raw.replace("_", "-");
+                    const primary = raw.includes("-") ? raw.split("-")[0] : raw;
+                    if (primary && primary !== value) {
+                        // Persist normalized primary subtag to DB for future reads
+                        try {
+                            await this.db.preferences.put({ key: key, value: primary, updated: new Date().toISOString() });
+                            value = primary;
+                        } catch (mErr) {
+                            // ignore persistence error, but return normalized value
+                            value = primary;
+                        }
+                    }
+                } catch (e) {
+                    // ignore normalization errors
                 }
             }
 
@@ -768,6 +887,18 @@ class KimiDatabase {
     }
 
     async setPreferencesBatch(prefsArray) {
+        // Backwards-compatible: accept either an array [{key,value},...] or an object map { key: value }
+        let prefsInput = prefsArray;
+        if (!Array.isArray(prefsInput) && prefsInput && typeof prefsInput === "object") {
+            // convert map to array
+            prefsInput = Object.keys(prefsInput).map(k => ({ key: k, value: prefsInput[k] }));
+            console.warn("setPreferencesBatch: converted prefs map to array for backward compatibility");
+        }
+        if (!Array.isArray(prefsInput)) {
+            console.warn("setPreferencesBatch: expected array or object, got", typeof prefsArray);
+            return;
+        }
+
         const numericMap = {
             voiceRate: "VOICE_RATE",
             voicePitch: "VOICE_PITCH",
@@ -779,7 +910,7 @@ class KimiDatabase {
             llmFrequencyPenalty: "LLM_FREQUENCY_PENALTY",
             llmPresencePenalty: "LLM_PRESENCE_PENALTY"
         };
-        const batch = prefsArray.map(({ key, value }) => {
+        const batch = prefsInput.map(({ key, value }) => {
             if (numericMap[key] && window.KIMI_CONFIG && typeof window.KIMI_CONFIG.validate === "function") {
                 const validation = window.KIMI_CONFIG.validate(value, numericMap[key]);
                 if (validation.valid) value = validation.value;

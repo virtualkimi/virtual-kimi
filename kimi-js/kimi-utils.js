@@ -164,6 +164,22 @@ window.KimiLanguageUtils = {
         if (/[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]/i.test(text)) return "ja";
         if (/[\u4e00-\u9fff]/i.test(text)) return "zh";
         return "en";
+    },
+    // Normalize language codes to a primary subtag (e.g. 'en-US' -> 'en', 'us:en' -> 'en')
+    normalizeLanguageCode(raw) {
+        if (!raw) return "";
+        try {
+            let norm = String(raw).toLowerCase();
+            if (norm.includes(":")) {
+                const parts = norm.split(":");
+                norm = parts[parts.length - 1];
+            }
+            norm = norm.replace("_", "-");
+            if (norm.includes("-")) norm = norm.split("-")[0];
+            return norm;
+        } catch (e) {
+            return "";
+        }
     }
 };
 

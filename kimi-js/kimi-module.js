@@ -77,9 +77,14 @@ class KimiDataManager extends KimiBaseManager {
 
         try {
             const conversations = await this.db.getAllConversations();
-            const preferences = await this.db.getAllPreferences();
+            const preferencesObj = await this.db.getAllPreferences();
+            // Export preferences as an array of {key,value} so export is directly re-importable
+            const preferences = Array.isArray(preferencesObj)
+                ? preferencesObj
+                : Object.keys(preferencesObj).map(k => ({ key: k, value: preferencesObj[k] }));
             const personalityTraits = await this.db.getAllPersonalityTraits();
             const models = await this.db.getAllLLMModels();
+            const memories = await this.db.getAllMemories();
 
             const exportData = {
                 version: "1.0",
@@ -88,11 +93,13 @@ class KimiDataManager extends KimiBaseManager {
                 preferences: preferences,
                 personalityTraits: personalityTraits,
                 models: models,
+                memories: memories,
                 metadata: {
                     totalConversations: conversations.length,
                     totalPreferences: Object.keys(preferences).length,
                     totalTraits: Object.keys(personalityTraits).length,
-                    totalModels: models.length
+                    totalModels: models.length,
+                    totalMemories: memories.length
                 }
             };
 
@@ -110,6 +117,88 @@ class KimiDataManager extends KimiBaseManager {
         } catch (error) {
             console.error("Error during export:", error);
         }
+    }
+
+    async importData(event) {
+        const file = event.target.files[0];
+        if (!file) {
+            alert("No file selected.");
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = async e => {
+            try {
+                const data = JSON.parse(e.target.result);
+                try {
+                    console.log("Import file keys:", Object.keys(data));
+                } catch (ex) {}
+
+                if (data.preferences) {
+                    try {
+                        const isArray = Array.isArray(data.preferences);
+                        const len = isArray ? data.preferences.length : Object.keys(data.preferences).length;
+                        console.log("Import: preferences type=", isArray ? "array" : "object", "length=", len);
+                    } catch (ex) {}
+                    await this.db.setPreferencesBatch(data.preferences);
+                } else {
+                    console.log("Import: no preferences found");
+                }
+
+                if (data.conversations) {
+                    try {
+                        console.log(
+                            "Import: conversations length=",
+                            Array.isArray(data.conversations) ? data.conversations.length : "not-array"
+                        );
+                    } catch (ex) {}
+                    await this.db.setConversationsBatch(data.conversations);
+                } else {
+                    console.log("Import: no conversations found");
+                }
+
+                if (data.personalityTraits) {
+                    try {
+                        console.log("Import: personalityTraits type=", typeof data.personalityTraits);
+                    } catch (ex) {}
+                    await this.db.setPersonalityBatch(data.personalityTraits);
+                } else {
+                    console.log("Import: no personalityTraits found");
+                }
+
+                if (data.models) {
+                    try {
+                        console.log("Import: models length=", Array.isArray(data.models) ? data.models.length : "not-array");
+                    } catch (ex) {}
+                    await this.db.setLLMModelsBatch(data.models);
+                } else {
+                    console.log("Import: no models found");
+                }
+
+                if (data.memories) {
+                    try {
+                        console.log(
+                            "Import: memories length=",
+                            Array.isArray(data.memories) ? data.memories.length : "not-array"
+                        );
+                    } catch (ex) {}
+                    await this.db.setAllMemories(data.memories);
+                } else {
+                    console.log("Import: no memories found");
+                }
+
+                alert("Import successful!");
+                await this.updateStorageInfo();
+
+                // Reload the page to ensure all UI state is rebuilt from the newly imported DB
+                setTimeout(() => {
+                    location.reload();
+                }, 200);
+            } catch (err) {
+                console.error("Import failed:", err);
+                alert("Import failed. Invalid file or format.");
+            }
+        };
+        reader.readAsText(file);
     }
 
     async cleanOldData() {
@@ -787,6 +876,14 @@ async function loadSettingsData() {
         const voicePitch = preferences.voicePitch !== undefined ? preferences.voicePitch : 1.1;
         const voiceVolume = preferences.voiceVolume !== undefined ? preferences.voiceVolume : 0.8;
         const selectedLanguage = preferences.selectedLanguage || "en";
+        // Normalize legacy formats to primary subtag (e.g., 'en-US' -> 'en')
+        const normSelectedLanguage = (function (raw) {
+            if (!raw) return "en";
+            let r = String(raw).toLowerCase();
+            if (r.includes(":")) r = r.split(":").pop();
+            r = r.replace("_", "-");
+            return r.includes("-") ? r.split("-")[0] : r;
+        })(selectedLanguage);
         const apiKey = preferences.providerApiKey || "";
         const provider = preferences.llmProvider || "openrouter";
         const baseUrl = preferences.llmBaseUrl || "https://openrouter.ai/api/v1/chat/completions";
@@ -801,7 +898,7 @@ async function loadSettingsData() {
 
         // Update UI with voice settings
         const languageSelect = document.getElementById("language-selection");
-        if (languageSelect) languageSelect.value = selectedLanguage;
+        if (languageSelect) languageSelect.value = normSelectedLanguage;
         updateSlider("voice-rate", voiceRate);
         updateSlider("voice-pitch", voicePitch);
         updateSlider("voice-volume", voiceVolume);
