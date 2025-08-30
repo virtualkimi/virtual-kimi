@@ -5,7 +5,7 @@ class KimiAppearanceManager extends KimiBaseManager {
         this.db = database;
         this.currentTheme = "dark";
         this.interfaceOpacity = 0.8;
-        // animations are always enabled by default; toggle removed
+        // Animations are enabled by default; the UI no longer exposes a toggle
         this.animationsEnabled = true;
     }
 
@@ -30,7 +30,7 @@ class KimiAppearanceManager extends KimiBaseManager {
                 "interfaceOpacity",
                 window.KIMI_CONFIG?.DEFAULTS?.INTERFACE_OPACITY ?? 0.8
             );
-            // animations preference removed; always enabled by default
+            // Animations preference is not configurable via UI and remain enabled
         } catch (error) {
             console.error("Error loading appearance settings:", error);
         }
@@ -40,7 +40,7 @@ class KimiAppearanceManager extends KimiBaseManager {
         try {
             this.setupThemeSelector();
             this.setupOpacitySlider();
-            // animations toggle removed
+            // No animations toggle in appearance controls
         } catch (error) {
             console.error("Error setting up appearance controls:", error);
         }
@@ -109,8 +109,6 @@ class KimiAppearanceManager extends KimiBaseManager {
         }
     }
 
-    // Animations toggle removed: keep animations enabled at all times
-
     applyTheme(theme) {
         document.documentElement.setAttribute("data-theme", theme);
     }
@@ -126,7 +124,7 @@ class KimiAppearanceManager extends KimiBaseManager {
     }
 
     cleanup() {
-        // animations toggle removed; nothing specific to cleanup here
+        // No animations toggle to clean up
     }
 
     getThemeName(theme) {

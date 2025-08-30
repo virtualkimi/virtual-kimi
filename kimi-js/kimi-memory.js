@@ -8,7 +8,6 @@ class KimiMemory {
             voiceVolume: 0.8,
             lastInteraction: null,
             totalInteractions: 0,
-            favoriteWords: [],
             emotionalState: "neutral"
         };
         this.isReady = false;
@@ -39,7 +38,6 @@ class KimiMemory {
                 voiceVolume: await this.db.getPreference("voiceVolume", 0.8),
                 lastInteraction: await this.db.getPreference(`lastInteraction_${this.selectedCharacter}`, null),
                 totalInteractions: await this.db.getPreference(`totalInteractions_${this.selectedCharacter}`, 0),
-                favoriteWords: await this.db.getPreference(`favoriteWords_${this.selectedCharacter}`, []),
                 emotionalState: await this.db.getPreference(`emotionalState_${this.selectedCharacter}`, "neutral")
             };
             // affectionTrait already loaded above with coherent default

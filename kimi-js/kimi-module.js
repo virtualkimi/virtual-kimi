@@ -859,7 +859,6 @@ async function loadSettingsData() {
             "selectedLanguage",
             "providerApiKey",
             "llmProvider",
-            "llmBaseUrl",
             "llmModelId",
             "selectedCharacter",
             "llmTemperature",
@@ -886,7 +885,19 @@ async function loadSettingsData() {
         })(selectedLanguage);
         const apiKey = preferences.providerApiKey || "";
         const provider = preferences.llmProvider || "openrouter";
-        const baseUrl = preferences.llmBaseUrl || "https://openrouter.ai/api/v1/chat/completions";
+        // Resolve baseUrl based on provider-specific stored preferences to avoid cross-provider leaks
+        const placeholders = window.KimiProviderPlaceholders || {};
+        let baseUrl;
+        if (provider === "openai-compatible" || provider === "ollama") {
+            const key = `llmBaseUrl_${provider}`;
+            try {
+                baseUrl = await kimiDB.getPreference(key, provider === "openai-compatible" ? "" : placeholders[provider]);
+            } catch (e) {
+                baseUrl = provider === "openai-compatible" ? "" : placeholders[provider];
+            }
+        } else {
+            baseUrl = placeholders[provider] || placeholders.openai;
+        }
         const modelId = preferences.llmModelId || (window.kimiLLM ? window.kimiLLM.currentModel : "");
         const selectedCharacter = preferences.selectedCharacter || "kimi";
         const llmTemperature = preferences.llmTemperature !== undefined ? preferences.llmTemperature : 0.9;
@@ -956,7 +967,34 @@ async function loadSettingsData() {
         const providerSelect = document.getElementById("llm-provider");
         if (providerSelect) providerSelect.value = provider;
         const baseUrlInput = document.getElementById("llm-base-url");
-        if (baseUrlInput) baseUrlInput.value = baseUrl;
+        if (baseUrlInput) {
+            // Determine whether base URL should be editable for this provider
+            const isModifiable = provider === "openai-compatible" || provider === "ollama";
+            // Provider-specific defaults/placeholders
+            const placeholders = {
+                openrouter: "https://openrouter.ai/api/v1/chat/completions",
+                openai: "https://api.openai.com/v1/chat/completions",
+                groq: "https://api.groq.com/openai/v1/chat/completions",
+                together: "https://api.together.xyz/v1/chat/completions",
+                deepseek: "https://api.deepseek.com/chat/completions",
+                "openai-compatible": "",
+                ollama: "http://localhost:11434/api/chat"
+            };
+            const placeholder = placeholders[provider] || placeholders.openai;
+            baseUrlInput.placeholder = provider === "openai-compatible" ? "" : placeholder;
+
+            if (isModifiable) {
+                // Show stored baseUrl for modifiable providers (could be empty)
+                baseUrlInput.value = baseUrl || "";
+                baseUrlInput.disabled = false;
+                baseUrlInput.style.opacity = "1";
+            } else {
+                // For fixed providers show the provider URL as value and make input readonly
+                baseUrlInput.value = placeholder;
+                baseUrlInput.disabled = true;
+                baseUrlInput.style.opacity = "0.6";
+            }
+        }
         const modelIdInput = document.getElementById("llm-model-id");
         if (modelIdInput) {
             if (provider === "openrouter") {
@@ -1912,7 +1950,6 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
             if (kimiDB) await kimiDB.setPreference("colorTheme", e.target.value);
             if (window.kimiAppearanceManager && window.kimiAppearanceManager.changeTheme)
                 await window.kimiAppearanceManager.changeTheme(e.target.value);
-            // Removed plugin reload for strict isolation
         };
         colorThemeSelect.addEventListener("change", window._kimiColorThemeListener);
     }

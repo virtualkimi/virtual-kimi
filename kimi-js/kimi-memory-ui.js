@@ -115,8 +115,6 @@ class KimiMemoryUI {
     // Delegated click handler for actions inside the memory list
     async handleMemoryListClick(e) {
         try {
-            // pin buttons removed by configuration
-
             const summarizeBtn = e.target.closest && e.target.closest("#memory-summarize-btn");
             if (summarizeBtn) {
                 e.stopPropagation();
@@ -505,8 +503,6 @@ class KimiMemoryUI {
         return escapedContent;
     }
 
-    // Removed duplicate escapeHtml; use window.KimiValidationUtils.escapeHtml instead
-
     getCategoryIcon(category) {
         const icons = {
             personal: "👤",
@@ -812,8 +808,6 @@ class KimiMemoryUI {
             this.showFeedback("Error exporting memories", "error");
         }
     }
-
-    // pin functionality removed
 
     async handleSummarizeAction() {
         if (!this.memorySystem) return;

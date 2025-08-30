@@ -77,7 +77,18 @@ const KimiProviderUtils = {
     }
 };
 window.KimiProviderUtils = KimiProviderUtils;
-export { KimiProviderUtils };
+// Shared provider placeholders used by UI and LLM manager. Keep in window for backward compatibility.
+const KimiProviderPlaceholders = {
+    openrouter: "https://openrouter.ai/api/v1/chat/completions",
+    openai: "https://api.openai.com/v1/chat/completions",
+    groq: "https://api.groq.com/openai/v1/chat/completions",
+    together: "https://api.together.xyz/v1/chat/completions",
+    deepseek: "https://api.deepseek.com/chat/completions",
+    "openai-compatible": "",
+    ollama: "http://localhost:11434/api/chat"
+};
+window.KimiProviderPlaceholders = KimiProviderPlaceholders;
+export { KimiProviderUtils, KimiProviderPlaceholders };
 
 // Performance utility functions for debouncing and throttling
 window.KimiPerformanceUtils = {
@@ -1834,7 +1845,6 @@ class KimiVideoManager {
     }
 
     // METHODS TO ANALYZE EMOTIONS FROM TEXT
-    // Note: analyzeTextEmotion() moved to KimiVoiceManager for centralized emotion analysis
     // CLEANUP
     destroy() {
         clearTimeout(this.autoTransitionTimer);

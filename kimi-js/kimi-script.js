@@ -125,12 +125,16 @@ document.addEventListener("DOMContentLoaded", async function () {
         try {
             if (!window.kimiDB) return;
             const provider = await window.kimiDB.getPreference("llmProvider", "openrouter");
-            const baseUrl = await window.kimiDB.getPreference(
-                "llmBaseUrl",
-                provider === "openrouter"
-                    ? "https://openrouter.ai/api/v1/chat/completions"
-                    : "https://api.openai.com/v1/chat/completions"
-            );
+            // Resolve base URL preference: prefer provider-specific stored key for modifiable
+            let baseUrl;
+            const shared = window.KimiProviderPlaceholders || {};
+            if (provider === "openai-compatible" || provider === "ollama") {
+                const key = `llmBaseUrl_${provider}`;
+                const defaultForProvider = provider === "openai-compatible" ? "" : shared[provider];
+                baseUrl = await window.kimiDB.getPreference(key, defaultForProvider);
+            } else {
+                baseUrl = shared[provider] || shared.openai;
+            }
             const modelId = await window.kimiDB.getPreference(
                 "llmModelId",
                 window.kimiLLM ? window.kimiLLM.currentModel : "model-id"
@@ -213,53 +217,24 @@ document.addEventListener("DOMContentLoaded", async function () {
             const modelIdInput = ApiUi.modelIdInput();
             const apiKeyInput = ApiUi.apiKeyInput();
 
-            const placeholders = {
-                openrouter: {
-                    url: "https://openrouter.ai/api/v1/chat/completions",
-                    keyPh: "sk-or-v1-...",
-                    model: window.kimiLLM ? window.kimiLLM.currentModel : "model-id"
-                },
-                openai: {
-                    url: "https://api.openai.com/v1/chat/completions",
-                    keyPh: "sk-...",
-                    model: "gpt-4o-mini"
-                },
-                groq: {
-                    url: "https://api.groq.com/openai/v1/chat/completions",
-                    keyPh: "gsk_...",
-                    model: "llama-3.1-8b-instant"
-                },
-                together: {
-                    url: "https://api.together.xyz/v1/chat/completions",
-                    keyPh: "together_...",
-                    model: "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo"
-                },
-                deepseek: {
-                    url: "https://api.deepseek.com/chat/completions",
-                    keyPh: "sk-...",
-                    model: "deepseek-chat"
-                },
-                "openai-compatible": {
-                    url: "https://your-endpoint/v1/chat/completions",
-                    keyPh: "your-key",
-                    model: "model-id"
-                },
-                ollama: {
-                    url: "http://localhost:11434/api/chat",
-                    keyPh: "",
-                    model: "llama3"
-                }
+            const shared = window.KimiProviderPlaceholders || {};
+            const p = {
+                url: shared[provider] || "",
+                keyPh: provider === "ollama" ? "" : "your-key",
+                model: provider === "openrouter" && window.kimiLLM ? window.kimiLLM.currentModel : "model-id"
             };
-            const p = placeholders[provider] || placeholders.openai;
             if (baseUrlInput) {
-                baseUrlInput.placeholder = p.url;
+                // Set placeholder: for openai-compatible we want an empty placeholder
+                baseUrlInput.placeholder = provider === "openai-compatible" ? "" : p.url;
                 // Only allow URL modification for custom and ollama providers
                 const isModifiable = isUrlModifiable(provider);
 
                 if (isModifiable) {
-                    // For custom and ollama: load saved URL or use default
-                    const savedUrl = await window.kimiDB.getPreference("llmBaseUrl", p.url);
-                    baseUrlInput.value = savedUrl;
+                    // For custom and ollama: load saved URL or use sensible default per provider
+                    const defaultForProvider = provider === "openai-compatible" ? "" : p.url;
+                    const key = `llmBaseUrl_${provider}`;
+                    const savedUrl = await window.kimiDB.getPreference(key, defaultForProvider);
+                    baseUrlInput.value = savedUrl || "";
                     baseUrlInput.disabled = false;
                     baseUrlInput.style.opacity = "1";
                 } else {
@@ -324,12 +299,11 @@ document.addEventListener("DOMContentLoaded", async function () {
                 ApiUi.clearStatus();
 
                 // Save URL after all UI updates are complete
-                const isModifiable = isUrlModifiable(provider);
-                if (isModifiable && baseUrlInput) {
-                    await window.kimiDB.setPreference("llmBaseUrl", baseUrlInput.value);
-                } else {
-                    // For fixed providers, save the standard URL
-                    await window.kimiDB.setPreference("llmBaseUrl", p.url);
+                const isModifiableFinal = isUrlModifiable(provider);
+                // Only persist provider-specific llmBaseUrl when the provider allows modification.
+                if (isModifiableFinal && baseUrlInput) {
+                    const key = `llmBaseUrl_${provider}`;
+                    await window.kimiDB.setPreference(key, baseUrlInput.value || "");
                 }
             }
         });
@@ -361,12 +335,12 @@ document.addEventListener("DOMContentLoaded", async function () {
 
                 if (isModifiable && window.kimiDB) {
                     const newUrl = e.target.value.trim();
-                    if (newUrl) {
-                        try {
-                            await window.kimiDB.setPreference("llmBaseUrl", newUrl);
-                        } catch (error) {
-                            console.warn("Failed to save base URL:", error.message);
-                        }
+                    try {
+                        const key = `llmBaseUrl_${provider}`;
+                        // Allow empty string to be saved for openai-compatible (user may clear it)
+                        await window.kimiDB.setPreference(key, newUrl || "");
+                    } catch (error) {
+                        console.warn("Failed to save base URL:", error.message);
                     }
                 }
             });
@@ -442,7 +416,6 @@ document.addEventListener("DOMContentLoaded", async function () {
                 const selectedCard = characterGrid ? characterGrid.querySelector(".character-card.selected") : null;
                 if (!selectedCard) return;
                 const charKey = selectedCard.dataset.character;
-                // Removed incorrect usage of the API key saved badge here.
                 // Character save should not toggle the API key saved indicator.
                 const promptInput = window.KimiDOMUtils.get(`#prompt-${charKey}`);
                 const prompt = promptInput ? promptInput.value : "";
@@ -705,7 +678,11 @@ document.addEventListener("DOMContentLoaded", async function () {
                     await window.kimiDB.setPreference(keyPref, apiKey);
                 }
                 await window.kimiDB.setPreference("llmProvider", provider);
-                if (baseUrl) await window.kimiDB.setPreference("llmBaseUrl", baseUrl);
+                if (baseUrl) {
+                    // Save under provider-specific key to avoid cross-provider contamination
+                    const key = `llmBaseUrl_${provider}`;
+                    await window.kimiDB.setPreference(key, baseUrl);
+                }
                 if (modelId) await window.kimiDB.setPreference("llmModelId", modelId);
             }
             statusSpan.textContent = "Testing in progress...";

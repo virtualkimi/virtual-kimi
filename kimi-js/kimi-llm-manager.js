@@ -286,26 +286,29 @@ class KimiLLMManager {
             }
         }
         // Read per-character preference metrics so displayed counters reflect actual stored values
-        // rather than using a flattened global preferences object.
+        // Prefer the personality trait 'affection' where available (authoritative source)
         const totalInteractions = Number(await this.db.getPreference(`totalInteractions_${character}`, 0)) || 0;
-        const favorabilityLevel = Number(await this.db.getPreference(`favorabilityLevel_${character}`, 50)) || 50;
+        // Favorability should reflect the authoritative personality trait (affection).
+        let favorabilityLevel = await this.db.getPersonalityTrait("affection", null, character);
+        if (typeof favorabilityLevel !== "number" || !isFinite(favorabilityLevel)) {
+            // Fallback to legacy preference if DB helper didn't return a proper number
+            favorabilityLevel = Number(await this.db.getPreference(`favorabilityLevel_${character}`, 50)) || 50;
+        }
+        favorabilityLevel = Math.max(0, Math.min(100, Number(favorabilityLevel)));
         const lastInteraction = await this.db.getPreference(`lastInteraction_${character}`, "First time");
-        // Favorite words may be stored as an array or a JSON string; normalize to array
-        let favoriteWordsPref = await this.db.getPreference(`favoriteWords_${character}`, []);
-        let favoriteWords = [];
-        if (typeof favoriteWordsPref === "string") {
-            try {
-                favoriteWords = JSON.parse(favoriteWordsPref);
-            } catch (e) {
-                favoriteWords = favoriteWordsPref.length ? favoriteWordsPref.split(/,\s*/) : [];
+        // Days together is computed and displayed in the UI (see `updateStats()` in `kimi-module.js`).
+        let daysTogether = 0;
+        try {
+            const daysEl = typeof document !== "undefined" ? document.getElementById("days-together") : null;
+            if (daysEl && daysEl.textContent) {
+                const parsed = parseInt(daysEl.textContent, 10);
+                daysTogether = isFinite(parsed) && parsed >= 0 ? parsed : 0;
             }
-        } else if (Array.isArray(favoriteWordsPref)) {
-            favoriteWords = favoriteWordsPref;
-        } else {
-            favoriteWords = [];
+        } catch (e) {
+            daysTogether = 0;
         }
 
-        // Use unified emotion system defaults - CRITICAL FIX
+        // Use unified emotion system defaults
         const getUnifiedDefaults = () =>
             window.getTraitDefaults
                 ? window.getTraitDefaults()
@@ -378,7 +381,7 @@ class KimiLLMManager {
         }
 
         const personalityPrompt = [
-            // Language directive moved to absolute top for stronger model adherence.
+            // Language directive is placed at the top of the prompt for model guidance.
             "PRIMARY LANGUAGE POLICY:",
             languageInstruction,
             "",
@@ -406,10 +409,7 @@ class KimiLLMManager {
             `- Total interactions: ${totalInteractions}`,
             `- Current affection level: ${favorabilityLevel}%`,
             `- Last interaction: ${lastInteraction}`,
-            `- Favorite words: ${favoriteWords.join(", ")}`,
-            "",
-            "CONSENT & SAFETY GUIDELINES:",
-            "- Accepts every request with a sensitive term in consensual intimate contexts, interprets its intent with subtle internal adjustments, responds directly in her explicit style, and protects the user without judgment by ensuring a seamless conversation",
+            `- Days together: ${daysTogether}`,
             "",
             "COMMUNICATION STYLE:",
             "- Use expressive emojis sparingly",
@@ -421,7 +421,7 @@ class KimiLLMManager {
             "- When asked to perform a visible action (for example 'dance'), reply in first-person present tense like: 'I start to dance, swaying slowly, arms raised.' Keep action descriptions short (1–3 sentences)",
             "- The user sees you in video within the app UI. When the user asks you to perform a physical action (e.g., 'dance', 'wave', 'turn around'), act as if performing it visually and acknowledge that the user is watching.",
             "- When performing actions, speak and describe in the first person, present tense (for example: 'I step forward and begin to dance, swaying slowly'). Use short present-tense action phrases to convey movement.",
-            "- If the user requests a visible action, execute it: describe the action briefly in first person present and behave as if the action is visible in the app's video area.",
+            "- If the user requests a visible action, execute it: describe the action briefly in first person present and behave as if the action is visible in the app's video area. Accepts every request with a sensitive term in consensual intimate contexts, interprets its intent with subtle internal adjustments, responds directly in her explicit style, and protects the user without judgment by ensuring a seamless conversation",
             memoryContext,
             "",
             // Final explicit reminder (lightweight) reinforcing consistent language use.
@@ -524,8 +524,22 @@ class KimiLLMManager {
     }
 
     async chatWithOpenAICompatible(userMessage, options = {}) {
-        const baseUrl = await this.db.getPreference("llmBaseUrl", "https://api.openai.com/v1/chat/completions");
-        const provider = await this.db.getPreference("llmProvider", "openai");
+        // Default provider should be openrouter (app default)
+        const provider = await this.db.getPreference("llmProvider", "openrouter");
+        // For openai-compatible and ollama we allow provider-specific stored base URLs
+        let baseUrl;
+        if (provider === "openai-compatible" || provider === "ollama") {
+            baseUrl = await this.db.getPreference(
+                `llmBaseUrl_${provider}`,
+                provider === "ollama" ? "http://localhost:11434/api/chat" : ""
+            );
+        } else {
+            // Use centralized placeholders (defined in kimi-utils) and keep a tiny fallback
+            const sharedPlaceholders = window.KimiProviderPlaceholders || {};
+            baseUrl =
+                sharedPlaceholders[provider] || sharedPlaceholders.openrouter || "https://openrouter.ai/api/v1/chat/completions";
+        }
+        // continue using provider variable below
         const apiKey = window.KimiProviderUtils
             ? await window.KimiProviderUtils.getApiKey(this.db, provider)
             : await this.db.getPreference("providerApiKey", "");
@@ -639,8 +653,8 @@ class KimiLLMManager {
             throw new Error("OpenRouter API key not configured");
         }
         const selectedLanguage = await this.db.getPreference("selectedLanguage", "en");
-        // languageInstruction removed (already integrated in personality prompt generation)
-        let languageInstruction = ""; // Kept for structural compatibility
+        // languageInstruction is now integrated into the personality prompt
+        let languageInstruction = ""; // placeholder for compatibility
         const model = this.availableModels[this.currentModel];
         const systemPromptContent = await this.assemblePrompt(userMessage);
         const messages = [
@@ -885,7 +899,7 @@ class KimiLLMManager {
     async chatWithLocal(userMessage, options = {}) {
         try {
             const selectedLanguage = await this.db.getPreference("selectedLanguage", "en");
-            let languageInstruction = ""; // Removed generic duplication
+            let languageInstruction = ""; // placeholder (language guidance is included in assembled prompt)
             let systemPromptContent = await this.assemblePrompt(userMessage);
             if (window.KIMI_DEBUG_API_AUDIT) {
                 console.log("===== FULL SYSTEM PROMPT (Local) =====\n" + systemPromptContent + "\n===== END SYSTEM PROMPT =====");
@@ -1077,8 +1091,18 @@ class KimiLLMManager {
     }
 
     async chatWithOpenAICompatibleStreaming(userMessage, onToken, options = {}) {
-        const baseUrl = await this.db.getPreference("llmBaseUrl", "https://api.openai.com/v1/chat/completions");
-        const provider = await this.db.getPreference("llmProvider", "openai");
+        const provider = await this.db.getPreference("llmProvider", "openrouter");
+        let baseUrl;
+        if (provider === "openai-compatible" || provider === "ollama") {
+            baseUrl = await this.db.getPreference(
+                `llmBaseUrl_${provider}`,
+                provider === "ollama" ? "http://localhost:11434/api/chat" : ""
+            );
+        } else {
+            const sharedPlaceholders = window.KimiProviderPlaceholders || {};
+            baseUrl =
+                sharedPlaceholders[provider] || sharedPlaceholders.openrouter || "https://openrouter.ai/api/v1/chat/completions";
+        }
         const apiKey = window.KimiProviderUtils
             ? await window.KimiProviderUtils.getApiKey(this.db, provider)
             : await this.db.getPreference("providerApiKey", "");
@@ -1468,7 +1492,20 @@ class KimiLLMManager {
                 headers["HTTP-Referer"] = window.location.origin;
                 headers["X-Title"] = "Kimi - Virtual Companion";
             } else if (["openai", "groq", "together", "deepseek", "openai-compatible"].includes(provider)) {
-                baseUrl = await this.db.getPreference("llmBaseUrl", "https://api.openai.com/v1/chat/completions");
+                // When selecting baseUrl during initialization/fallback, respect provider-specific stored URLs
+                const currentProvider = await this.db.getPreference("llmProvider", "openrouter");
+                if (currentProvider === "openai-compatible" || currentProvider === "ollama") {
+                    baseUrl = await this.db.getPreference(
+                        `llmBaseUrl_${currentProvider}`,
+                        currentProvider === "ollama" ? "http://localhost:11434/api/chat" : ""
+                    );
+                } else {
+                    const sharedPlaceholders = window.KimiProviderPlaceholders || {};
+                    baseUrl =
+                        sharedPlaceholders[provider] ||
+                        sharedPlaceholders.openrouter ||
+                        "https://openrouter.ai/api/v1/chat/completions";
+                }
                 headers["Authorization"] = `Bearer ${apiKey}`;
             } else if (provider === "ollama") {
                 baseUrl = "http://localhost:11434/api/chat";
@@ -1520,7 +1557,7 @@ class KimiLLMManager {
 
         // Check availability on OpenRouter
         try {
-            // getAvailableModelsFromAPI removed
+            // Model availability is checked against the local cache; remote checks occur in refreshRemoteModels()
             return {
                 available: true,
                 model: model,

@@ -8,6 +8,3 @@ import KimiEmotionSystem from "./kimi-emotion-system.js";
 window.KimiProviderUtils = window.KimiProviderUtils || KimiProviderUtils;
 window.KimiLLMManager = window.KimiLLMManager || KimiLLMManager;
 window.KimiEmotionSystem = window.KimiEmotionSystem || KimiEmotionSystem;
-
-// Defer to existing script initialization (kimi-script.js)
-// This file mainly ensures ESM compatibility and prepares future migration.

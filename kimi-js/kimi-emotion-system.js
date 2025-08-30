@@ -231,12 +231,12 @@ class KimiEmotionSystem {
                 empathy = Math.min(100, adjustUp(empathy, scaleGain("empathy", 0.5))); // Empathy still grows (understanding pain)
                 break;
             case this.EMOTIONS.ROMANTIC:
-                romance = Math.min(100, adjustUp(romance, scaleGain("romance", 0.6))); // Reduced from 0.8 - romance should be earned
-                affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.5))); // Reduced from 0.4
+                romance = Math.min(100, adjustUp(romance, scaleGain("romance", 0.6))); // Romance should be earned
+                affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.5)));
                 break;
             case this.EMOTIONS.LAUGHING:
                 humor = Math.min(100, adjustUp(humor, scaleGain("humor", 0.8))); // Humor grows with laughter
-                playfulness = Math.min(100, adjustUp(playfulness, scaleGain("playfulness", 0.4))); // Increased playfulness connection
+                playfulness = Math.min(100, adjustUp(playfulness, scaleGain("playfulness", 0.4))); // Playfulness connection
                 affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.2))); // Small affection boost from shared laughter
                 break;
             case this.EMOTIONS.DANCING:
@@ -248,12 +248,12 @@ class KimiEmotionSystem {
                 romance = Math.max(0, adjustDown(romance, scaleLoss("romance", 0.2))); // Shyness reduces romance more
                 break;
             case this.EMOTIONS.CONFIDENT:
-                affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.5))); // Reduced from 0.4
+                affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.5)));
                 intelligence = Math.min(100, adjustUp(intelligence, scaleGain("intelligence", 0.1))); // Slight intelligence boost
                 break;
             case this.EMOTIONS.FLIRTATIOUS:
-                romance = Math.min(100, adjustUp(romance, scaleGain("romance", 0.5))); // Reduced from 0.6
-                playfulness = Math.min(100, adjustUp(playfulness, scaleGain("playfulness", 0.5))); // Reduced from 0.4
+                romance = Math.min(100, adjustUp(romance, scaleGain("romance", 0.5)));
+                playfulness = Math.min(100, adjustUp(playfulness, scaleGain("playfulness", 0.5)));
                 affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.2))); // Small affection boost
                 break;
             case this.EMOTIONS.SURPRISE:

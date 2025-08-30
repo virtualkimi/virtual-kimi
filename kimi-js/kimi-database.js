@@ -64,7 +64,7 @@ class KimiDatabase {
                         });
                     }
                 } catch (e) {
-                    // Swallow upgrade errors to avoid blocking DB open; post-open migrations will attempt fixes
+                    // Ignore upgrade errors so DB open is not blocked; post-open migrations will attempt fixes
                 }
             });
 
@@ -90,7 +90,7 @@ class KimiDatabase {
                         if (!rec.lastAccess) rec.lastAccess = rec.timestamp || now;
                     });
                 } catch (e) {
-                    // Silent; non-blocking
+                    // Non-blocking: continue on error
                 }
             });
     }
@@ -283,7 +283,7 @@ class KimiDatabase {
             }
         }
 
-        // Fix: never recreate default conversations
+        // Do not recreate default conversations
         const convCount = await this.db.conversations.count();
         if (convCount === 0) {
         }
@@ -369,8 +369,8 @@ class KimiDatabase {
                 }
             }
 
-            // MIGRATION: Fix Kimi affection progression issue - update default affection from 65 to 55
-            // This allows better progression and prevents blocking at ~65%
+            // Migration: update Kimi default affection from 65 to 55
+            // This improves progression behavior for users who still have the old default
             const kimiAffectionRecord = await this.db.personality.get(["kimi", "affection"]);
             if (kimiAffectionRecord && kimiAffectionRecord.value === 65) {
                 // Only update if it's exactly 65 (the old default) and user hasn't modified it significantly
@@ -384,7 +384,7 @@ class KimiDatabase {
                 console.log(`🔧 Migration: Updated Kimi affection from 65% to ${newValue}% for better progression`);
             }
 
-            // MIGRATION: Fix Bella affection progression issue - update default affection from 70 to 60
+            // Migration: Fix Bella default affection from 70 to 60
             const bellaAffectionRecord = await this.db.personality.get(["bella", "affection"]);
             if (bellaAffectionRecord && bellaAffectionRecord.value === 70) {
                 // Only update if it's exactly 70 (the old default) and user hasn't modified it significantly
@@ -398,7 +398,7 @@ class KimiDatabase {
                 console.log(`🔧 Migration: Updated Bella affection from 70% to ${newValue}% for better progression`);
             }
 
-            // MIGRATION: Remove deprecated animations preference if exists
+            // Migration: remove deprecated animations preference if present
             try {
                 const animPref = await this.db.preferences.get("animationsEnabled");
                 if (animPref) {
@@ -409,7 +409,7 @@ class KimiDatabase {
                 // Non-blocking: ignore migration error
             }
 
-            // MIGRATION: Normalize legacy selectedLanguage values to primary subtag (e.g., 'en-US'|'en_US'|'us:en' -> 'en')
+            // Migration: normalize legacy selectedLanguage values to primary subtag (e.g., 'en-US'|'en_US'|'us:en' -> 'en')
             try {
                 const langRecord = await this.db.preferences.get("selectedLanguage");
                 if (langRecord && typeof langRecord.value === "string") {
@@ -434,8 +434,8 @@ class KimiDatabase {
                 // Non-blocking
             }
 
-            // FORCED MIGRATION: Normalize any preference keys containing the word 'language' to primary subtag
-            // WARNING: This is destructive by design and will overwrite values without backup as requested.
+            // Forced migration: normalize any preference keys containing the word 'language' to primary subtag
+            // WARNING: This operation is destructive and will overwrite matching preference values without backup.
             try {
                 const allPrefs = await this.db.preferences.toArray();
                 const langKeyRegex = /\blanguage\b/i;
@@ -579,18 +579,18 @@ class KimiDatabase {
                 return defaultValue;
             }
 
-            // Backward compatibility: decrypt legacy encrypted values
+            // Backward compatibility: legacy records may have an `encrypted` flag; handle as plain text when needed
             let value = record.value;
             if (record.encrypted && window.KimiSecurityUtils) {
                 try {
-                    value = record.value; // decrypt removed – stored as plain text
-                    // One-time migration: store back as plain text without encrypted flag
+                    // Treat legacy encrypted flag as plain text (one-time migration to remove encrypted flag)
+                    value = record.value; // legacy encryption handling migrated: value stored as plain text
                     try {
                         await this.db.preferences.put({ key: key, value, updated: new Date().toISOString() });
                     } catch (mErr) {}
                 } catch (e) {
-                    // If decryption fails, fallback to raw value
-                    console.warn("Failed to decrypt legacy API key; returning raw value", e);
+                    // If any error occurs, fallback to raw stored value
+                    console.warn("Failed to handle legacy encrypted value; returning raw value", e);
                 }
             }
 
