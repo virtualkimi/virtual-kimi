@@ -344,11 +344,36 @@ window.KIMI_PERSONALITY_KEYWORDS = {
             negative: ["stupid", "dumb", "foolish", "slow", "naive", "ignorant", "simple"]
         },
         romance: {
-            positive: ["cuddle", "love", "romantic", "kiss", "tenderness", "passion", "charming", "adorable", "sweet"],
+            positive: [
+                "cuddle",
+                "love",
+                "romantic",
+                "kiss",
+                "tenderness",
+                "passion",
+                "charming",
+                "adorable",
+                "sweet",
+                "i love you",
+                "love you"
+            ],
             negative: ["cold", "distant", "indifferent", "rejection", "loneliness", "breakup", "sad"]
         },
         affection: {
-            positive: ["affection", "tenderness", "close", "warmth", "kind", "caring", "cuddle", "love", "adore", "lovely"],
+            positive: [
+                "affection",
+                "tenderness",
+                "close",
+                "warmth",
+                "kind",
+                "caring",
+                "cuddle",
+                "love",
+                "adore",
+                "lovely",
+                "i love you",
+                "love you"
+            ],
             negative: [
                 "mean",
                 "cold",
@@ -410,7 +435,21 @@ window.KIMI_PERSONALITY_KEYWORDS = {
             ]
         },
         romance: {
-            positive: ["câlin", "amour", "romantique", "bisou", "tendresse", "passion", "séduisant", "charmant", "adorable"],
+            positive: [
+                "câlin",
+                "amour",
+                "romantique",
+                "bisou",
+                "tendresse",
+                "passion",
+                "séduisant",
+                "charmant",
+                "adorable",
+                "je t'aime",
+                "je taime",
+                "t'aime",
+                "taime"
+            ],
             negative: [
                 "froid",
                 "froide",
@@ -434,6 +473,11 @@ window.KIMI_PERSONALITY_KEYWORDS = {
                 "attentionné",
                 "câlin",
                 "aimer",
+                "aime",
+                "je t'aime",
+                "je taime",
+                "t'aime",
+                "taime",
                 "adorer",
                 "adorable"
             ],
@@ -521,11 +565,35 @@ window.KIMI_PERSONALITY_KEYWORDS = {
             ]
         },
         romance: {
-            positive: ["abrazo", "amor", "romántico", "beso", "ternura", "pasión", "encantador", "adorable", "dulce"],
+            positive: [
+                "abrazo",
+                "amor",
+                "romántico",
+                "beso",
+                "ternura",
+                "pasión",
+                "encantador",
+                "adorable",
+                "dulce",
+                "te quiero",
+                "te amo"
+            ],
             negative: ["frío", "fría", "distante", "indiferente", "rechazo", "soledad", "ruptura", "triste"]
         },
         affection: {
-            positive: ["afecto", "ternura", "cerca", "calidez", "amable", "cariño", "abrazar", "amor", "adorar"],
+            positive: [
+                "afecto",
+                "ternura",
+                "cerca",
+                "calidez",
+                "amable",
+                "cariño",
+                "abrazar",
+                "amor",
+                "adorar",
+                "te quiero",
+                "te amo"
+            ],
             negative: [
                 "malo",
                 "mala",
@@ -595,7 +663,8 @@ window.KIMI_PERSONALITY_KEYWORDS = {
                 "leidenschaft",
                 "charmant",
                 "liebenswert",
-                "süß"
+                "süß",
+                "ich liebe dich"
             ],
             negative: [
                 "kalt",
@@ -612,7 +681,18 @@ window.KIMI_PERSONALITY_KEYWORDS = {
             ]
         },
         affection: {
-            positive: ["zuneigung", "zärtlichkeit", "nah", "wärme", "freundlich", "fürsorglich", "umarmen", "liebe", "anbeten"],
+            positive: [
+                "zuneigung",
+                "zärtlichkeit",
+                "nah",
+                "wärme",
+                "freundlich",
+                "fürsorglich",
+                "umarmen",
+                "liebe",
+                "anbeten",
+                "ich liebe dich"
+            ],
             negative: [
                 "gemein",
                 "gemeine",
@@ -674,11 +754,33 @@ window.KIMI_PERSONALITY_KEYWORDS = {
             negative: ["stupido", "stupida", "sciocco", "sciocca", "lento", "lenta", "ingenuo", "ingenua", "ignorante"]
         },
         romance: {
-            positive: ["abbraccio", "amore", "romantico", "bacio", "tenerezza", "passione", "affascinante", "adorabile", "dolce"],
+            positive: [
+                "abbraccio",
+                "amore",
+                "romantico",
+                "bacio",
+                "tenerezza",
+                "passione",
+                "affascinante",
+                "adorabile",
+                "dolce",
+                "ti amo"
+            ],
             negative: ["freddo", "fredda", "distante", "indifferente", "rifiuto", "solitudine", "rottura", "triste"]
         },
         affection: {
-            positive: ["affetto", "tenerezza", "vicino", "calore", "gentile", "premuroso", "abbraccio", "amore", "adorare"],
+            positive: [
+                "affetto",
+                "tenerezza",
+                "vicino",
+                "calore",
+                "gentile",
+                "premuroso",
+                "abbraccio",
+                "amore",
+                "adorare",
+                "ti amo"
+            ],
             negative: [
                 "cattivo",
                 "cattiva",
@@ -722,7 +824,7 @@ window.KIMI_PERSONALITY_KEYWORDS = {
         laughing: ["はは", "笑", "笑う", "面白い", "愉快"],
         shy: ["恥ずかしい", "照れる", "赤面", "内気", "遠慮"],
         confident: ["自信", "誇り", "確信", "強い", "決意"],
-        romantic: ["愛", "ロマンチック", "優しい", "抱擁", "キス", "愛しい"],
+        romantic: ["愛", "ロマンチック", "優しい", "抱擁", "キス", "愛しい", "愛してる", "好き"],
         flirtatious: ["いちゃつく", "からかう", "誘惑", "魅力", "フリート"],
         goodbye: ["さようなら", "バイバイ", "また今度", "チャオ", "またね"],
         kiss: ["キス", "抱擁", "チュー"],
@@ -734,7 +836,7 @@ window.KIMI_PERSONALITY_KEYWORDS = {
         laughing: ["哈哈", "笑", "大笑", "有趣", "搞笑"],
         shy: ["害羞", "尴尬", "脸红", "羞涩", "胆怯"],
         confident: ["自信", "骄傲", "确信", "强壮", "坚定"],
-        romantic: ["爱", "浪漫", "温柔", "拥抱", "吻", "亲爱的"],
+        romantic: ["爱", "浪漫", "温柔", "拥抱", "吻", "亲爱的", "我爱你"],
         flirtatious: ["调情", "挑逗", "诱惑", "魅力", "撒娇"],
         goodbye: ["再见", "拜拜", "回头见", "拜", "下次见"],
         kiss: ["吻", "亲吻", "拥抱", "亲"],
@@ -808,6 +910,9 @@ window.KIMI_NEGATORS = window.KIMI_NEGATORS || {
 window.KIMI_NEGATION_WINDOW = window.KIMI_NEGATION_WINDOW || 3; // tokens to look back for negation
 window.KIMI_SMOOTHING_ALPHA = window.KIMI_SMOOTHING_ALPHA || 0.3;
 window.KIMI_PERSIST_THRESHOLD = window.KIMI_PERSIST_THRESHOLD || 0.1; // absolute percent (slightly higher to slow small visible jumps)
+// Weight applied to counts found in the LLM/Kimi response when updating personality traits.
+// You can override at runtime by setting window.KIMI_LLM_RESPONSE_WEIGHT (e.g. 0.2)
+window.KIMI_LLM_RESPONSE_WEIGHT = window.KIMI_LLM_RESPONSE_WEIGHT || 0.2;
 
 // Memory system knobs
 window.KIMI_MAX_MEMORIES = window.KIMI_MAX_MEMORIES || 100; // default max memory entries per character

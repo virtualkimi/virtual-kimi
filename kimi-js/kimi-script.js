@@ -58,6 +58,24 @@ document.addEventListener("DOMContentLoaded", async function () {
         await kimiMemory.init();
         window.kimiMemory = kimiMemory;
 
+        // Setup BroadcastChannel to announce conversation clears across tabs (very small, optional)
+        try {
+            if (typeof BroadcastChannel !== "undefined") {
+                window.kimiBroadcast = new BroadcastChannel("kimi-db-events");
+                window.kimiBroadcast.addEventListener("message", ev => {
+                    try {
+                        const data = ev.data || {};
+                        if (data && data.type === "conversations:cleared" && data.character) {
+                            window.kimiConversationsClearedAt = window.kimiConversationsClearedAt || {};
+                            window.kimiConversationsClearedAt[data.character] = data.timestamp || new Date().toISOString();
+                        }
+                    } catch (e) {
+                        // ignore
+                    }
+                });
+            }
+        } catch (e) {}
+
         // Expose globally (already set before init)
 
         // Load available models now that LLM is ready
@@ -409,57 +427,82 @@ document.addEventListener("DOMContentLoaded", async function () {
     async function attachCharacterSection() {
         let saveCharacterBtn = window.KimiDOMUtils.get("#save-character-btn");
         if (saveCharacterBtn) {
-            saveCharacterBtn.addEventListener("click", async e => {
-                const settingsPanel = window.KimiDOMUtils.get(".settings-panel");
-                let scrollTop = settingsPanel ? settingsPanel.scrollTop : null;
-                const characterGrid = window.KimiDOMUtils.get("#character-grid");
-                const selectedCard = characterGrid ? characterGrid.querySelector(".character-card.selected") : null;
-                if (!selectedCard) return;
-                const charKey = selectedCard.dataset.character;
-                // Character save should not toggle the API key saved indicator.
-                const promptInput = window.KimiDOMUtils.get(`#prompt-${charKey}`);
-                const prompt = promptInput ? promptInput.value : "";
+            // Prevent attaching the same listener multiple times
+            if (saveCharacterBtn.dataset.kimiSaveListenerAttached === "1") {
+                // already attached
+            } else {
+                saveCharacterBtn.dataset.kimiSaveListenerAttached = "1";
+                saveCharacterBtn.addEventListener("click", async e => {
+                    const settingsPanel = window.KimiDOMUtils.get(".settings-panel");
+                    let scrollTop = settingsPanel ? settingsPanel.scrollTop : null;
+                    const characterGrid = window.KimiDOMUtils.get("#character-grid");
+                    const selectedCard = characterGrid ? characterGrid.querySelector(".character-card.selected") : null;
+                    if (!selectedCard) return;
+                    const charKey = selectedCard.dataset.character;
+                    // Character save should not toggle the API key saved indicator.
+                    const promptInput = window.KimiDOMUtils.get(`#prompt-${charKey}`);
+                    const prompt = promptInput ? promptInput.value : "";
 
-                await window.kimiDB.setSelectedCharacter(charKey);
-                await window.kimiDB.setSystemPromptForCharacter(charKey, prompt);
-                // Ensure memory system uses the correct character
-                if (window.kimiMemorySystem) {
-                    window.kimiMemorySystem.selectedCharacter = charKey;
-                }
-                if (window.kimiVideo && window.kimiVideo.setCharacter) {
-                    window.kimiVideo.setCharacter(charKey);
-                    if (window.kimiVideo.switchToContext) {
-                        window.kimiVideo.switchToContext("neutral");
+                    await window.kimiDB.setSelectedCharacter(charKey);
+                    await window.kimiDB.setSystemPromptForCharacter(charKey, prompt);
+                    // Ensure memory system uses the correct character
+                    if (window.kimiMemorySystem) {
+                        window.kimiMemorySystem.selectedCharacter = charKey;
                     }
-                }
-                if (window.voiceManager && window.voiceManager.updateSelectedCharacter) {
-                    await window.voiceManager.updateSelectedCharacter();
-                }
+                    if (window.kimiVideo && window.kimiVideo.setCharacter) {
+                        window.kimiVideo.setCharacter(charKey);
+                        if (window.kimiVideo.switchToContext) {
+                            window.kimiVideo.switchToContext("neutral");
+                        }
+                    }
+                    if (window.voiceManager && window.voiceManager.updateSelectedCharacter) {
+                        await window.voiceManager.updateSelectedCharacter();
+                    }
 
-                await window.loadCharacterSection();
-                if (settingsPanel && scrollTop !== null) {
-                    requestAnimationFrame(() => {
-                        settingsPanel.scrollTop = scrollTop;
-                    });
-                }
-                // Refresh memory tab after character selection
-                if (window.kimiMemoryUI && typeof window.kimiMemoryUI.updateMemoryStats === "function") {
-                    await window.kimiMemoryUI.updateMemoryStats();
-                }
-                saveCharacterBtn.setAttribute("data-i18n", "saved");
-                saveCharacterBtn.classList.add("success");
-                saveCharacterBtn.disabled = true;
+                    await window.loadCharacterSection();
+                    if (settingsPanel && scrollTop !== null) {
+                        requestAnimationFrame(() => {
+                            settingsPanel.scrollTop = scrollTop;
+                        });
+                    }
+                    // Refresh memory tab after character selection
+                    if (window.kimiMemoryUI && typeof window.kimiMemoryUI.updateMemoryStats === "function") {
+                        await window.kimiMemoryUI.updateMemoryStats();
+                    }
+                    // Refresh chat history immediately so the chat-messages container shows the selected character's history
+                    if (typeof window.loadChatHistory === "function") {
+                        try {
+                            await window.loadChatHistory();
+                        } catch (e) {
+                            console.warn("Failed to refresh chat history after character change:", e);
+                        }
+                    }
+                    saveCharacterBtn.setAttribute("data-i18n", "saved");
+                    saveCharacterBtn.classList.add("success");
+                    saveCharacterBtn.disabled = true;
 
-                setTimeout(() => {
-                    saveCharacterBtn.setAttribute("data-i18n", "save");
-                    saveCharacterBtn.classList.remove("success");
-                    saveCharacterBtn.disabled = false;
-                }, 1500);
-            });
+                    setTimeout(() => {
+                        saveCharacterBtn.setAttribute("data-i18n", "save");
+                        saveCharacterBtn.classList.remove("success");
+                        saveCharacterBtn.disabled = false;
+                    }, 900);
+                    // Also reload the page shortly after restoring the button so the user sees feedback
+                    setTimeout(() => {
+                        try {
+                            location.reload();
+                        } catch (e) {
+                            console.warn("Failed to reload after save feedback:", e);
+                        }
+                    }, 1100);
+                });
+            }
         }
         let settingsButton2 = window.KimiDOMUtils.get("#settings-button");
         if (settingsButton2) {
-            settingsButton2.addEventListener("click", window.loadCharacterSection);
+            if (!settingsButton2.dataset.kimiSettingsListenerAttached) {
+                settingsButton2.dataset.kimiSettingsListenerAttached = "1";
+                settingsButton2.addEventListener("click", window.loadCharacterSection);
+            }
         }
     }
     await attachCharacterSection();
@@ -901,7 +944,29 @@ document.addEventListener("DOMContentLoaded", async function () {
                     }
                     if (window.kimiDB && window.kimiDB.db) {
                         try {
-                            await window.kimiDB.db.conversations.clear();
+                            const selectedCharacter = await window.kimiDB.getSelectedCharacter();
+                            // Mark cleared timestamp per-character to prevent pending async saves from re-adding old messages
+                            window.kimiConversationsClearedAt = window.kimiConversationsClearedAt || {};
+                            const ts = new Date().toISOString();
+                            window.kimiConversationsClearedAt[selectedCharacter] = ts;
+                            await window.kimiDB.clearConversations(selectedCharacter);
+                            // Broadcast the clear to other tabs so they set their cleared markers too
+                            try {
+                                if (window.kimiBroadcast && typeof window.kimiBroadcast.postMessage === "function") {
+                                    window.kimiBroadcast.postMessage({
+                                        type: "conversations:cleared",
+                                        character: selectedCharacter,
+                                        timestamp: ts
+                                    });
+                                }
+                            } catch (e) {}
+                            // Clear the cleared marker for this character shortly after to allow new conversations again
+                            setTimeout(() => {
+                                try {
+                                    if (window.kimiConversationsClearedAt)
+                                        delete window.kimiConversationsClearedAt[selectedCharacter];
+                                } catch (e) {}
+                            }, 5000);
                         } catch (error) {
                             console.error("Error deleting conversations:", error);
                         }

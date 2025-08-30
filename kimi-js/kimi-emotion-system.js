@@ -357,13 +357,14 @@ class KimiEmotionSystem {
             let posCount = 0;
             let negCount = 0;
 
+            const llmWeight = Number(window.KIMI_LLM_RESPONSE_WEIGHT) || 0.5;
             for (const w of posWords) {
                 posCount += this.countTokenMatches(lowerUser, String(w)) * 1.0;
-                posCount += this.countTokenMatches(lowerKimi, String(w)) * 0.5;
+                posCount += this.countTokenMatches(lowerKimi, String(w)) * llmWeight;
             }
             for (const w of negWords) {
                 negCount += this.countTokenMatches(lowerUser, String(w)) * 1.0;
-                negCount += this.countTokenMatches(lowerKimi, String(w)) * 0.5;
+                negCount += this.countTokenMatches(lowerKimi, String(w)) * llmWeight;
             }
 
             const delta = (posCount - negCount) * 0.8; // softened multiplier to 0.8 for gentler progression

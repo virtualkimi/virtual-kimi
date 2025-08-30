@@ -41,7 +41,7 @@ class KimiDataManager extends KimiBaseManager {
 
                 try {
                     // Clear all conversations directly
-                    await this.db.db.conversations.clear();
+                    await this.db.clearConversations();
 
                     // Clear chat UI
                     const chatMessages = document.getElementById("chat-messages");
@@ -822,6 +822,23 @@ async function loadChatHistory() {
         chatMessages.removeChild(chatMessages.firstChild);
     }
 
+    // Ensure i18n manager has loaded translations to avoid raw keys appearing (e.g., "greeting_high")
+    if (window.kimiI18nManager && typeof window.kimiI18nManager.applyTranslations === "function") {
+        // give i18n a short moment to apply if still loading
+        const start = Date.now();
+        while (
+            (window.kimiI18nManager.translations == null || Object.keys(window.kimiI18nManager.translations).length === 0) &&
+            Date.now() - start < 500
+        ) {
+            // small delay
+            // eslint-disable-next-line no-await-in-loop
+            await new Promise(r => setTimeout(r, 50));
+        }
+        try {
+            window.kimiI18nManager.applyTranslations();
+        } catch (e) {}
+    }
+
     if (kimiDB) {
         try {
             const recent = await kimiDB.getRecentConversations(10);
@@ -1544,6 +1561,37 @@ async function sendMessage() {
 
     message = validation.sanitized || message.trim();
     if (!message) return;
+
+    // Force persist current personality sliders to avoid UI/DB desync
+    try {
+        const kimiDB = window.kimiDB;
+        if (kimiDB && typeof kimiDB.setPersonalityBatch === "function") {
+            const traitIds = [
+                "trait-affection",
+                "trait-playfulness",
+                "trait-intelligence",
+                "trait-empathy",
+                "trait-humor",
+                "trait-romance"
+            ];
+            const pending = {};
+            traitIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (el && el.value !== undefined) {
+                    const trait = id.replace(/^trait-/, "");
+                    const v = Number(el.value);
+                    if (isFinite(v)) pending[trait] = v;
+                }
+            });
+            // Only write when there is at least one trait
+            if (Object.keys(pending).length > 0) {
+                // small timeout to ensure UI changes settled (rare) - use direct write
+                await kimiDB.setPersonalityBatch(pending);
+            }
+        }
+    } catch (e) {
+        console.warn("Failed to persist personality sliders before send:", e);
+    }
 
     addMessageToChat("user", message);
     chatInput.value = "";
