@@ -414,7 +414,7 @@ We welcome contributions! Please see our contributing guidelines:
 
 This project is distributed under a custom license. **Any commercial use, resale, or monetization of this application or its derivatives is strictly prohibited without the explicit written consent of the author.**
 
-See the [LICENSE](LICENSE) file for details.
+See the [LICENSE](LICENSE.md) file for details.
 
 [![Open Source](https://img.shields.io/badge/Open%20Source-GitHub-brightgreen?style=flat-square&logo=github)](https://github.com/virtualkimi)
 [![No Commercial Use](https://img.shields.io/badge/No%20Commercial%20Use-%F0%9F%9A%AB-red?style=flat-square)](#license)
@@ -426,3 +426,4 @@ See the [LICENSE](LICENSE) file for details.
 > _"Love is the most powerful code"_ 💕
 >
 > — 2025 Virtual Kimi - Created with 💜 by Jean & Kimi
+
