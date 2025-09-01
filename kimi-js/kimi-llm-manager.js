@@ -19,6 +19,14 @@ class KimiLLMManager {
                 pricing: { input: 0.05, output: 0.1 },
                 strengths: ["Multilingual", "Fast", "Efficient", "Economical"]
             },
+            "qwen/qwen3-235b-a22b-2507": {
+                name: "Qwen3-235b-a22b-2507",
+                provider: "Qwen",
+                type: "openrouter",
+                contextWindow: 262000,
+                pricing: { input: 0.13, output: 0.6 },
+                strengths: ["Multilingual", "Fast", "Versatile", "Economical"]
+            },
             "qwen/qwen3-30b-a3b-instruct-2507": {
                 name: "Qwen3 30b-a3b instruct 2507",
                 provider: "Qwen",
@@ -51,14 +59,6 @@ class KimiLLMManager {
                 pricing: { input: 0.15, output: 0.6 },
                 strengths: ["Multilingual", "Fast", "Versatile", "Economical"]
             },
-            "qwen/qwen3-235b-a22b-2507": {
-                name: "Qwen3-235b-a22b-2507",
-                provider: "Qwen",
-                type: "openrouter",
-                contextWindow: 262000,
-                pricing: { input: 0.13, output: 0.6 },
-                strengths: ["Multilingual", "Fast", "Versatile", "Economical"]
-            },
             "anthropic/claude-3-haiku": {
                 name: "Claude 3 Haiku",
                 provider: "Anthropic",
@@ -78,11 +78,11 @@ class KimiLLMManager {
         };
         this.recommendedModelIds = [
             "mistralai/mistral-small-3.2-24b-instruct",
+            "qwen/qwen3-235b-a22b-2507",
             "qwen/qwen3-30b-a3b-instruct-2507",
             "nousresearch/hermes-4-70b",
             "x-ai/grok-3-mini",
             "cohere/command-r-08-2024",
-            "qwen/qwen3-235b-a22b-2507",
             "anthropic/claude-3-haiku",
             "local/ollama"
         ];
