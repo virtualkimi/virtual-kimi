@@ -25,7 +25,7 @@ class KimiLLMManager {
                 type: "openrouter",
                 contextWindow: 262000,
                 pricing: { input: 0.13, output: 0.6 },
-                strengths: ["Multilingual", "Fast", "Versatile", "Economical"]
+                strengths: ["Multilingual", "Fast", "Versatile", "Efficient"]
             },
             "qwen/qwen3-30b-a3b-instruct-2507": {
                 name: "Qwen3 30b-a3b instruct 2507",
