@@ -95,7 +95,7 @@
     "start_listening": "Comenzar a Escuchar",
     "kimi_affection_level": "💖 Nivel de Afecto de Kimi",
     "affection_level_of": "💖 Nivel de afecto de {name}",
-    "personality_average_of": "💖 Promedio de personalidad de {name}",
+    "personality_average_of": "💖 Relación actual con {name}",
     "greeting_low": "Hola.",
     "greeting_mid": "Hola. ¿Cómo puedo ayudarte?",
     "greeting_high": "¡Hola mi amor! 💕",

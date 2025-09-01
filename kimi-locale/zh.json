@@ -95,7 +95,7 @@
     "start_listening": "开始聆听",
     "kimi_affection_level": "💖 Kimi的喜爱程度",
     "affection_level_of": "💖 {name}的喜爱程度",
-    "personality_average_of": "💖 {name}的人格平均值",
+    "personality_average_of": "💖 {name} 的当前关系",
     "greeting_low": "你好。",
     "greeting_mid": "你好。我可以帮助您什么？",
     "greeting_high": "你好，我的爱！ 💕",

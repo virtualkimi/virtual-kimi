@@ -95,7 +95,7 @@
     "start_listening": "Start Listening",
     "kimi_affection_level": "💖 Kimi's Affection Level",
     "affection_level_of": "💖 Affection level of {name}",
-    "personality_average_of": "💖 Personality average of {name}",
+    "personality_average_of": "💖 Current relationship with {name}",
     "greeting_low": "Hello.",
     "greeting_mid": "Hi. How can I help you?",
     "greeting_high": "Hello my love! 💕",
