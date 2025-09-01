@@ -1,16 +1,14 @@
-# Virtual Kimi Changelog
+# Virtual Kimi App Changelog
 
-# [1.1.3] - 2025-08-30
+# [1.1.3] - 2025-09-01
 
-### Improvements
+### Bug Fixes
 
-- Refined personality trait handling and synchronization per character for more consistent and predictable behavior across modules (emotion, video, voice, memory).
+- Fixed an issue with language selection and speech recognition / text-to-speech playback that could prevent correct voice detection and audio output across browsers. Improved normalization and fallback handling.
 
-### Fixed / Improved
+### Changed
 
-- Improved conversation deletion logic: deleting chat now only affects the selected character and prevents stale asynchronous saves from re-adding removed messages.
-- Added a lightweight BroadcastChannel announcement so clears propagate to other open tabs, avoiding cross-tab resurrection of deleted conversations.
-- Centralized conversation clearing logic in the database layer to ensure consistent behavior (use `clearConversations()` across imports and operations).
+- Modified the calculations used for character personality trait processing to improve accuracy and consistency across modules.
 
 # [1.1.2] - 2025-08-30
 
