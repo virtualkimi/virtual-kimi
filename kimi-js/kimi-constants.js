@@ -344,36 +344,11 @@ window.KIMI_PERSONALITY_KEYWORDS = {
             negative: ["stupid", "dumb", "foolish", "slow", "naive", "ignorant", "simple"]
         },
         romance: {
-            positive: [
-                "cuddle",
-                "love",
-                "romantic",
-                "kiss",
-                "tenderness",
-                "passion",
-                "charming",
-                "adorable",
-                "sweet",
-                "i love you",
-                "love you"
-            ],
+            positive: ["cuddle", "love", "romantic", "kiss", "tenderness", "passion", "charming", "adorable", "sweet"],
             negative: ["cold", "distant", "indifferent", "rejection", "loneliness", "breakup", "sad"]
         },
         affection: {
-            positive: [
-                "affection",
-                "tenderness",
-                "close",
-                "warmth",
-                "kind",
-                "caring",
-                "cuddle",
-                "love",
-                "adore",
-                "lovely",
-                "i love you",
-                "love you"
-            ],
+            positive: ["affection", "tenderness", "close", "warmth", "kind", "caring", "cuddle", "love", "adore", "lovely"],
             negative: [
                 "mean",
                 "cold",
@@ -435,21 +410,7 @@ window.KIMI_PERSONALITY_KEYWORDS = {
             ]
         },
         romance: {
-            positive: [
-                "câlin",
-                "amour",
-                "romantique",
-                "bisou",
-                "tendresse",
-                "passion",
-                "séduisant",
-                "charmant",
-                "adorable",
-                "je t'aime",
-                "je taime",
-                "t'aime",
-                "taime"
-            ],
+            positive: ["câlin", "amour", "romantique", "bisou", "tendresse", "passion", "séduisant", "charmant", "adorable"],
             negative: [
                 "froid",
                 "froide",
@@ -473,11 +434,6 @@ window.KIMI_PERSONALITY_KEYWORDS = {
                 "attentionné",
                 "câlin",
                 "aimer",
-                "aime",
-                "je t'aime",
-                "je taime",
-                "t'aime",
-                "taime",
                 "adorer",
                 "adorable"
             ],
@@ -565,35 +521,11 @@ window.KIMI_PERSONALITY_KEYWORDS = {
             ]
         },
         romance: {
-            positive: [
-                "abrazo",
-                "amor",
-                "romántico",
-                "beso",
-                "ternura",
-                "pasión",
-                "encantador",
-                "adorable",
-                "dulce",
-                "te quiero",
-                "te amo"
-            ],
+            positive: ["abrazo", "amor", "romántico", "beso", "ternura", "pasión", "encantador", "adorable", "dulce"],
             negative: ["frío", "fría", "distante", "indiferente", "rechazo", "soledad", "ruptura", "triste"]
         },
         affection: {
-            positive: [
-                "afecto",
-                "ternura",
-                "cerca",
-                "calidez",
-                "amable",
-                "cariño",
-                "abrazar",
-                "amor",
-                "adorar",
-                "te quiero",
-                "te amo"
-            ],
+            positive: ["afecto", "ternura", "cerca", "calidez", "amable", "cariño", "abrazar", "amor", "adorar"],
             negative: [
                 "malo",
                 "mala",
@@ -663,8 +595,7 @@ window.KIMI_PERSONALITY_KEYWORDS = {
                 "leidenschaft",
                 "charmant",
                 "liebenswert",
-                "süß",
-                "ich liebe dich"
+                "süß"
             ],
             negative: [
                 "kalt",
@@ -681,18 +612,7 @@ window.KIMI_PERSONALITY_KEYWORDS = {
             ]
         },
         affection: {
-            positive: [
-                "zuneigung",
-                "zärtlichkeit",
-                "nah",
-                "wärme",
-                "freundlich",
-                "fürsorglich",
-                "umarmen",
-                "liebe",
-                "anbeten",
-                "ich liebe dich"
-            ],
+            positive: ["zuneigung", "zärtlichkeit", "nah", "wärme", "freundlich", "fürsorglich", "umarmen", "liebe", "anbeten"],
             negative: [
                 "gemein",
                 "gemeine",
@@ -754,33 +674,11 @@ window.KIMI_PERSONALITY_KEYWORDS = {
             negative: ["stupido", "stupida", "sciocco", "sciocca", "lento", "lenta", "ingenuo", "ingenua", "ignorante"]
         },
         romance: {
-            positive: [
-                "abbraccio",
-                "amore",
-                "romantico",
-                "bacio",
-                "tenerezza",
-                "passione",
-                "affascinante",
-                "adorabile",
-                "dolce",
-                "ti amo"
-            ],
+            positive: ["abbraccio", "amore", "romantico", "bacio", "tenerezza", "passione", "affascinante", "adorabile", "dolce"],
             negative: ["freddo", "fredda", "distante", "indifferente", "rifiuto", "solitudine", "rottura", "triste"]
         },
         affection: {
-            positive: [
-                "affetto",
-                "tenerezza",
-                "vicino",
-                "calore",
-                "gentile",
-                "premuroso",
-                "abbraccio",
-                "amore",
-                "adorare",
-                "ti amo"
-            ],
+            positive: ["affetto", "tenerezza", "vicino", "calore", "gentile", "premuroso", "abbraccio", "amore", "adorare"],
             negative: [
                 "cattivo",
                 "cattiva",
@@ -824,7 +722,7 @@ window.KIMI_PERSONALITY_KEYWORDS = {
         laughing: ["はは", "笑", "笑う", "面白い", "愉快"],
         shy: ["恥ずかしい", "照れる", "赤面", "内気", "遠慮"],
         confident: ["自信", "誇り", "確信", "強い", "決意"],
-        romantic: ["愛", "ロマンチック", "優しい", "抱擁", "キス", "愛しい", "愛してる", "好き"],
+        romantic: ["愛", "ロマンチック", "優しい", "抱擁", "キス", "愛しい"],
         flirtatious: ["いちゃつく", "からかう", "誘惑", "魅力", "フリート"],
         goodbye: ["さようなら", "バイバイ", "また今度", "チャオ", "またね"],
         kiss: ["キス", "抱擁", "チュー"],
@@ -836,7 +734,7 @@ window.KIMI_PERSONALITY_KEYWORDS = {
         laughing: ["哈哈", "笑", "大笑", "有趣", "搞笑"],
         shy: ["害羞", "尴尬", "脸红", "羞涩", "胆怯"],
         confident: ["自信", "骄傲", "确信", "强壮", "坚定"],
-        romantic: ["爱", "浪漫", "温柔", "拥抱", "吻", "亲爱的", "我爱你"],
+        romantic: ["爱", "浪漫", "温柔", "拥抱", "吻", "亲爱的"],
         flirtatious: ["调情", "挑逗", "诱惑", "魅力", "撒娇"],
         goodbye: ["再见", "拜拜", "回头见", "拜", "下次见"],
         kiss: ["吻", "亲吻", "拥抱", "亲"],
@@ -910,9 +808,6 @@ window.KIMI_NEGATORS = window.KIMI_NEGATORS || {
 window.KIMI_NEGATION_WINDOW = window.KIMI_NEGATION_WINDOW || 3; // tokens to look back for negation
 window.KIMI_SMOOTHING_ALPHA = window.KIMI_SMOOTHING_ALPHA || 0.3;
 window.KIMI_PERSIST_THRESHOLD = window.KIMI_PERSIST_THRESHOLD || 0.1; // absolute percent (slightly higher to slow small visible jumps)
-// Weight applied to counts found in the LLM/Kimi response when updating personality traits.
-// You can override at runtime by setting window.KIMI_LLM_RESPONSE_WEIGHT (e.g. 0.2)
-window.KIMI_LLM_RESPONSE_WEIGHT = window.KIMI_LLM_RESPONSE_WEIGHT || 0.2;
 
 // Memory system knobs
 window.KIMI_MAX_MEMORIES = window.KIMI_MAX_MEMORIES || 100; // default max memory entries per character
@@ -1098,16 +993,20 @@ window.KIMI_TRAIT_ADJUSTMENT = {
         dancing: 1.05,
         shy: 0.95,
         confident: 1.1,
-        flirtatious: 1.2
+        flirtatious: 1.2,
+        surprise: 1.05,
+        listening: 1.1,
+        kiss: 1.35,
+        goodbye: 0.9
     },
     // Per-trait scaling
     traitGain: {
-        affection: 1.15, // Slightly faster affection growth
-        romance: 1.2, // Reduced from 1.3 - romance still important but not overpowered
-        empathy: 1.1, // Empathy grows steadily
-        playfulness: 1.15, // Playful interactions are rewarding
-        humor: 1.12, // Humor grows with shared laughter
-        intelligence: 1.08 // Intelligence should grow with meaningful conversations
+        affection: 1.15, // Affection growth multiplier
+        romance: 1.2, // Romance growth multiplier
+        empathy: 1.1, // Empathy growth multiplier
+        playfulness: 1.15, // Playfulness growth multiplier
+        humor: 1.12, // Humor growth multiplier
+        intelligence: 1.08 // Intelligence growth multiplier
     },
     traitLoss: {
         affection: 0.9,
@@ -1180,7 +1079,7 @@ window.KIMI_CHARACTERS = {
         name: "Kimi",
         summary: "Dreamy, intuitive, captivated by cosmic metaphors",
         traits: {
-            // Kimi starts balanced but reserved - cosmic dreamer needs time to open up
+            // Baseline balanced profile
             affection: 55, // Starts neutral, grows with interaction
             playfulness: 55,
             intelligence: 75, // Higher intelligence - she's an astrophysicist
@@ -1199,7 +1098,7 @@ window.KIMI_CHARACTERS = {
         name: "Bella",
         summary: "Cheerful, nurturing, sees people as plants needing care",
         traits: {
-            // Bella starts more open and caring - nurturing botanist personality
+            // Warm / nurturing baseline profile
             affection: 60, // Naturally more affectionate
             playfulness: 65, // Cheerful and playful from start
             intelligence: 65, // Smart but not intimidating
@@ -1218,13 +1117,13 @@ window.KIMI_CHARACTERS = {
         name: "Rosa",
         summary: "Chaotic, attention-seeking, thrives on controlled chaos",
         traits: {
-            // Rosa starts more distant but playful - chaotic prankster needs to be tamed
+            // High playfulness / lower initial affection profile
             affection: 45, // Lower starting affection - must earn her trust
             playfulness: 80, // Very playful from start - it's her nature
             intelligence: 85, // High intelligence - cunning prankster
             empathy: 55, // Lower empathy initially - focused on chaos
             humor: 75, // High humor - prankster personality
-            romance: 50 // Reduced from 60 - chaotic personalities are harder to romance initially
+            romance: 50 // Neutral romance starting point
         },
         age: 21,
         birthplace: "Barcelona, Spain",
@@ -1237,7 +1136,7 @@ window.KIMI_CHARACTERS = {
         name: "Stella",
         summary: "Whimsical, artistic, imaginative, playful, transforms chaos into art",
         traits: {
-            // Stella starts mysterious and artistic - digital artist with glitchy personality
+            // Artistic / high-intellect baseline profile
             affection: 50, // Moderate starting affection - artistic mystery
             playfulness: 70, // Artistic playfulness
             intelligence: 90, // Very high intelligence - digital artist genius

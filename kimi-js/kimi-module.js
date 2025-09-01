@@ -41,7 +41,7 @@ class KimiDataManager extends KimiBaseManager {
 
                 try {
                     // Clear all conversations directly
-                    await this.db.clearConversations();
+                    await this.db.db.conversations.clear();
 
                     // Clear chat UI
                     const chatMessages = document.getElementById("chat-messages");
@@ -315,12 +315,60 @@ class KimiDataManager extends KimiBaseManager {
 function updateFavorabilityLabel(characterKey) {
     const favorabilityLabel = document.getElementById("favorability-label");
     if (favorabilityLabel && window.KIMI_CHARACTERS && window.KIMI_CHARACTERS[characterKey]) {
-        favorabilityLabel.setAttribute("data-i18n", "affection_level_of");
+        // New semantics: show overall personality average (independent display)
+        favorabilityLabel.removeAttribute("for"); // decouple from any specific slider
+        favorabilityLabel.setAttribute("data-i18n", "personality_average_of");
         favorabilityLabel.setAttribute("data-i18n-params", JSON.stringify({ name: window.KIMI_CHARACTERS[characterKey].name }));
-        favorabilityLabel.textContent = `💖 Affection level of ${window.KIMI_CHARACTERS[characterKey].name}`;
+        favorabilityLabel.textContent = `💖 Personality average of ${window.KIMI_CHARACTERS[characterKey].name}`;
+        if (!favorabilityLabel.getAttribute("title")) {
+            favorabilityLabel.setAttribute(
+                "title",
+                "Average of (Affection + Playfulness + Intelligence + Empathy + Humor + Romance) / 6"
+            );
+        }
         applyTranslations();
     }
 }
+
+// Delegated personality average computation (single source of truth in KimiEmotionSystem)
+function computePersonalityAverage(traits) {
+    if (window.kimiEmotionSystem && typeof window.kimiEmotionSystem.calculatePersonalityAverage === "function") {
+        return Number(window.kimiEmotionSystem.calculatePersonalityAverage(traits).toFixed(2));
+    }
+    // Fallback minimal (should rarely occur before emotion system init)
+    const keys = ["affection", "playfulness", "intelligence", "empathy", "humor", "romance"];
+    let sum = 0,
+        count = 0;
+    for (const k of keys) {
+        const v = traits && traits[k];
+        if (typeof v === "number" && isFinite(v)) {
+            sum += Math.max(0, Math.min(100, v));
+            count++;
+        }
+    }
+    return count ? Number((sum / count).toFixed(2)) : 0;
+}
+
+// Update UI elements (bar + percentage text + label) based on overall personality average
+async function updateGlobalPersonalityUI(characterKey = null) {
+    try {
+        const db = window.kimiDB;
+        if (!db) return;
+        const character = characterKey || (await db.getSelectedCharacter());
+        const traits = await db.getAllPersonalityTraits(character);
+        const avg = computePersonalityAverage(traits);
+        // Reuse existing favorability bar elements for global average
+        const bar = document.getElementById("favorability-bar");
+        const text = document.getElementById("favorability-text");
+        if (bar) bar.style.width = `${avg}%`;
+        if (text) text.textContent = `${avg.toFixed(2)}%`;
+        // Update label content if character provided
+        updateFavorabilityLabel(character);
+    } catch (e) {
+        console.warn("Failed to update global personality UI", e);
+    }
+}
+window.updateGlobalPersonalityUI = updateGlobalPersonalityUI;
 
 async function loadCharacterSection() {
     const kimiDB = window.kimiDB;
@@ -820,23 +868,6 @@ async function loadChatHistory() {
 
     while (chatMessages.firstChild) {
         chatMessages.removeChild(chatMessages.firstChild);
-    }
-
-    // Ensure i18n manager has loaded translations to avoid raw keys appearing (e.g., "greeting_high")
-    if (window.kimiI18nManager && typeof window.kimiI18nManager.applyTranslations === "function") {
-        // give i18n a short moment to apply if still loading
-        const start = Date.now();
-        while (
-            (window.kimiI18nManager.translations == null || Object.keys(window.kimiI18nManager.translations).length === 0) &&
-            Date.now() - start < 500
-        ) {
-            // small delay
-            // eslint-disable-next-line no-await-in-loop
-            await new Promise(r => setTimeout(r, 50));
-        }
-        try {
-            window.kimiI18nManager.applyTranslations();
-        } catch (e) {}
     }
 
     if (kimiDB) {
@@ -1562,37 +1593,6 @@ async function sendMessage() {
     message = validation.sanitized || message.trim();
     if (!message) return;
 
-    // Force persist current personality sliders to avoid UI/DB desync
-    try {
-        const kimiDB = window.kimiDB;
-        if (kimiDB && typeof kimiDB.setPersonalityBatch === "function") {
-            const traitIds = [
-                "trait-affection",
-                "trait-playfulness",
-                "trait-intelligence",
-                "trait-empathy",
-                "trait-humor",
-                "trait-romance"
-            ];
-            const pending = {};
-            traitIds.forEach(id => {
-                const el = document.getElementById(id);
-                if (el && el.value !== undefined) {
-                    const trait = id.replace(/^trait-/, "");
-                    const v = Number(el.value);
-                    if (isFinite(v)) pending[trait] = v;
-                }
-            });
-            // Only write when there is at least one trait
-            if (Object.keys(pending).length > 0) {
-                // small timeout to ensure UI changes settled (rare) - use direct write
-                await kimiDB.setPersonalityBatch(pending);
-            }
-        }
-    } catch (e) {
-        console.warn("Failed to persist personality sliders before send:", e);
-    }
-
     addMessageToChat("user", message);
     chatInput.value = "";
     if (waitingIndicator) waitingIndicator.style.display = "inline-block";
@@ -1755,6 +1755,7 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     const voiceVolumeSlider = document.getElementById("voice-volume");
     const languageSelect = document.getElementById("language-selection");
     const voiceSelect = document.getElementById("voice-selection");
+    // Affection restored as editable trait.
     const traitSliders = [
         "trait-affection",
         "trait-playfulness",
@@ -1901,7 +1902,7 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
                 personalityBatchTimeout = setTimeout(async () => {
                     if (kimiDB && Object.keys(pendingTraitChanges).length > 0) {
                         try {
-                            // Use batch operation for all pending changes
+                            // Use batch operation for all pending changes (affection included)
                             await kimiDB.setPersonalityBatch(pendingTraitChanges);
 
                             // Side-effects handled by central 'personality:updated' listener.
@@ -2254,7 +2255,10 @@ async function syncPersonalityTraits(characterName = null) {
     // Update memory cache
     if (window.kimiMemory && updatedTraits.affection) {
         window.kimiMemory.affectionTrait = updatedTraits.affection;
-        if (window.kimiMemory.updateFavorabilityBar) {
+        if (window.updateGlobalPersonalityUI) {
+            window.updateGlobalPersonalityUI();
+        } else if (window.kimiMemory.updateFavorabilityBar) {
+            // Fallback (will internally compute average now)
             window.kimiMemory.updateFavorabilityBar();
         }
     }

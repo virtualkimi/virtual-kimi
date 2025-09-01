@@ -1017,17 +1017,17 @@ class KimiVideoManager {
             let weights = candidateVideos.map(video => {
                 if (category === "speakingPositive") {
                     // Positive videos favored by affection, romance, and humor
-                    const base = 1 + (affection / 100) * 0.4; // Increased from 0.3
+                    const base = 1 + (affection / 100) * 0.4; // Affection influence factor
                     let bonus = 0;
                     const rom = typeof traits.romance === "number" ? traits.romance : 50;
                     const hum = typeof traits.humor === "number" ? traits.humor : 50;
-                    if (emotion === "romantic") bonus += (rom / 100) * 0.3; // Increased from 0.2
-                    if (emotion === "laughing") bonus += (hum / 100) * 0.3; // Increased from 0.2
+                    if (emotion === "romantic") bonus += (rom / 100) * 0.3; // Romance context bonus
+                    if (emotion === "laughing") bonus += (hum / 100) * 0.3; // Humor context bonus
                     return base + bonus;
                 }
                 if (category === "speakingNegative") {
                     // Negative videos when affection is low (reduced weight to balance)
-                    return 1 + ((100 - affection) / 100) * 0.3; // Reduced from 0.4
+                    return 1 + ((100 - affection) / 100) * 0.3; // Low-affection influence factor
                 }
                 if (category === "neutral") {
                     // Neutral videos when affection is moderate, also influenced by intelligence
@@ -2295,12 +2295,22 @@ class KimiUIStateManager {
         this.state.activeTab = tabName;
         if (this.tabManager) this.tabManager.activateTab(tabName);
     }
-    setFavorability(value) {
+    /**
+     * @deprecated Prefer calling updateGlobalPersonalityUI() after updating traits.
+     * This direct setter will be removed in a future cleanup.
+     */
+    setPersonalityAverage(value) {
         const v = Number(value) || 0;
         const clamped = Math.max(0, Math.min(100, v));
         this.state.favorability = clamped;
         window.KimiDOMUtils.setText("#favorability-text", `${clamped.toFixed(2)}%`);
         window.KimiDOMUtils.get("#favorability-bar").style.width = `${clamped}%`;
+    }
+    /**
+     * @deprecated Use setPersonalityAverage() (itself deprecated) or updateGlobalPersonalityUI().
+     */
+    setFavorability(value) {
+        this.setPersonalityAverage(value);
     }
     async setTranscript(text) {
         this.state.transcript = text;

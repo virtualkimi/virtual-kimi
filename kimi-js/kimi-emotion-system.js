@@ -3,6 +3,22 @@
 
 class KimiEmotionSystem {
     constructor(database = null) {
+        /*
+         * Personality Update Pipeline (Refactored)
+         * 1. Emotion detected -> base deltas applied via EMOTION_TRAIT_EFFECTS (central map).
+         *    - Each delta passes through adjustUp / adjustDown with global + per-trait multipliers
+         *      (window.KIMI_TRAIT_ADJUSTMENT) for consistent scaling.
+         * 2. Content keyword analysis (_analyzeTextContent) may override interim trait values (explicit matches).
+         * 3. Cross-trait modifiers (_applyCrossTraitModifiers) apply synergy / balancing rules (e.g. high empathy boosts affection, high romance stabilizes affection, intelligence supports empathy/humor).
+         * 4. Conversation-based drift (updatePersonalityFromConversation) uses TRAIT_KEYWORD_MODEL:
+         *      - Counts positive/negative keyword hits (user weighted 1.0, model weighted 0.5).
+         *      - Computes rawDelta = posHits*posFactor - negHits*negFactor.
+         *      - Applies sustained negativity amplification after streakPenaltyAfter.
+         *      - Clamps magnitude to maxStep per trait, then applies directly with bounds [0,100].
+         * 5. Persistence: _preparePersistTrait decides threshold & smoothing before batch write.
+         * 6. Global personality average (UI) = mean of six core traits (affection included).
+         * NOTE: Affection is fully independent (no derived average). All adjustments centralized here to avoid duplication.
+         */
         this.db = database;
         this.negativeStreaks = {};
 
@@ -45,14 +61,43 @@ class KimiEmotionSystem {
 
         // Unified trait defaults - Balanced for progressive experience
         this.TRAIT_DEFAULTS = {
-            affection: 55, // Lowered to allow more natural progression from start
-            playfulness: 55, // Reduced from 70 - more reserved initially
-            intelligence: 70, // Reduced from 85 - still competent but not overwhelming
-            empathy: 75, // Reduced from 90 - caring but not overly so
-            humor: 60, // Reduced from 75 - develops sense of humor over time
-            romance: 50 // Significantly reduced from 95 - romance must be earned!
+            affection: 55, // Baseline neutral affection
+            playfulness: 55, // Moderately playful baseline
+            intelligence: 70, // Competent baseline intellect
+            empathy: 75, // Warm & caring baseline
+            humor: 60, // Mild sense of humor baseline
+            romance: 50 // Neutral romance baseline (earned over time)
+        };
+
+        // Central emotion -> trait base deltas (pre global multipliers & gainCfg scaling)
+        // Positive numbers increase trait, negative decrease.
+        // Keep values small; final effect passes through adjustUp/adjustDown and global multipliers.
+        this.EMOTION_TRAIT_EFFECTS = {
+            positive: { affection: 0.45, empathy: 0.2, playfulness: 0.25, humor: 0.25 },
+            negative: { affection: -0.7, empathy: 0.3 },
+            romantic: { romance: 0.7, affection: 0.55, empathy: 0.15 },
+            flirtatious: { romance: 0.55, playfulness: 0.45, affection: 0.25 },
+            laughing: { humor: 0.85, playfulness: 0.5, affection: 0.25 },
+            dancing: { playfulness: 1.1, affection: 0.45 },
+            surprise: { intelligence: 0.12, empathy: 0.12 },
+            shy: { romance: -0.3, affection: -0.12 },
+            confident: { intelligence: 0.15, affection: 0.55 },
+            listening: { empathy: 0.6, intelligence: 0.25 },
+            kiss: { romance: 0.85, affection: 0.7 },
+            goodbye: { affection: -0.15, empathy: 0.1 }
+        };
+
+        // Trait keyword scaling model for conversation analysis (per-message delta shaping)
+        this.TRAIT_KEYWORD_MODEL = {
+            affection: { posFactor: 0.5, negFactor: 0.65, streakPenaltyAfter: 3, maxStep: 2 },
+            romance: { posFactor: 0.55, negFactor: 0.75, streakPenaltyAfter: 2, maxStep: 1.8 },
+            empathy: { posFactor: 0.4, negFactor: 0.5, streakPenaltyAfter: 3, maxStep: 1.5 },
+            playfulness: { posFactor: 0.45, negFactor: 0.4, streakPenaltyAfter: 4, maxStep: 1.4 },
+            humor: { posFactor: 0.55, negFactor: 0.45, streakPenaltyAfter: 4, maxStep: 1.6 },
+            intelligence: { posFactor: 0.35, negFactor: 0.55, streakPenaltyAfter: 2, maxStep: 1.2 }
         };
     }
+    // (Affection is an independent trait again; previous derived computation removed.)
     // ===== UNIFIED EMOTION ANALYSIS =====
     analyzeEmotion(text, lang = "auto") {
         if (!text || typeof text !== "string") return this.EMOTIONS.NEUTRAL;
@@ -218,60 +263,51 @@ class KimiEmotionSystem {
             return baseDelta * GLOSS * t;
         };
 
-        switch (emotion) {
-            case this.EMOTIONS.POSITIVE:
-                affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.4))); // Slightly more affection gain
-                empathy = Math.min(100, adjustUp(empathy, scaleGain("empathy", 0.2)));
-                playfulness = Math.min(100, adjustUp(playfulness, scaleGain("playfulness", 0.2)));
-                humor = Math.min(100, adjustUp(humor, scaleGain("humor", 0.2)));
-                romance = Math.min(100, adjustUp(romance, scaleGain("romance", 0.1))); // Romance grows very slowly
-                break;
-            case this.EMOTIONS.NEGATIVE:
-                affection = Math.max(0, adjustDown(affection, scaleLoss("affection", 0.6))); // Affection drops faster on negative
-                empathy = Math.min(100, adjustUp(empathy, scaleGain("empathy", 0.5))); // Empathy still grows (understanding pain)
-                break;
-            case this.EMOTIONS.ROMANTIC:
-                romance = Math.min(100, adjustUp(romance, scaleGain("romance", 0.6))); // Romance should be earned
-                affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.5)));
-                break;
-            case this.EMOTIONS.LAUGHING:
-                humor = Math.min(100, adjustUp(humor, scaleGain("humor", 0.8))); // Humor grows with laughter
-                playfulness = Math.min(100, adjustUp(playfulness, scaleGain("playfulness", 0.4))); // Playfulness connection
-                affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.2))); // Small affection boost from shared laughter
-                break;
-            case this.EMOTIONS.DANCING:
-                playfulness = Math.min(100, adjustUp(playfulness, scaleGain("playfulness", 1.2))); // Dancing = maximum playfulness boost
-                affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.5))); // Affection from shared activity
-                break;
-            case this.EMOTIONS.SHY:
-                affection = Math.max(0, adjustDown(affection, scaleLoss("affection", 0.1))); // Small affection loss
-                romance = Math.max(0, adjustDown(romance, scaleLoss("romance", 0.2))); // Shyness reduces romance more
-                break;
-            case this.EMOTIONS.CONFIDENT:
-                affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.5)));
-                intelligence = Math.min(100, adjustUp(intelligence, scaleGain("intelligence", 0.1))); // Slight intelligence boost
-                break;
-            case this.EMOTIONS.FLIRTATIOUS:
-                romance = Math.min(100, adjustUp(romance, scaleGain("romance", 0.5)));
-                playfulness = Math.min(100, adjustUp(playfulness, scaleGain("playfulness", 0.5)));
-                affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.2))); // Small affection boost
-                break;
-            case this.EMOTIONS.SURPRISE:
-                intelligence = Math.min(100, adjustUp(intelligence, scaleGain("intelligence", 0.1))); // Surprise stimulates thinking
-                empathy = Math.min(100, adjustUp(empathy, scaleGain("empathy", 0.1))); // Opens mind to new perspectives
-                break;
-            case this.EMOTIONS.KISS:
-                romance = Math.min(100, adjustUp(romance, scaleGain("romance", 0.8))); // Strong romantic gesture
-                affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.6))); // Very affectionate action
-                break;
-            case this.EMOTIONS.GOODBYE:
-                // Slight melancholy but no major trait changes
-                empathy = Math.min(100, adjustUp(empathy, scaleGain("empathy", 0.05))); // Understanding of parting
-                break;
-            case this.EMOTIONS.LISTENING:
-                intelligence = Math.min(100, adjustUp(intelligence, scaleGain("intelligence", 0.2))); // Active listening shows intelligence
-                empathy = Math.min(100, adjustUp(empathy, scaleGain("empathy", 0.5))); // Listening builds empathy
-                break;
+        // Apply emotion deltas from centralized map (if defined)
+        const map = this.EMOTION_TRAIT_EFFECTS?.[emotion];
+        if (map) {
+            for (const [traitName, baseDelta] of Object.entries(map)) {
+                const delta = baseDelta; // base delta -> will be scaled below
+                if (delta === 0) continue;
+                switch (traitName) {
+                    case "affection":
+                        affection =
+                            delta > 0
+                                ? Math.min(100, adjustUp(affection, scaleGain("affection", delta)))
+                                : Math.max(0, adjustDown(affection, scaleLoss("affection", Math.abs(delta))));
+                        break;
+                    case "romance":
+                        romance =
+                            delta > 0
+                                ? Math.min(100, adjustUp(romance, scaleGain("romance", delta)))
+                                : Math.max(0, adjustDown(romance, scaleLoss("romance", Math.abs(delta))));
+                        break;
+                    case "empathy":
+                        empathy =
+                            delta > 0
+                                ? Math.min(100, adjustUp(empathy, scaleGain("empathy", delta)))
+                                : Math.max(0, adjustDown(empathy, scaleLoss("empathy", Math.abs(delta))));
+                        break;
+                    case "playfulness":
+                        playfulness =
+                            delta > 0
+                                ? Math.min(100, adjustUp(playfulness, scaleGain("playfulness", delta)))
+                                : Math.max(0, adjustDown(playfulness, scaleLoss("playfulness", Math.abs(delta))));
+                        break;
+                    case "humor":
+                        humor =
+                            delta > 0
+                                ? Math.min(100, adjustUp(humor, scaleGain("humor", delta)))
+                                : Math.max(0, adjustDown(humor, scaleLoss("humor", Math.abs(delta))));
+                        break;
+                    case "intelligence":
+                        intelligence =
+                            delta > 0
+                                ? Math.min(100, adjustUp(intelligence, scaleGain("intelligence", delta)))
+                                : Math.max(0, adjustDown(intelligence, scaleLoss("intelligence", Math.abs(delta))));
+                        break;
+                }
+            }
         }
 
         // Cross-trait interactions - traits influence each other for more realistic personality development
@@ -305,6 +341,20 @@ class KimiEmotionSystem {
             adjustUp
         );
 
+        // Cross-trait modifiers (applied after primary emotion & content changes)
+        ({ affection, romance, empathy, playfulness, humor, intelligence } = this._applyCrossTraitModifiers({
+            affection,
+            romance,
+            empathy,
+            playfulness,
+            humor,
+            intelligence,
+            adjustUp,
+            adjustDown,
+            scaleGain,
+            scaleLoss
+        }));
+
         // Preserve fractional progress to allow gradual visible changes
         const to2 = v => Number(Number(v).toFixed(2));
         const clamp = v => Math.max(0, Math.min(100, v));
@@ -331,6 +381,40 @@ class KimiEmotionSystem {
         return updatedTraits;
     }
 
+    // Apply cross-trait synergy & balancing rules.
+    _applyCrossTraitModifiers(ctx) {
+        let { affection, romance, empathy, playfulness, humor, intelligence, adjustUp, adjustDown, scaleGain } = ctx;
+        // High empathy soft-boost affection if still lagging
+        if (empathy >= 80 && affection < empathy - 8) {
+            affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.08)));
+        }
+        // High romance amplifies affection gains subtlely
+        if (romance >= 80 && affection < romance - 5) {
+            affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.06)));
+        }
+        // High affection but lower romance triggers slight romance catch-up
+        if (affection >= 90 && romance < 70) {
+            romance = Math.min(100, adjustUp(romance, scaleGain("romance", 0.05)));
+        }
+        // Intelligence supports empathy & humor small growth
+        if (intelligence >= 85) {
+            if (empathy < intelligence - 12) {
+                empathy = Math.min(100, adjustUp(empathy, scaleGain("empathy", 0.04)));
+            }
+            if (humor < 75) {
+                humor = Math.min(100, adjustUp(humor, scaleGain("humor", 0.04)));
+            }
+        }
+        // Humor/playfulness mutual reinforcement (retain existing logic but guarded)
+        if (humor >= 70 && playfulness < humor - 10) {
+            playfulness = Math.min(100, adjustUp(playfulness, scaleGain("playfulness", 0.05)));
+        }
+        if (playfulness >= 70 && humor < playfulness - 10) {
+            humor = Math.min(100, adjustUp(humor, scaleGain("humor", 0.05)));
+        }
+        return { affection, romance, empathy, playfulness, humor, intelligence };
+    }
+
     // ===== UNIFIED LLM PERSONALITY ANALYSIS =====
     async updatePersonalityFromConversation(userMessage, kimiResponse, character = null) {
         if (!this.db) return;
@@ -351,43 +435,55 @@ class KimiEmotionSystem {
         for (const trait of ["humor", "intelligence", "romance", "affection", "playfulness", "empathy"]) {
             const posWords = getPersonalityWords(trait, "positive");
             const negWords = getPersonalityWords(trait, "negative");
-            let value = typeof traits[trait] === "number" && isFinite(traits[trait]) ? traits[trait] : this.TRAIT_DEFAULTS[trait];
+            let currentVal =
+                typeof traits[trait] === "number" && isFinite(traits[trait]) ? traits[trait] : this.TRAIT_DEFAULTS[trait];
+            const model = this.TRAIT_KEYWORD_MODEL[trait];
+            const posFactor = model.posFactor;
+            const negFactor = model.negFactor;
+            const maxStep = model.maxStep;
+            const streakLimit = model.streakPenaltyAfter;
 
-            // Count occurrences with proper weighting
-            let posCount = 0;
-            let negCount = 0;
-
-            const llmWeight = Number(window.KIMI_LLM_RESPONSE_WEIGHT) || 0.5;
+            let posScore = 0;
+            let negScore = 0;
             for (const w of posWords) {
-                posCount += this.countTokenMatches(lowerUser, String(w)) * 1.0;
-                posCount += this.countTokenMatches(lowerKimi, String(w)) * llmWeight;
+                posScore += this.countTokenMatches(lowerUser, String(w)) * 1.0;
+                posScore += this.countTokenMatches(lowerKimi, String(w)) * 0.5;
             }
             for (const w of negWords) {
-                negCount += this.countTokenMatches(lowerUser, String(w)) * 1.0;
-                negCount += this.countTokenMatches(lowerKimi, String(w)) * llmWeight;
+                negScore += this.countTokenMatches(lowerUser, String(w)) * 1.0;
+                negScore += this.countTokenMatches(lowerKimi, String(w)) * 0.5;
             }
 
-            const delta = (posCount - negCount) * 0.8; // softened multiplier to 0.8 for gentler progression
+            let rawDelta = posScore * posFactor - negScore * negFactor;
 
-            // Apply streak logic
+            // Track negative streaks per trait (only when net negative & no positives)
             if (!this.negativeStreaks[trait]) this.negativeStreaks[trait] = 0;
-
-            if (negCount > 0 && posCount === 0) {
+            if (negScore > 0 && posScore === 0) {
                 this.negativeStreaks[trait]++;
-                if (this.negativeStreaks[trait] >= 3) {
-                    value = Math.max(0, Math.min(100, value + delta - 1));
-                } else {
-                    value = Math.max(0, Math.min(100, value + delta));
-                }
-            } else if (posCount > 0) {
+            } else if (posScore > 0) {
                 this.negativeStreaks[trait] = 0;
-                value = Math.max(0, Math.min(100, value + delta));
             }
 
-            if (delta !== 0) {
-                pendingUpdates[trait] = value;
+            if (rawDelta < 0 && this.negativeStreaks[trait] >= streakLimit) {
+                rawDelta *= 1.15; // escalate sustained negativity
+            }
+
+            // Clamp magnitude
+            if (rawDelta > maxStep) rawDelta = maxStep;
+            if (rawDelta < -maxStep) rawDelta = -maxStep;
+
+            if (rawDelta !== 0) {
+                let newVal = currentVal + rawDelta;
+                if (rawDelta > 0) {
+                    newVal = Math.min(100, newVal);
+                } else {
+                    newVal = Math.max(0, newVal);
+                }
+                pendingUpdates[trait] = newVal;
             }
         }
+
+        // Affection stays as independently adjusted by keywords & emotion (no derived override)
 
         // Flush pending updates in a single batch write to avoid overwrites
         if (Object.keys(pendingUpdates).length > 0) {
@@ -669,6 +765,57 @@ class KimiEmotionSystem {
 }
 
 window.KimiEmotionSystem = KimiEmotionSystem;
+// Expose centralized tuning maps for debugging / live adjustments
+Object.defineProperty(window, "KIMI_EMOTION_TRAIT_EFFECTS", {
+    get() {
+        return window.kimiEmotionSystem ? window.kimiEmotionSystem.EMOTION_TRAIT_EFFECTS : null;
+    }
+});
+Object.defineProperty(window, "KIMI_TRAIT_KEYWORD_MODEL", {
+    get() {
+        return window.kimiEmotionSystem ? window.kimiEmotionSystem.TRAIT_KEYWORD_MODEL : null;
+    }
+});
+
+// Debug/tuning helpers
+window.setEmotionDelta = function (emotion, trait, value) {
+    if (!window.kimiEmotionSystem) return false;
+    const map = window.kimiEmotionSystem.EMOTION_TRAIT_EFFECTS;
+    if (!map[emotion]) map[emotion] = {};
+    map[emotion][trait] = Number(value);
+    return true;
+};
+window.resetEmotionDeltas = function () {
+    if (!window.kimiEmotionSystem) return false;
+    // No stored original snapshot; advise page reload for full reset.
+    console.warn("For full reset reload the page (original deltas are not snapshotted).");
+};
+window.setTraitKeywordScaling = function (trait, cfg) {
+    if (!window.kimiEmotionSystem) return false;
+    const model = window.kimiEmotionSystem.TRAIT_KEYWORD_MODEL;
+    if (!model[trait]) return false;
+    Object.assign(model[trait], cfg);
+    return true;
+};
+
+// Force recompute + UI refresh for personality average
+window.refreshPersonalityAverageUI = async function (characterKey = null) {
+    try {
+        if (window.updateGlobalPersonalityUI) {
+            await window.updateGlobalPersonalityUI(characterKey);
+        } else if (window.getPersonalityAverage && window.kimiDB) {
+            const charKey = characterKey || (await window.kimiDB.getSelectedCharacter());
+            const traits = await window.kimiDB.getAllPersonalityTraits(charKey);
+            const avg = window.getPersonalityAverage(traits);
+            const bar = document.getElementById("favorability-bar");
+            const text = document.getElementById("favorability-text");
+            if (bar) bar.style.width = `${avg}%`;
+            if (text) text.textContent = `${avg.toFixed(2)}%`;
+        }
+    } catch (err) {
+        console.warn("refreshPersonalityAverageUI failed", err);
+    }
+};
 export default KimiEmotionSystem;
 
 // ===== BACKWARD COMPATIBILITY LAYER =====

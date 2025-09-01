@@ -17,7 +17,7 @@ class KimiLLMManager {
                 type: "openrouter",
                 contextWindow: 128000,
                 pricing: { input: 0.05, output: 0.1 },
-                strengths: ["Multilingual", "Economical", "Fast", "Efficient"]
+                strengths: ["Multilingual", "Fast", "Efficient", "Economical"]
             },
             "qwen/qwen3-30b-a3b-instruct-2507": {
                 name: "Qwen3 30b-a3b instruct 2507",
@@ -25,7 +25,7 @@ class KimiLLMManager {
                 type: "openrouter",
                 contextWindow: 131000,
                 pricing: { input: 0.1, output: 0.3 },
-                strengths: ["Open Source", "Balanced", "Fast", "Economical"]
+                strengths: ["Multilingual", "Fast", "Balanced", "Economical"]
             },
             "nousresearch/hermes-4-70b": {
                 name: "Nous Hermes 4 70B",
@@ -33,7 +33,7 @@ class KimiLLMManager {
                 type: "openrouter",
                 contextWindow: 131000,
                 pricing: { input: 0.13, output: 0.4 },
-                strengths: ["Open Source", "Balanced", "Fast", "Economical"]
+                strengths: ["Multilingual", "Fast", "Balanced", "Economical"]
             },
             "x-ai/grok-3-mini": {
                 name: "Grok 3 mini",
@@ -41,7 +41,7 @@ class KimiLLMManager {
                 type: "openrouter",
                 contextWindow: 131000,
                 pricing: { input: 0.3, output: 0.5 },
-                strengths: ["Multilingual", "Balanced", "Efficient", "Economical"]
+                strengths: ["Multilingual", "Fast", "Efficient", "Economical"]
             },
             "cohere/command-r-08-2024": {
                 name: "Command-R-08-2024",
@@ -49,7 +49,7 @@ class KimiLLMManager {
                 type: "openrouter",
                 contextWindow: 128000,
                 pricing: { input: 0.15, output: 0.6 },
-                strengths: ["Multilingual", "Economical", "Efficient", "Versatile"]
+                strengths: ["Multilingual", "Fast", "Versatile", "Economical"]
             },
             "qwen/qwen3-235b-a22b-2507": {
                 name: "Qwen3-235b-a22b-2507",
@@ -57,7 +57,7 @@ class KimiLLMManager {
                 type: "openrouter",
                 contextWindow: 262000,
                 pricing: { input: 0.13, output: 0.6 },
-                strengths: ["Multilingual", "Economical", "Efficient", "Versatile"]
+                strengths: ["Multilingual", "Fast", "Versatile", "Economical"]
             },
             "anthropic/claude-3-haiku": {
                 name: "Claude 3 Haiku",
@@ -65,7 +65,7 @@ class KimiLLMManager {
                 type: "openrouter",
                 contextWindow: 200000,
                 pricing: { input: 0.25, output: 1.25 },
-                strengths: ["Fast", "Versatile", "Efficient", "Multilingual"]
+                strengths: ["Multilingual", "Fast", "Versatile", "Efficient"]
             },
             "local/ollama": {
                 name: "Local Model (Ollama)",
@@ -73,7 +73,7 @@ class KimiLLMManager {
                 type: "local",
                 contextWindow: 4096,
                 pricing: { input: 0, output: 0 },
-                strengths: ["Private", "Free", "Offline", "Customizable"]
+                strengths: ["Private", "Offline", "Customizable"]
             }
         };
         this.recommendedModelIds = [

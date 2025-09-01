@@ -208,16 +208,16 @@ class KimiVoiceManager {
             return;
         }
 
-        // Only get language from DB if not already set
+        // Resolve effective selectedLanguage if missing
         if (!this.selectedLanguage) {
             const selectedLanguage = await this.db?.getPreference("selectedLanguage", "en");
-            // Normalize legacy formats (en-US, en_US, us:en -> en) using shared util
             this.selectedLanguage = window.KimiLanguageUtils.normalizeLanguageCode(selectedLanguage || "en") || "en";
         }
+        const effectiveLang = await this.getEffectiveLanguage(this.selectedLanguage);
 
         const savedVoice = await this.db?.getPreference("selectedVoice", "auto");
 
-        const filteredVoices = this.getVoicesForLanguage(this.selectedLanguage);
+        const filteredVoices = this.getVoicesForLanguage(effectiveLang);
 
         if (savedVoice && savedVoice !== "auto") {
             // Only search within language-compatible voices
@@ -225,7 +225,7 @@ class KimiVoiceManager {
             if (foundVoice) {
                 this.currentVoice = foundVoice;
                 console.log(
-                    `🎤 Voice restored from cache: "${foundVoice.name}" (${foundVoice.lang}) for language "${this.selectedLanguage}"`
+                    `🎤 Voice restored from cache: "${foundVoice.name}" (${foundVoice.lang}) for language "${effectiveLang}"`
                 );
                 this.updateVoiceSelector();
                 this._initializingVoices = false;
@@ -233,7 +233,7 @@ class KimiVoiceManager {
             } else {
                 // Saved voice not compatible with current language, fall back to auto-selection
                 console.log(
-                    `🎤 Saved voice "${savedVoice}" not compatible with language "${this.selectedLanguage}", using auto-selection`
+                    `🎤 Saved voice "${savedVoice}" not compatible with language "${effectiveLang}", using auto-selection`
                 );
                 await this.db?.setPreference("selectedVoice", "auto");
             }
@@ -333,7 +333,7 @@ class KimiVoiceManager {
             // Debug: Show what voices are available and why they don't match
             if (filteredVoices.length > 0 && filteredVoices.length <= 5) {
                 console.log(
-                    `🎤 Available voices for ${this.selectedLanguage}:`,
+                    `🎤 Available voices for ${effectiveLang}:`,
                     filteredVoices.map(v => ({
                         name: v.name,
                         lang: v.lang,
@@ -362,7 +362,7 @@ class KimiVoiceManager {
         } else {
             // Log successful voice selection with language info
             console.log(
-                `🎤 Voice loaded: "${this.currentVoice.name}" (${this.currentVoice.lang}) for language "${this.selectedLanguage}"`
+                `🎤 Voice loaded: "${this.currentVoice.name}" (${this.currentVoice.lang}) for language "${effectiveLang}"`
             );
         }
 
@@ -861,16 +861,26 @@ class KimiVoiceManager {
     }
 
     // ===== SPEECH RECOGNITION =====
-    setupSpeechRecognition() {
+    async setupSpeechRecognition() {
         if (!this.SpeechRecognition) {
             // Do not show a UI message during initial load; only log.
             console.log("Your browser does not support speech recognition.");
             return;
         }
+        // Always create a fresh instance (some browsers cache language at construction time)
         this.recognition = new this.SpeechRecognition();
         this.recognition.continuous = true;
-        const langCode = this.getLanguageCode(this.selectedLanguage || "en");
-        this.recognition.lang = langCode;
+
+        // Resolve effective language (block invalid 'auto')
+        const normalized = await this.getEffectiveLanguage(this.selectedLanguage);
+        const langCode = this.getLanguageCode(normalized || "en");
+        try {
+            this.recognition.lang = langCode;
+        } catch (e) {
+            console.warn("Could not set recognition.lang, fallback en-US", e);
+            this.recognition.lang = "en-US";
+        }
+        console.log(`🎤 SpeechRecognition initialized (lang=${this.recognition.lang})`);
         this.recognition.interimResults = true;
 
         // Add onstart handler to confirm permission
@@ -1048,9 +1058,9 @@ class KimiVoiceManager {
             return;
         }
 
-        // If permission was previously granted, start directly
+        // If microphone permission already granted, start directly
         if (this.micPermissionGranted) {
-            console.log("🎤 Using previously granted microphone permission");
+            console.log("🎤 Microphone permission already granted");
             this.startRecognitionDirectly();
             return;
         }
@@ -1223,19 +1233,30 @@ class KimiVoiceManager {
     } // Helper to modulate emotion based on personality traits
     _modulateEmotionByPersonality(emotion) {
         try {
+            // Obtain full traits if possible for a more robust modulation
             let avg = 50;
-            if (this.memory && typeof this.memory.affectionTrait === "number") {
-                avg = this.memory.affectionTrait;
+            if (window.kimiEmotionSystem && window.kimiEmotionSystem.db) {
+                // Attempt synchronous-like cache via memory first
+                const traits = {
+                    affection: this.memory?.affectionTrait,
+                    playfulness: this.memory?.playfulnessTrait,
+                    intelligence: this.memory?.intelligenceTrait,
+                    empathy: this.memory?.empathyTrait,
+                    humor: this.memory?.humorTrait,
+                    romance: this.memory?.romanceTrait
+                };
+                // If at least affection present, compute average using emotion system helper
+                if (typeof traits.affection === "number") {
+                    avg = window.kimiEmotionSystem.calculatePersonalityAverage(traits);
+                }
+            } else if (this.memory && typeof this.memory.affectionTrait === "number") {
+                avg = this.memory.affectionTrait; // fallback
             }
 
-            // Low affection makes emotions more subdued
-            if (avg <= 20 && emotion !== "neutral") {
-                return "shy";
-            }
-            if (avg <= 40 && emotion === "positive") {
-                return "shy";
-            }
-
+            // Weighted interpretation: very low affection still softens positive expression
+            // If overall avg low, dampen by shifting to 'shy'.
+            if (avg <= 20 && emotion !== "neutral") return "shy";
+            if (avg <= 40 && emotion === "positive") return "shy";
             return emotion;
         } catch (e) {
             return emotion;
@@ -1362,10 +1383,56 @@ class KimiVoiceManager {
             console.warn(`🎤 No voice found for language "${newLang}"`);
         }
 
+        // Update recognition language safely (recreate instance to avoid stale internal state)
+        this._refreshRecognitionLanguage(newLang);
+    }
+
+    /**
+     * Recreate speech recognition instance with a new language.
+     * Some browsers (notably Chrome) may ignore lang changes mid-session; recreating ensures consistency.
+     */
+    async _refreshRecognitionLanguage(newLang) {
+        if (!this.SpeechRecognition) return;
+        const wasListening = this.isListening;
         if (this.recognition) {
-            const langCode = this.getLanguageCode(newLang);
-            this.recognition.lang = langCode;
+            try {
+                if (this.isListening) this.recognition.stop();
+            } catch {}
+            this.recognition.onresult = null;
+            this.recognition.onstart = null;
+            this.recognition.onend = null;
+            this.recognition.onerror = null;
+            this.recognition = null;
         }
+        this.selectedLanguage = newLang;
+        await this.setupSpeechRecognition();
+        console.log(`🎤 Recognition language refreshed -> ${this.recognition?.lang}`);
+        // Restart listening if it was active
+        if (wasListening) {
+            // Small delay to allow new instance to settle
+            setTimeout(() => {
+                this.startListening();
+            }, 150);
+        }
+    }
+
+    // Return a normalized concrete language code (primary subtag) never 'auto'
+    async getEffectiveLanguage(raw) {
+        let base = raw || this.selectedLanguage || "en";
+        if (base === "auto") {
+            try {
+                if (window.KimiLanguageUtils?.getLanguage) {
+                    base = await window.KimiLanguageUtils.getLanguage();
+                } else {
+                    base = navigator.language?.split("-")[0] || "en";
+                }
+            } catch {
+                base = "en";
+            }
+        }
+        return window.KimiLanguageUtils?.normalizeLanguageCode
+            ? window.KimiLanguageUtils.normalizeLanguageCode(base)
+            : base || "en";
     }
 
     async updateSelectedCharacter() {

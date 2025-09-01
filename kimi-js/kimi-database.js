@@ -98,25 +98,13 @@ class KimiDatabase {
     async setConversationsBatch(conversationsArray) {
         if (!Array.isArray(conversationsArray)) return;
         try {
-            await this.clearConversations(null);
+            await this.db.conversations.clear();
             if (conversationsArray.length) {
                 await this.db.conversations.bulkPut(conversationsArray);
             }
         } catch (error) {
             console.error("Error restoring conversations:", error);
         }
-    }
-
-    // Clear conversations helper - centralizes clearing logic
-    async clearConversations(character = null) {
-        if (character) {
-            // Delete only conversations for a given character
-            const all = await this.db.conversations.where("character").equals(character).toArray();
-            const ids = all.map(item => item.id);
-            if (ids.length) return this.db.conversations.bulkDelete(ids);
-            return Promise.resolve();
-        }
-        return this.db.conversations.clear();
     }
 
     async setLLMModelsBatch(modelsArray) {
@@ -477,24 +465,6 @@ class KimiDatabase {
 
     async saveConversation(userText, kimiResponse, favorability, timestamp = new Date(), character = null) {
         if (!character) character = await this.getSelectedCharacter();
-        // If a global cleared timestamp exists and this conversation is older or equal, skip saving
-        try {
-            const clearedMap = window.kimiConversationsClearedAt;
-            if (clearedMap && typeof clearedMap === "object") {
-                const clearedAtForChar = clearedMap[character];
-                if (clearedAtForChar) {
-                    const clearedTime = new Date(clearedAtForChar).getTime();
-                    const convTime = new Date(timestamp).getTime();
-                    if (!isNaN(clearedTime) && convTime <= clearedTime) {
-                        // Skip saving to avoid resurrecting cleared messages for this character
-                        return null;
-                    }
-                }
-            }
-        } catch (e) {
-            // ignore parsing errors and fall through to save
-        }
-
         const conversation = {
             user: userText,
             kimi: kimiResponse,
