@@ -214,6 +214,7 @@ class KimiVoiceManager {
             this.selectedLanguage = window.KimiLanguageUtils.normalizeLanguageCode(selectedLanguage || "en") || "en";
         }
         const effectiveLang = await this.getEffectiveLanguage(this.selectedLanguage);
+        this.effectiveLang = effectiveLang;
 
         const savedVoice = await this.db?.getPreference("selectedVoice", "auto");
 
@@ -387,7 +388,8 @@ class KimiVoiceManager {
         autoOption.textContent = "Automatic (Best voice for selected language)";
         voiceSelect.appendChild(autoOption);
 
-        const filteredVoices = this.getVoicesForLanguage(this.selectedLanguage);
+        const baseLang = this.effectiveLang || this.selectedLanguage;
+        const filteredVoices = this.getVoicesForLanguage(baseLang);
 
         // If browser is not Chrome or Edge, do NOT expose voice options even when voices exist.
         // This avoids misleading users on Brave/Firefox/Opera/Safari who might think TTS is supported when it's not.
@@ -871,16 +873,35 @@ class KimiVoiceManager {
         this.recognition = new this.SpeechRecognition();
         this.recognition.continuous = true;
 
+        // Ensure UI language loaded before computing effectiveLang
+        if (!this.selectedLanguage) {
+            try {
+                const prefLang = await this.db?.getPreference("selectedLanguage", "en");
+                if (prefLang)
+                    this.selectedLanguage = window.KimiLanguageUtils.normalizeLanguageCode(prefLang) || prefLang || "en";
+            } catch {}
+        }
+
         // Resolve effective language (block invalid 'auto')
-        const normalized = await this.getEffectiveLanguage(this.selectedLanguage);
-        const langCode = this.getLanguageCode(normalized || "en");
+        const effectiveLang = await this.getEffectiveLanguage(this.selectedLanguage);
+        this.effectiveLang = effectiveLang;
+        const langCode = this.getLanguageCode(effectiveLang || "en");
         try {
             this.recognition.lang = langCode;
         } catch (e) {
             console.warn("Could not set recognition.lang, fallback en-US", e);
             this.recognition.lang = "en-US";
         }
-        console.log(`🎤 SpeechRecognition initialized (lang=${this.recognition.lang})`);
+        if (this.recognition.lang.toLowerCase().slice(0, 2) !== effectiveLang.slice(0, 2)) {
+            console.warn(
+                `🎤 Recognition language fallback mismatch: requested='${effectiveLang}' actual='${this.recognition.lang}'`
+            );
+            this._setASRBadgeState(true, effectiveLang, this.recognition.lang);
+        } else {
+            this._setASRBadgeState(false);
+        }
+        const uiLang = this.selectedLanguage || effectiveLang;
+        console.log(`🎤 SpeechRecognition initialized (ui=${uiLang}, effective=${effectiveLang}, lang=${this.recognition.lang})`);
         this.recognition.interimResults = true;
 
         // Add onstart handler to confirm permission
@@ -1502,6 +1523,22 @@ class KimiVoiceManager {
             silenceTimeout: this.silenceTimeout,
             autoStopDuration: this.autoStopDuration
         };
+    }
+
+    _setASRBadgeState(mismatch, requested = "", actual = "") {
+        try {
+            const badge = document.getElementById("asr-lang-badge");
+            if (!badge) return;
+            if (!mismatch) {
+                badge.style.display = "none";
+                badge.textContent = "ASR";
+                badge.title = "ASR language matches UI language";
+                return;
+            }
+            badge.style.display = "inline-block";
+            badge.textContent = "ASR*";
+            badge.title = `Speech recognition fallback. UI=${requested} actual=${actual}`;
+        } catch {}
     }
 }
 

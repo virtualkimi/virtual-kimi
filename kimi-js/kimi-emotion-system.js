@@ -9,18 +9,20 @@ class KimiEmotionSystem {
          *    - Each delta passes through adjustUp / adjustDown with global + per-trait multipliers
          *      (window.KIMI_TRAIT_ADJUSTMENT) for consistent scaling.
          * 2. Content keyword analysis (_analyzeTextContent) may override interim trait values (explicit matches).
-         * 3. Cross-trait modifiers (_applyCrossTraitModifiers) apply synergy / balancing rules (e.g. high empathy boosts affection, high romance stabilizes affection, intelligence supports empathy/humor).
+         * 3. Cross-trait modifiers (_applyCrossTraitModifiers) apply ALL synergy / balancing rules (single location to avoid double application).
          * 4. Conversation-based drift (updatePersonalityFromConversation) uses TRAIT_KEYWORD_MODEL:
          *      - Counts positive/negative keyword hits (user weighted 1.0, model weighted 0.5).
          *      - Computes rawDelta = posHits*posFactor - negHits*negFactor.
          *      - Applies sustained negativity amplification after streakPenaltyAfter.
          *      - Clamps magnitude to maxStep per trait, then applies directly with bounds [0,100].
          * 5. Persistence: _preparePersistTrait decides threshold & smoothing before batch write.
-         * 6. Global personality average (UI) = mean of six core traits (affection included).
+         * 6. Global personality average (UI) = mean of six core traits. This class is the single source of truth; external helpers now delegate.
          * NOTE: Affection is fully independent (no derived average). All adjustments centralized here to avoid duplication.
          */
         this.db = database;
         this.negativeStreaks = {};
+        // Accumulated micro-changes not yet persisted (trait -> float)
+        this._pendingDrift = {};
 
         // Unified emotion mappings
         this.EMOTIONS = {
@@ -66,25 +68,29 @@ class KimiEmotionSystem {
             intelligence: 70, // Competent baseline intellect
             empathy: 75, // Warm & caring baseline
             humor: 60, // Mild sense of humor baseline
-            romance: 50 // Neutral romance baseline (earned over time)
+            romance: 50, // Neutral romance baseline (earned over time)
+            trust: 50, // Trust starts neutral
+            intimacy: 45 // Intimacy builds slower than trust/romance
         };
 
         // Central emotion -> trait base deltas (pre global multipliers & gainCfg scaling)
         // Positive numbers increase trait, negative decrease.
         // Keep values small; final effect passes through adjustUp/adjustDown and global multipliers.
+        // Rebalanced: keep relative ordering but narrow spread to avoid runaway traits.
+        // Target typical per-event magnitude range ~0.1 - 0.5.
         this.EMOTION_TRAIT_EFFECTS = {
-            positive: { affection: 0.45, empathy: 0.2, playfulness: 0.25, humor: 0.25 },
-            negative: { affection: -0.7, empathy: 0.3 },
-            romantic: { romance: 0.7, affection: 0.55, empathy: 0.15 },
-            flirtatious: { romance: 0.55, playfulness: 0.45, affection: 0.25 },
-            laughing: { humor: 0.85, playfulness: 0.5, affection: 0.25 },
-            dancing: { playfulness: 1.1, affection: 0.45 },
-            surprise: { intelligence: 0.12, empathy: 0.12 },
-            shy: { romance: -0.3, affection: -0.12 },
-            confident: { intelligence: 0.15, affection: 0.55 },
-            listening: { empathy: 0.6, intelligence: 0.25 },
-            kiss: { romance: 0.85, affection: 0.7 },
-            goodbye: { affection: -0.15, empathy: 0.1 }
+            positive: { affection: 0.35, empathy: 0.18, playfulness: 0.2, humor: 0.22 },
+            negative: { affection: -0.55, empathy: 0.22 },
+            romantic: { romance: 0.55, affection: 0.45, empathy: 0.14 },
+            flirtatious: { romance: 0.45, playfulness: 0.38, affection: 0.2 },
+            laughing: { humor: 0.6, playfulness: 0.4, affection: 0.2 },
+            dancing: { playfulness: 0.55, affection: 0.35 },
+            surprise: { intelligence: 0.1, empathy: 0.1 },
+            shy: { romance: -0.25, affection: -0.1 },
+            confident: { intelligence: 0.13, affection: 0.45 },
+            listening: { empathy: 0.45, intelligence: 0.2 },
+            kiss: { romance: 0.65, affection: 0.55 },
+            goodbye: { affection: -0.12, empathy: 0.08 }
         };
 
         // Trait keyword scaling model for conversation analysis (per-message delta shaping)
@@ -94,8 +100,40 @@ class KimiEmotionSystem {
             empathy: { posFactor: 0.4, negFactor: 0.5, streakPenaltyAfter: 3, maxStep: 1.5 },
             playfulness: { posFactor: 0.45, negFactor: 0.4, streakPenaltyAfter: 4, maxStep: 1.4 },
             humor: { posFactor: 0.55, negFactor: 0.45, streakPenaltyAfter: 4, maxStep: 1.6 },
-            intelligence: { posFactor: 0.35, negFactor: 0.55, streakPenaltyAfter: 2, maxStep: 1.2 }
+            intelligence: { posFactor: 0.35, negFactor: 0.55, streakPenaltyAfter: 2, maxStep: 1.2 },
+            trust: { posFactor: 0.45, negFactor: 0.9, streakPenaltyAfter: 2, maxStep: 1.2 },
+            intimacy: { posFactor: 0.35, negFactor: 0.6, streakPenaltyAfter: 2, maxStep: 1.0 }
         };
+
+        // Ephemeral relational warmth (short-term amplifier damped over time)
+        this._warmth = 0; // range suggestion: -50..+50 (internally clamped)
+        this._lastWarmthDecay = Date.now();
+        this.WARMTH_CFG = Object.assign(
+            {
+                decayPerMinute: 2.5, // linear decay toward 0
+                maxAbs: 50,
+                affectionAmplifierAtMax: 0.25, // +25% affection delta at max warmth
+                romanceAmplifierAtMax: 0.2,
+                trustAmplifierAtMax: 0.22,
+                negativeMultiplier: 1.2 // negative warmth increases penalty magnitude slightly
+            },
+            window.KIMI_WARMTH_CONFIG || {}
+        );
+
+        // Relationship stage thresholds (can be overridden by window.KIMI_RELATIONSHIP_THRESHOLDS)
+        // Stages reflect progression: acquaintance -> friend -> close_friend -> romantic -> intimate -> deep_bond
+        this.RELATIONSHIP_STAGE_THRESHOLDS = Object.assign(
+            {
+                acquaintance: { minAffection: 0, minRomance: 0 },
+                friend: { minAffection: 40, minRomance: 0 },
+                close_friend: { minAffection: 60, minRomance: 10 },
+                romantic: { minAffection: 70, minRomance: 35 },
+                intimate: { minAffection: 82, minRomance: 55 },
+                deep_bond: { minAffection: 92, minRomance: 75 }
+            },
+            window.KIMI_RELATIONSHIP_THRESHOLDS || {}
+        );
+        this._currentRelationshipStage = "acquaintance";
     }
     // (Affection is an independent trait again; previous derived computation removed.)
     // ===== UNIFIED EMOTION ANALYSIS =====
@@ -156,6 +194,15 @@ class KimiEmotionSystem {
             negative: 1
         };
 
+        // Relationship-aware sensitivity adjustments (non-destructive copy)
+        let stage = this._currentRelationshipStage || "acquaintance";
+        const relBoost = { acquaintance: 0, friend: 0.05, close_friend: 0.1, romantic: 0.18, intimate: 0.25, deep_bond: 0.3 };
+        const mult = 1 + (relBoost[stage] || 0);
+        const stageSensitivity = { ...sensitivity };
+        stageSensitivity.romantic *= mult;
+        stageSensitivity.flirtatious *= mult;
+        stageSensitivity.kiss *= 1 + (relBoost[stage] || 0) * 1.2;
+
         // Normalize keyword lists to handle accents/contractions
         const normalizeList = arr => (Array.isArray(arr) ? arr.map(x => this.normalizeText(String(x))).filter(Boolean) : []);
         const normalizedPositiveWords = normalizeList(positiveWords);
@@ -171,7 +218,7 @@ class KimiEmotionSystem {
             const hits = check.keywords.reduce((acc, word) => acc + (this.countTokenMatches(lowerText, String(word)) ? 1 : 0), 0);
             if (hits > 0) {
                 const key = check.emotion;
-                const weight = sensitivity[key] != null ? sensitivity[key] : 1;
+                const weight = stageSensitivity[key] != null ? stageSensitivity[key] : 1;
                 const score = hits * weight;
                 if (score > bestScore) {
                     bestScore = score;
@@ -221,24 +268,32 @@ class KimiEmotionSystem {
         let playfulness = safe(traits?.playfulness, this.TRAIT_DEFAULTS.playfulness);
         let humor = safe(traits?.humor, this.TRAIT_DEFAULTS.humor);
         let intelligence = safe(traits?.intelligence, this.TRAIT_DEFAULTS.intelligence);
+        let trust = safe(traits?.trust, this.TRAIT_DEFAULTS.trust);
+        let intimacy = safe(traits?.intimacy, this.TRAIT_DEFAULTS.intimacy);
 
-        // Unified adjustment functions - More balanced progression for better user experience
+        // Unified adjustment functions (parametric): soft diminishing returns / protection low end.
+        // Tunable via window.KIMI_ADJUST_TUNING = { upExponent, downExponent, minLossFactor, maxLossFactor, minGainFactor }
+        const tuning = window.KIMI_ADJUST_TUNING || {};
+        const upExp = typeof tuning.upExponent === "number" ? tuning.upExponent : 1.2; // >1 speeds early gains, slows late
+        const downExp = typeof tuning.downExponent === "number" ? tuning.downExponent : 1.1; // >1 accelerates high losses
+        const minGainFactor = typeof tuning.minGainFactor === "number" ? tuning.minGainFactor : 0.25; // floor near 100
+        const minLossFactor = typeof tuning.minLossFactor === "number" ? tuning.minLossFactor : 0.35; // floor near 0
+        const maxLossFactor = typeof tuning.maxLossFactor === "number" ? tuning.maxLossFactor : 1.15; // cap high-end loss accel
+
         const adjustUp = (val, amount) => {
-            // Gradual slowdown only at very high levels to allow natural progression
-            if (val >= 95) return val + amount * 0.2; // Slow near max to preserve challenge
-            if (val >= 88) return val + amount * 0.5; // Moderate slowdown at very high levels
-            if (val >= 80) return val + amount * 0.7; // Slight slowdown at high levels
-            if (val >= 60) return val + amount * 0.9; // Nearly normal progression in mid-high range
-            return val + amount; // Normal progression below 60%
+            // Factor scales with remaining headroom (distance to 100)
+            const headroom = Math.max(0, 100 - val) / 100; // 1 at 0, 0 at 100
+            const factor = Math.max(minGainFactor, Math.pow(headroom, upExp));
+            return val + amount * factor;
         };
-
         const adjustDown = (val, amount) => {
-            // Faster decline at higher values - easier to lose than to gain
-            if (val >= 80) return val - amount * 1.2; // Faster loss at high levels
-            if (val >= 60) return val - amount; // Normal loss at medium levels
-            if (val >= 40) return val - amount * 0.8; // Slower loss at low-medium levels
-            if (val <= 20) return val - amount * 0.4; // Very slow loss at low levels
-            return val - amount * 0.6; // Moderate loss between 20-40
+            // Loss factor scales with current level (higher -> larger)
+            const level = Math.max(0, Math.min(100, val)) / 100; // 0..1
+            // curve amplifies as level increases
+            let factor = Math.pow(level, downExp) * maxLossFactor;
+            // Provide protection at very low end
+            if (level < 0.2) factor = Math.min(factor, minLossFactor);
+            return val - amount * factor;
         };
 
         // Unified emotion-based adjustments - More balanced and realistic progression
@@ -263,24 +318,131 @@ class KimiEmotionSystem {
             return baseDelta * GLOSS * t;
         };
 
+        // Lightweight per-call token cache (avoids repeated normalization/tokenization)
+        const _tokenCache = new Map();
+        const getTokenCount = phrase => {
+            if (!phrase) return 0;
+            const key = String(phrase);
+            if (_tokenCache.has(key)) return _tokenCache.get(key);
+            const c = this.tokenizeText(this.normalizeText(key)).length;
+            _tokenCache.set(key, c);
+            return c;
+        };
+
+        // Warmth decay (linear drift toward 0)
+        const nowTs = Date.now();
+        if (this._warmth !== 0) {
+            const mins = (nowTs - this._lastWarmthDecay) / 60000;
+            if (mins > 0.05) {
+                const decayAmt = this.WARMTH_CFG.decayPerMinute * mins;
+                if (this._warmth > 0) this._warmth = Math.max(0, this._warmth - decayAmt);
+                else this._warmth = Math.min(0, this._warmth + decayAmt);
+                this._lastWarmthDecay = nowTs;
+            }
+        }
+
+        // Derive a simple intensity factor from message length & punctuation emphasis
+        const wordCount = getTokenCount(text || "");
+        let intensity = 1;
+        if (wordCount >= 8 && wordCount < 25) intensity = 1.05;
+        else if (wordCount >= 25 && wordCount < 60) intensity = 1.12;
+        else if (wordCount >= 60) intensity = 1.18;
+        // Emphasis markers (!, ❤️, ???) add a small boost
+        const emphasisMatches = (text && text.match(/[!?!]{2,}|❤️|💖|😍/g)) || [];
+        if (emphasisMatches.length > 0) intensity += Math.min(0.12, 0.04 * emphasisMatches.length);
+
+        // ===== Contextual affectionate profanity & chaotic lexicon handling =====
+        const lower = (text || "").toLowerCase();
+        // Compliment anti-spam (exact token based) with exponential damping
+        this._complimentHistory = this._complimentHistory || [];
+        const nowMs = Date.now();
+        // Keep only last 60s entries
+        this._complimentHistory = this._complimentHistory.filter(t => nowMs - t < 60000);
+        const complimentTokens = ["merveilleuse", "merveilleux", "magnifique", "adorable", "charmant", "formidable"];
+        const messageTokens = this.tokenizeText(lower);
+        const complimentHits = messageTokens.filter(tok => complimentTokens.includes(tok)).length;
+        if (complimentHits > 0) {
+            for (let i = 0; i < complimentHits; i++) this._complimentHistory.push(nowMs);
+        }
+        const complimentDensity = this._complimentHistory.length; // raw count last 60s
+        // Exponential damping factor: each additional compliment reduces gains multiplicatively
+        // baseFactor^ (density-1), clamped
+        const baseFactor = 0.88; // 12% reduction per extra compliment
+        let complimentDampFactor = 1;
+        if (complimentDensity > 1) {
+            complimentDampFactor = Math.pow(baseFactor, complimentDensity - 1);
+        }
+        complimentDampFactor = Math.max(0.3, Math.min(1, complimentDampFactor));
+        const lovePatterns = [
+            /je t(?:'|e) ?aime/,
+            /i love you/,
+            /ti amo/,
+            /te quiero/,
+            /te amo/,
+            /ich liebe dich/,
+            /愛してる/,
+            /我爱你/,
+            /ti voglio bene/
+        ];
+        const softProfanity = /(putain|fuck|fucking|merde|shit|bordel)/;
+        const positiveAdj = /(adorable|magnifique|formidable|belle|bello|hermos[ao]|beautiful|amazing|wonderful|gorgeous)/;
+        const chaoticWords = /(chaos|chaotique|rebelle|rebel|wild|sauvage)/;
+        const conjugalTerms = /(ma femme|mon mari)/;
+
+        let affectionateProfane = false;
+        if (lovePatterns.some(r => r.test(lower)) && softProfanity.test(lower) && positiveAdj.test(lower)) {
+            affectionateProfane = true;
+        }
+        const containsChaos = chaoticWords.test(lower);
+        const containsConjugal = conjugalTerms.test(lower);
+
+        // If affectionate profanity detected while emotion not negative, gently bias toward romantic
+        if (affectionateProfane && emotion && emotion !== this.EMOTIONS.NEGATIVE) {
+            // Micro pre-boost before base map (acts like extra intensity)
+            intensity *= 1.04;
+            // Optionally upgrade neutral/positive to romantic
+            if (emotion === this.EMOTIONS.POSITIVE || emotion === this.EMOTIONS.NEUTRAL) {
+                emotion = this.EMOTIONS.ROMANTIC;
+            }
+        }
+
+        // Conjugal gating: if conjugal term appears but relationship stage < romantic, reduce romantic sensitivity
+        if (containsConjugal && emotion === this.EMOTIONS.ROMANTIC) {
+            const stageOrder = ["acquaintance", "friend", "close_friend", "romantic", "intimate", "deep_bond"];
+            const currentIdx = stageOrder.indexOf(this._currentRelationshipStage || "acquaintance");
+            if (currentIdx >= 0 && currentIdx < stageOrder.indexOf("romantic")) {
+                intensity *= 0.75; // soften premature strong romantic signal
+            }
+        }
+
         // Apply emotion deltas from centralized map (if defined)
         const map = this.EMOTION_TRAIT_EFFECTS?.[emotion];
+        const cfg = window.KIMI_EMOTION_CONFIG || null;
+        const traitScalar = cfg?.traitScalar || {};
+        const emotionScalar = cfg?.emotionScalar || {};
+        const emoScale = emotionScalar[emotion] || 1;
         if (map) {
             for (const [traitName, baseDelta] of Object.entries(map)) {
-                const delta = baseDelta; // base delta -> will be scaled below
+                let delta = baseDelta * emoScale * intensity; // apply emotion & intensity
+                const perTraitScale = traitScalar[traitName];
+                if (typeof perTraitScale === "number") delta *= perTraitScale;
                 if (delta === 0) continue;
                 switch (traitName) {
                     case "affection":
+                        let adjAffDelta = delta;
+                        if (delta > 0) adjAffDelta *= complimentDampFactor;
                         affection =
-                            delta > 0
-                                ? Math.min(100, adjustUp(affection, scaleGain("affection", delta)))
-                                : Math.max(0, adjustDown(affection, scaleLoss("affection", Math.abs(delta))));
+                            adjAffDelta > 0
+                                ? Math.min(100, adjustUp(affection, scaleGain("affection", adjAffDelta)))
+                                : Math.max(0, adjustDown(affection, scaleLoss("affection", Math.abs(adjAffDelta))));
                         break;
                     case "romance":
+                        let adjRomDelta = delta;
+                        if (delta > 0) adjRomDelta *= complimentDampFactor;
                         romance =
-                            delta > 0
-                                ? Math.min(100, adjustUp(romance, scaleGain("romance", delta)))
-                                : Math.max(0, adjustDown(romance, scaleLoss("romance", Math.abs(delta))));
+                            adjRomDelta > 0
+                                ? Math.min(100, adjustUp(romance, scaleGain("romance", adjRomDelta)))
+                                : Math.max(0, adjustDown(romance, scaleLoss("romance", Math.abs(adjRomDelta))));
                         break;
                     case "empathy":
                         empathy =
@@ -306,28 +468,37 @@ class KimiEmotionSystem {
                                 ? Math.min(100, adjustUp(intelligence, scaleGain("intelligence", delta)))
                                 : Math.max(0, adjustDown(intelligence, scaleLoss("intelligence", Math.abs(delta))));
                         break;
+                    case "trust":
+                        trust =
+                            delta > 0
+                                ? Math.min(100, adjustUp(trust, scaleGain("trust", delta * 0.6)))
+                                : Math.max(0, adjustDown(trust, scaleLoss("trust", Math.abs(delta) * 0.9)));
+                        break;
+                    case "intimacy":
+                        intimacy =
+                            delta > 0
+                                ? Math.min(100, adjustUp(intimacy, scaleGain("intimacy", delta * 0.5)))
+                                : Math.max(0, adjustDown(intimacy, scaleLoss("intimacy", Math.abs(delta) * 0.85)));
+                        break;
                 }
             }
         }
 
-        // Cross-trait interactions - traits influence each other for more realistic personality development
-        // High empathy should boost affection over time
-        if (empathy >= 75 && affection < empathy - 5) {
-            affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.1)));
+        // Micro direct trust/intimacy boost for respectful conjugal reference (stage-aware, only positive tone)
+        if (containsConjugal && emotion === this.EMOTIONS.ROMANTIC) {
+            const stageOrder = ["acquaintance", "friend", "close_friend", "romantic", "intimate", "deep_bond"];
+            const currentIdx = stageOrder.indexOf(this._currentRelationshipStage || "acquaintance");
+            const romanticIdx = stageOrder.indexOf("romantic");
+            let scale = 0.18; // base micro boost
+            if (currentIdx < romanticIdx) scale *= 0.5; // earlier stages smaller
+            // Compliment spam damping
+            scale *= complimentDampFactor;
+            trust = Math.min(100, adjustUp(trust, scaleGain("affection", scale * 0.8)));
+            intimacy = Math.min(100, adjustUp(intimacy, scaleGain("romance", scale * 0.6)));
         }
 
-        // High intelligence should slightly boost empathy (understanding others)
-        if (intelligence >= 80 && empathy < intelligence - 10) {
-            empathy = Math.min(100, adjustUp(empathy, scaleGain("empathy", 0.05)));
-        }
-
-        // Humor and playfulness should reinforce each other
-        if (humor >= 70 && playfulness < humor - 10) {
-            playfulness = Math.min(100, adjustUp(playfulness, scaleGain("playfulness", 0.05)));
-        }
-        if (playfulness >= 70 && humor < playfulness - 10) {
-            humor = Math.min(100, adjustUp(humor, scaleGain("humor", 0.05)));
-        }
+        // Cross-trait interactions removed here (now centralized exclusively in _applyCrossTraitModifiers)
+        // to avoid double application of synergy boosts.
 
         // Content-based adjustments (unified)
         await this._analyzeTextContent(
@@ -340,6 +511,71 @@ class KimiEmotionSystem {
             },
             adjustUp
         );
+
+        // Micro contextual boosts (post content analysis, pre synergy)
+        if (affectionateProfane) {
+            // Treat as emphatic endearment: small extra romance & affection
+            affection = Math.min(100, adjustUp(affection, scaleGain("affection", 0.25 * intensity)));
+            romance = Math.min(100, adjustUp(romance, scaleGain("romance", 0.22 * intensity)));
+            // Warmth gain
+            this._warmth = Math.max(-this.WARMTH_CFG.maxAbs, Math.min(this.WARMTH_CFG.maxAbs, this._warmth + 8 * intensity));
+            // Trust/intimacy micro boost if not spamming (use last delta heuristic: only if romance<90)
+            if (romance < 90) {
+                trust = Math.min(100, adjustUp(trust, scaleGain("trust", 0.12 * intensity)));
+                intimacy = Math.min(100, adjustUp(intimacy, scaleGain("intimacy", 0.1 * intensity)));
+            }
+        }
+        if (containsChaos) {
+            playfulness = Math.min(100, adjustUp(playfulness, scaleGain("playfulness", 0.18 * intensity)));
+            // Slight warmth nudge (a playful chaotic vibe)
+            this._warmth = Math.max(-this.WARMTH_CFG.maxAbs, Math.min(this.WARMTH_CFG.maxAbs, this._warmth + 3 * intensity));
+        }
+        // Additional warmth gain for strong romantic emotion without profanity pattern
+        if (!affectionateProfane && emotion === this.EMOTIONS.ROMANTIC) {
+            const romanticPulse = 4 * intensity;
+            this._warmth = Math.max(-this.WARMTH_CFG.maxAbs, Math.min(this.WARMTH_CFG.maxAbs, this._warmth + romanticPulse));
+        }
+
+        // Relationship affirmation memory (deduplicate recent)
+        if (
+            (affectionateProfane || (emotion === this.EMOTIONS.ROMANTIC && lovePatterns.some(r => r.test(lower)))) &&
+            this.db?.db?.memories
+        ) {
+            try {
+                const cutoff = Date.now() - 1000 * 60 * 60 * 6; // 6h
+                const recent = await this.db.db.memories
+                    .where("category")
+                    .equals("relationships")
+                    .and(m => (m.tags || []).includes("relationship:affirmation") && new Date(m.timestamp).getTime() > cutoff)
+                    .limit(1)
+                    .toArray();
+                if (!recent || recent.length === 0) {
+                    const content = affectionateProfane
+                        ? "Intense affectionate profanity declaration"
+                        : "Romantic love affirmation";
+                    this.db.db.memories
+                        .add({
+                            category: "relationships",
+                            type: "affirmation",
+                            content,
+                            importance: 0.9,
+                            timestamp: new Date(),
+                            character: selectedCharacter,
+                            isActive: true,
+                            tags: ["relationship:affirmation", "relationship:love"],
+                            lastModified: new Date(),
+                            createdAt: new Date(),
+                            lastAccess: new Date(),
+                            accessCount: 0
+                        })
+                        .then(id => {
+                            if (window.kimiEventBus) window.kimiEventBus.emit("memory:stored", { memory: { id, content } });
+                        });
+                }
+            } catch (e) {
+                /* silent */
+            }
+        }
 
         // Cross-trait modifiers (applied after primary emotion & content changes)
         ({ affection, romance, empathy, playfulness, humor, intelligence } = this._applyCrossTraitModifiers({
@@ -358,24 +594,98 @@ class KimiEmotionSystem {
         // Preserve fractional progress to allow gradual visible changes
         const to2 = v => Number(Number(v).toFixed(2));
         const clamp = v => Math.max(0, Math.min(100, v));
-        const updatedTraits = {
+        // Warmth amplification post base deltas (affects core relational traits)
+        if (this._warmth !== 0) {
+            const ampRatio = Math.min(1, Math.abs(this._warmth) / this.WARMTH_CFG.maxAbs);
+            const sign = this._warmth >= 0 ? 1 : -this.WARMTH_CFG.negativeMultiplier;
+            const amplify = (val, base, scale) => clamp(val + sign * (val - base) * scale * ampRatio);
+            affection = amplify(affection, this.TRAIT_DEFAULTS.affection, this.WARMTH_CFG.affectionAmplifierAtMax);
+            romance = amplify(romance, this.TRAIT_DEFAULTS.romance, this.WARMTH_CFG.romanceAmplifierAtMax);
+            trust = amplify(trust, this.TRAIT_DEFAULTS.trust, this.WARMTH_CFG.trustAmplifierAtMax);
+            intimacy = amplify(intimacy, this.TRAIT_DEFAULTS.intimacy, this.WARMTH_CFG.romanceAmplifierAtMax * 0.8);
+        }
+
+        let updatedTraits = {
             affection: to2(clamp(affection)),
             romance: to2(clamp(romance)),
             empathy: to2(clamp(empathy)),
             playfulness: to2(clamp(playfulness)),
             humor: to2(clamp(humor)),
-            intelligence: to2(clamp(intelligence))
+            intelligence: to2(clamp(intelligence)),
+            trust: to2(clamp(trust)),
+            intimacy: to2(clamp(intimacy))
         };
+
+        // Damping: limit per-message total movement across sensitive relational traits
+        const DAMP_CFG = Object.assign(
+            {
+                maxTotalDelta: 6, // sum of |delta| capped
+                focus: ["affection", "romance", "trust", "intimacy"],
+                softThreshold: 3.5 // start proportionally scaling beyond this
+            },
+            window.KIMI_DAMPING_CONFIG || {}
+        );
+        let total = 0;
+        const deltas = {};
+        for (const key of DAMP_CFG.focus) {
+            const prev = typeof traits?.[key] === "number" ? traits[key] : this.TRAIT_DEFAULTS[key];
+            const after = updatedTraits[key];
+            const delta = after - prev;
+            deltas[key] = delta;
+            total += Math.abs(delta);
+        }
+        if (total > DAMP_CFG.softThreshold) {
+            const scale = total > DAMP_CFG.maxTotalDelta ? DAMP_CFG.maxTotalDelta / total : DAMP_CFG.softThreshold / total;
+            if (scale < 1) {
+                for (const key of DAMP_CFG.focus) {
+                    const prev = typeof traits?.[key] === "number" ? traits[key] : this.TRAIT_DEFAULTS[key];
+                    updatedTraits[key] = to2(clamp(prev + deltas[key] * scale));
+                }
+            }
+        }
+
+        if (cfg && typeof cfg.finalize === "function") {
+            try {
+                const fin = cfg.finalize({ ...updatedTraits });
+                if (fin && typeof fin === "object") updatedTraits = { ...updatedTraits, ...fin };
+            } catch (e) {
+                console.warn("Finalize hook error", e);
+            }
+        }
+
+        // Emit event before persistence for observers/plugins
+        if (window.kimiEventBus) {
+            window.kimiEventBus.emit("traits:computed", { emotion, text, character: selectedCharacter, updatedTraits });
+            window.kimiEventBus.emit("relationship:trustChanged", { trust: updatedTraits.trust, character: selectedCharacter });
+            window.kimiEventBus.emit("relationship:intimacyChanged", {
+                intimacy: updatedTraits.intimacy,
+                character: selectedCharacter
+            });
+            window.kimiEventBus.emit("relationship:warmthChanged", { warmth: this._warmth, character: selectedCharacter });
+        }
+
+        // Update relationship stage based on new traits (affection & romance)
+        try {
+            this._updateRelationshipStage(updatedTraits, selectedCharacter);
+        } catch (e) {
+            /* non-blocking */
+        }
 
         // Prepare persistence with smoothing / threshold to avoid tiny writes
         const toPersist = {};
         for (const [trait, candValue] of Object.entries(updatedTraits)) {
             const current = typeof traits?.[trait] === "number" ? traits[trait] : this.TRAIT_DEFAULTS[trait];
             const prep = this._preparePersistTrait(trait, current, candValue, selectedCharacter);
-            if (prep.shouldPersist) toPersist[trait] = prep.value;
+            if (prep.shouldPersist) {
+                toPersist[trait] = prep.value;
+                this._pendingDrift[trait] = 0; // reset drift
+            }
         }
         if (Object.keys(toPersist).length > 0) {
+            if (window.kimiEventBus) window.kimiEventBus.emit("traits:willPersist", { character: selectedCharacter, toPersist });
             await this.db.setPersonalityBatch(toPersist, selectedCharacter);
+            if (window.kimiEventBus)
+                window.kimiEventBus.emit("traits:didPersist", { character: selectedCharacter, persisted: toPersist });
         }
 
         return updatedTraits;
@@ -432,7 +742,22 @@ class KimiEmotionSystem {
         };
 
         const pendingUpdates = {};
-        for (const trait of ["humor", "intelligence", "romance", "affection", "playfulness", "empathy"]) {
+        // Basic message intensity heuristic (long message -> slightly higher impact)
+        const tokenCount = this.tokenizeText(lowerUser).length;
+        const intensityFactor = tokenCount <= 4 ? 0.7 : tokenCount <= 12 ? 1 : tokenCount <= 30 ? 1.1 : 1.2;
+        const MAX_HITS_PER_WORD = 5; // cap repetition farming
+
+        for (const trait of [
+            "humor",
+            "intelligence",
+            "romance",
+            "affection",
+            "playfulness",
+            "empathy",
+            "trust",
+            "intimacy",
+            "boundary"
+        ]) {
             const posWords = getPersonalityWords(trait, "positive");
             const negWords = getPersonalityWords(trait, "negative");
             let currentVal =
@@ -446,15 +771,21 @@ class KimiEmotionSystem {
             let posScore = 0;
             let negScore = 0;
             for (const w of posWords) {
-                posScore += this.countTokenMatches(lowerUser, String(w)) * 1.0;
-                posScore += this.countTokenMatches(lowerKimi, String(w)) * 0.5;
+                const uHits = Math.min(MAX_HITS_PER_WORD, this.countTokenMatches(lowerUser, String(w)));
+                const kHits = Math.min(MAX_HITS_PER_WORD, this.countTokenMatches(lowerKimi, String(w)));
+                // sqrt dampening avoids farming same word
+                posScore += Math.sqrt(uHits) * 1.0 + Math.sqrt(kHits) * 0.5;
             }
             for (const w of negWords) {
-                negScore += this.countTokenMatches(lowerUser, String(w)) * 1.0;
-                negScore += this.countTokenMatches(lowerKimi, String(w)) * 0.5;
+                const uHits = Math.min(MAX_HITS_PER_WORD, this.countTokenMatches(lowerUser, String(w)));
+                const kHits = Math.min(MAX_HITS_PER_WORD, this.countTokenMatches(lowerKimi, String(w)));
+                negScore += Math.sqrt(uHits) * 1.0 + Math.sqrt(kHits) * 0.5;
             }
 
             let rawDelta = posScore * posFactor - negScore * negFactor;
+            const isBoundary = trait === "boundary";
+            // Apply message intensity scaling (kept modest)
+            rawDelta *= intensityFactor;
 
             // Track negative streaks per trait (only when net negative & no positives)
             if (!this.negativeStreaks[trait]) this.negativeStreaks[trait] = 0;
@@ -474,12 +805,27 @@ class KimiEmotionSystem {
 
             if (rawDelta !== 0) {
                 let newVal = currentVal + rawDelta;
-                if (rawDelta > 0) {
-                    newVal = Math.min(100, newVal);
-                } else {
-                    newVal = Math.max(0, newVal);
-                }
+                if (rawDelta > 0) newVal = Math.min(100, newVal);
+                else newVal = Math.max(0, newVal);
                 pendingUpdates[trait] = newVal;
+
+                if (isBoundary) {
+                    // Propagate boundary delta to trust/empathy/intimacy with scaled mapping
+                    const bDelta = rawDelta;
+                    if (bDelta > 0.05) {
+                        const trustBase = pendingUpdates.trust ?? traits.trust ?? this.TRAIT_DEFAULTS.trust;
+                        const empathyBase = pendingUpdates.empathy ?? traits.empathy ?? this.TRAIT_DEFAULTS.empathy;
+                        const intimacyBase = pendingUpdates.intimacy ?? traits.intimacy ?? this.TRAIT_DEFAULTS.intimacy;
+                        pendingUpdates.trust = Math.min(100, trustBase + bDelta * 0.6);
+                        pendingUpdates.empathy = Math.min(100, empathyBase + bDelta * 0.35);
+                        pendingUpdates.intimacy = Math.min(100, intimacyBase + bDelta * 0.25);
+                    } else if (bDelta < -0.05) {
+                        const trustBase = pendingUpdates.trust ?? traits.trust ?? this.TRAIT_DEFAULTS.trust;
+                        const intimacyBase = pendingUpdates.intimacy ?? traits.intimacy ?? this.TRAIT_DEFAULTS.intimacy;
+                        pendingUpdates.trust = Math.max(0, trustBase + bDelta * 0.7); // bDelta negative
+                        pendingUpdates.intimacy = Math.max(0, intimacyBase + bDelta * 0.5);
+                    }
+                }
             }
         }
 
@@ -492,10 +838,15 @@ class KimiEmotionSystem {
             for (const [trait, candValue] of Object.entries(pendingUpdates)) {
                 const current = typeof traits?.[trait] === "number" ? traits[trait] : this.TRAIT_DEFAULTS[trait];
                 const prep = this._preparePersistTrait(trait, current, candValue, character);
-                if (prep.shouldPersist) toPersist[trait] = prep.value;
+                if (prep.shouldPersist) {
+                    toPersist[trait] = prep.value;
+                    this._pendingDrift[trait] = 0;
+                }
             }
             if (Object.keys(toPersist).length > 0) {
+                if (window.kimiEventBus) window.kimiEventBus.emit("traits:willPersist", { character, toPersist });
                 await this.db.setPersonalityBatch(toPersist, character);
+                if (window.kimiEventBus) window.kimiEventBus.emit("traits:didPersist", { character, persisted: toPersist });
             }
         }
     }
@@ -656,16 +1007,22 @@ class KimiEmotionSystem {
 
     // Decide whether to persist based on absolute change threshold. Returns {shouldPersist, value}
     _preparePersistTrait(trait, currentValue, candidateValue, character = null) {
-        // Configurable via globals
+        // Adaptive threshold with drift accumulation.
         const alpha = (window.KIMI_SMOOTHING_ALPHA && Number(window.KIMI_SMOOTHING_ALPHA)) || 0.3;
-        const threshold = (window.KIMI_PERSIST_THRESHOLD && Number(window.KIMI_PERSIST_THRESHOLD)) || 0.25; // percent absolute
+        const baseThreshold = (window.KIMI_PERSIST_THRESHOLD && Number(window.KIMI_PERSIST_THRESHOLD)) || 0.15; // lowered from 0.25
+        // Initialize drift bucket
+        if (typeof this._pendingDrift[trait] !== "number") this._pendingDrift[trait] = 0;
 
         const smoothed = this._applyEMA(currentValue, candidateValue, alpha);
-        const absDelta = Math.abs(smoothed - currentValue);
-        if (absDelta < threshold) {
+        const delta = smoothed - currentValue;
+        this._pendingDrift[trait] += delta;
+        const absAccum = Math.abs(this._pendingDrift[trait]);
+
+        if (absAccum < baseThreshold) {
             return { shouldPersist: false, value: currentValue };
         }
-        return { shouldPersist: true, value: Number(Number(smoothed).toFixed(2)) };
+        const newValue = Number(Number(currentValue + this._pendingDrift[trait]).toFixed(2));
+        return { shouldPersist: true, value: newValue };
     }
 
     // ===== UTILITY METHODS =====
@@ -755,12 +1112,78 @@ class KimiEmotionSystem {
 
     getMoodCategoryFromPersonality(traits) {
         const avg = this.calculatePersonalityAverage(traits);
-
-        if (avg >= 80) return "speakingPositive";
-        if (avg >= 60) return "neutral";
-        if (avg >= 40) return "neutral";
-        if (avg >= 20) return "speakingNegative";
+        const cfg = window.KIMI_EMOTION_CONFIG && window.KIMI_EMOTION_CONFIG.moodThresholds;
+        // Default thresholds
+        const pos = cfg?.positive ?? 80;
+        const neutralHigh = cfg?.neutralHigh ?? 55;
+        const neutralLow = cfg?.neutralLow ?? 35;
+        const neg = cfg?.negative ?? 15;
+        if (avg >= pos) return "speakingPositive";
+        if (avg >= neutralHigh) return "neutral";
+        if (avg >= neutralLow) return "neutral";
+        if (avg >= neg) return "speakingNegative";
         return "speakingNegative";
+    }
+
+    getRelationshipStage(affection, romance) {
+        const stages = ["deep_bond", "intimate", "romantic", "close_friend", "friend", "acquaintance"]; // check highest first
+        for (const stage of stages) {
+            const t = this.RELATIONSHIP_STAGE_THRESHOLDS[stage];
+            if (!t) continue;
+            if (affection >= t.minAffection && romance >= t.minRomance) return stage;
+        }
+        return "acquaintance";
+    }
+
+    _updateRelationshipStage(traits, character) {
+        const affection = traits.affection ?? this.TRAIT_DEFAULTS.affection;
+        const romance = traits.romance ?? this.TRAIT_DEFAULTS.romance;
+        const prev = this._currentRelationshipStage;
+        const next = this.getRelationshipStage(affection, romance);
+        if (next !== prev) {
+            this._currentRelationshipStage = next;
+            if (window.kimiEventBus) {
+                try {
+                    window.kimiEventBus.emit("relationship:stageChanged", {
+                        previous: prev,
+                        current: next,
+                        traits: { affection, romance },
+                        character
+                    });
+                } catch (e) {}
+            }
+            // Optionally add a memory note (only upward transitions)
+            if (typeof this.db?.db?.memories !== "undefined" && prev !== next) {
+                const upwardOrder = ["acquaintance", "friend", "close_friend", "romantic", "intimate", "deep_bond"];
+                if (upwardOrder.indexOf(next) > upwardOrder.indexOf(prev)) {
+                    try {
+                        this.db.db.memories
+                            .add({
+                                category: "relationships",
+                                type: "system_stage",
+                                content: `Relationship stage advanced to ${next}`,
+                                importance: 0.85,
+                                timestamp: new Date(),
+                                character: character,
+                                isActive: true,
+                                tags: ["relationship:stage", `relationship:stage_${next}`],
+                                lastModified: new Date(),
+                                createdAt: new Date(),
+                                lastAccess: new Date(),
+                                accessCount: 0
+                            })
+                            .then(id => {
+                                if (window.kimiEventBus)
+                                    try {
+                                        window.kimiEventBus.emit("memory:stored", { memory: { id, stage: next } });
+                                    } catch (e) {}
+                            });
+                    } catch (e) {
+                        /* non-blocking */
+                    }
+                }
+            }
+        }
     }
 }
 

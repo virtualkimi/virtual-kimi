@@ -1,5 +1,40 @@
 # Virtual Kimi App Changelog
 
+# [1.1.4] - 2025-09-01
+
+### Added
+
+- Added two persistent traits: `trust` and `intimacy`.
+- Added an ephemeral relational state `warmth`. It decays over time and can be raised. Events: `relationship:trustChanged`, `relationship:intimacyChanged`, `relationship:warmthChanged`.
+- Auto-store short-term relationship memories on strong love declarations (`relationship:affirmation`, 6h cooldown).
+- Added EN/FR keyword lists for `trust`, `intimacy`, and `boundary` to drive conversation-based changes.
+
+### Improvements
+
+- Conversation drift now covers `trust`, `intimacy`, and `boundary`.
+- Boundary changes update trust, empathy, and intimacy with scaled effects.
+- `warmth` now affects speaking video selection: high warmth favors positive clips and suppresses negative ones.
+- Treats affectionate profanity (tender words mixed with mild swears) as romantic: small, safe boosts to affection, romance, trust/intimacy, plus a warmth pulse.
+- Words like "chaos" or "rebelle" raise playfulness and give a mild warmth boost.
+- Memory scoring: relationship/boundary/stage memories get higher relevance, influenced by current warmth.
+- Warmth amplification runs after base trait changes to scale final affection/romance/trust/intimacy values.
+
+### Safeguards
+
+- Limits per-message relational changes to avoid large spikes (soft scaling then hard cap).
+- Dampens repeated keyword hits (sqrt aggregation and per-word caps) to reduce farming.
+
+### Technical
+
+- Added configurable `WARMTH_CFG` for decay and amplification.
+- Centralized special-case handling to avoid double-counting (affectionate profanity, chaotic lexicon, romantic pulse).
+- Integrates with existing persistence smoothing and drift tracking; avoids duplicate writes.
+
+### Notes
+
+- `boundary` is currently stored as a trait. It may become a meta-signal in a future update.
+- Anti-spam cooldowns for repeated romantic bursts are planned but not yet implemented.
+
 # [1.1.3] - 2025-09-01
 
 ### Bug Fixes

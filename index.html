@@ -140,6 +140,9 @@
                 <button class="mic-button" id="mic-button" aria-label="Start Listening">
                     <i class="fas fa-microphone"></i>
                 </button>
+                <span id="asr-lang-badge"
+                    style="display:none;align-self:center;font-size:11px;padding:2px 6px;border-radius:12px;background:#b34747;color:#fff;font-weight:600"
+                    title="ASR fallback language differs from UI language">ASR</span>
                 <button class="control-button-unified" id="settings-button" aria-label="Settings">
                     <i class="fas fa-cog"></i>
                 </button>
@@ -1086,7 +1089,10 @@
     </div>
 
     <script src="dexie.min.js"></script>
-    <script src="kimi-locale/i18n.js" defer></script>
+    <script src="kimi-locale/i18n.js"></script>
+    <script type="module" src="kimi-js/kimi-event-bus.js"></script>
+    <script type="module" src="kimi-js/kimi-emotion-config.js"></script>
+    <script type="module" src="kimi-js/kimi-trait-sim.js"></script>
     <script type="module" src="kimi-js/kimi-personality-utils.js"></script>
     <script type="module" src="kimi-js/kimi-utils.js"></script>
     <script type="module" src="kimi-js/kimi-main.js"></script>

@@ -1,4 +1,8 @@
 // ===== KIMI MEMORY MANAGER =====
+// ===== LEGACY KIMI MEMORY (FAVORABILITY) =====
+// LEGACY NOTE: This file is kept for backward compatibility (older favorability logic / UI hooks).
+// New memory extraction & storage is in `kimi-memory-system.js`.
+// Future work: gradually migrate any remaining calls to the new system and remove this file.
 class KimiMemory {
     constructor(database) {
         this.db = database;
@@ -107,10 +111,7 @@ class KimiMemory {
         }
     }
 
-    /**
-     * @deprecated Use updateGlobalPersonalityUI().
-     * Thin wrapper retained for backward compatibility only.
-     */
+    // Legacy wrapper: prefer updateGlobalPersonalityUI() elsewhere.
     updateFavorabilityBar() {
         if (window.updateGlobalPersonalityUI) {
             window.updateGlobalPersonalityUI();

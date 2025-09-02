@@ -14,6 +14,21 @@ class KimiMemorySystem {
             important: "Important Events"
         };
 
+        // Passive decay configuration (tunable via global window.KIMI_MEMORY_DECAY before init())
+        this.decayConfig = Object.assign(
+            {
+                enabled: true,
+                intervalMs: 60 * 60 * 1000, // hourly
+                halfLifeDays: 90,
+                minImportance: 0.05,
+                protectCategories: ["important", "relationships", "personal"],
+                recentBoostDays: 7,
+                accessRefreshBoost: 0.02
+            },
+            window.KIMI_MEMORY_DECAY || {}
+        );
+        this._lastDecayRun = 0;
+
         // Patterns for automatic memory extraction (multilingual)
         this.extractionPatterns = {
             personal: [
@@ -216,11 +231,49 @@ class KimiMemorySystem {
             this.selectedCharacter = await this.db.getSelectedCharacter();
             await this.createMemoryTables();
 
+            // Load last decay run timestamp (persisted across sessions)
+            try {
+                const storedLast = await this.db.getPreference("memoryLastDecayRun", 0);
+                if (storedLast && typeof storedLast === "number" && storedLast > 0) {
+                    this._lastDecayRun = storedLast;
+                }
+            } catch (e) {
+                if (window.KIMI_DEBUG_MEMORIES) console.warn("Could not load memoryLastDecayRun", e);
+            }
+
             // Migrer les IDs incompatibles si nécessaire
             await this.migrateIncompatibleIDs();
 
             // Start background migration to populate keywords for existing memories (non-blocking)
             this.populateKeywordsForAllMemories().catch(e => console.warn("Keyword population failed", e));
+
+            // Schedule passive decay loop if enabled
+            if (this.decayConfig.enabled) {
+                // Prevent duplicate timers if init() called multiple times
+                if (this._decayTimer) {
+                    clearTimeout(this._decayTimer);
+                }
+                const scheduleDecay = async () => {
+                    try {
+                        if (typeof this.applyMemoryDecay === "function") {
+                            await this.applyMemoryDecay();
+                        } else {
+                            console.warn("Memory decay skipped: applyMemoryDecay() not implemented");
+                            return; // do not reschedule endlessly if missing
+                        }
+                    } catch (e) {
+                        console.warn("memory decay tick failed", e);
+                    }
+                    this._decayTimer = setTimeout(scheduleDecay, this.decayConfig.intervalMs);
+                };
+                this._decayTimer = setTimeout(scheduleDecay, this.decayConfig.intervalMs);
+                if (window.KIMI_DEBUG_MEMORIES) {
+                    console.log(
+                        "⚙️ Passive memory decay scheduled. applyMemoryDecay present:",
+                        typeof this.applyMemoryDecay === "function"
+                    );
+                }
+            }
         } catch (error) {
             console.error("Memory system initialization error:", error);
         }
@@ -705,12 +758,20 @@ class KimiMemorySystem {
                 console.log(`Memory added with ID: ${id}`);
             }
 
-            // Cleanup old memories if we exceed limit
-            await this.cleanupOldMemories();
+            // Intelligent purge if over limits
+            await this.smartPurgeMemories();
 
             // Notify LLM system to refresh context
             this.notifyLLMContextUpdate();
 
+            // Emit event for observers (plugins, UI debug) after successful add
+            if (window.kimiEventBus) {
+                try {
+                    window.kimiEventBus.emit("memory:stored", { memory });
+                } catch (e) {
+                    console.warn("memory:stored emit failed", e);
+                }
+            }
             return memory;
         } catch (error) {
             console.error("Error adding memory:", error);
@@ -878,8 +939,47 @@ class KimiMemorySystem {
         if (memoryData.content && memoryData.content.length > 24) importance += 0.05;
         if (memoryData.confidence && memoryData.confidence > 0.9) importance += 0.05;
 
+        // Trait influence (pull current personality if available)
+        try {
+            if (window.kimiEmotionSystem && this.selectedCharacter) {
+                const traits =
+                    window.kimiEmotionSystem.db && window.kimiEmotionSystem.db.cachedPersonality
+                        ? window.kimiEmotionSystem.db.cachedPersonality[this.selectedCharacter] || {}
+                        : null;
+                if (traits) {
+                    const aff = typeof traits.affection === "number" ? traits.affection : 55;
+                    const emp = typeof traits.empathy === "number" ? traits.empathy : 75;
+                    // Scale 0..100 -> 0..1 then small weighted boost
+                    importance += (aff / 100) * 0.05; // affection: emotional salience
+                    if (memoryData.category === "personal" || memoryData.category === "relationships") {
+                        importance += (emp / 100) * 0.05; // empathy: care for personal/relationship
+                    }
+                }
+            }
+        } catch {}
+
+        // Frequency & recency influence (if existing memory object passed with stats)
+        if (typeof memoryData.accessCount === "number") {
+            const capped = Math.min(10, Math.max(0, memoryData.accessCount));
+            importance += (capped / 10) * 0.05; // up to +0.05
+        }
+        if (memoryData.lastAccess instanceof Date) {
+            const ageMs = Date.now() - memoryData.lastAccess.getTime();
+            const days = ageMs / 86400000;
+            if (days < 1)
+                importance += 0.03; // very recent recall
+            else if (days < 7) importance += 0.01;
+        }
+
+        // Decay slight if very old (timestamp far in past) without access metadata
+        if (memoryData.timestamp instanceof Date) {
+            const ageDays = (Date.now() - memoryData.timestamp.getTime()) / 86400000;
+            if (ageDays > 45) importance -= 0.04;
+            else if (ageDays > 90) importance -= 0.06; // stronger decay after 3 months
+        }
+
         // Round to two decimals to avoid floating point artifacts
-        return Math.min(1.0, Math.round(importance * 100) / 100);
+        return Math.min(1.0, Math.max(0.0, Math.round(importance * 100) / 100));
     }
 
     // Derive semantic tags from memory content to assist prioritization and merging
@@ -1232,6 +1332,101 @@ class KimiMemorySystem {
         }
     }
 
+    // SMART PURGE: multi-factor scoring to deactivate least valuable memories.
+    // Factors (low score purged first):
+    //  - Lower importance
+    //  - Older (timestamp, lastAccess)
+    //  - Low accessCount
+    //  - Category weight (preferences/activities lower, important/personal protected)
+    //  - Stale (not accessed recently and no boundary / relationship milestone tags)
+    async smartPurgeMemories() {
+        if (!this.db) return;
+        try {
+            const maxEntries = window.KIMI_MAX_MEMORIES || this.maxMemoryEntries || 100;
+            const memories = (await this.getAllMemories()).filter(m => m.isActive);
+            if (memories.length <= maxEntries) return; // nothing to do
+
+            const now = Date.now();
+            const PROTECT_TAGS = new Set([
+                "relationship:first_meet",
+                "relationship:first_date",
+                "relationship:first_kiss",
+                "relationship:anniversary",
+                "relationship:moved_in",
+                "boundary:dislike",
+                "boundary:preference",
+                "boundary:limit",
+                "boundary:consent"
+            ]);
+            const categoryBase = {
+                important: 1.0,
+                personal: 0.9,
+                relationships: 0.85,
+                goals: 0.75,
+                experiences: 0.6,
+                preferences: 0.5,
+                activities: 0.45
+            };
+            const recentWindowMs = 14 * 86400000; // 14 days
+            const freshWindowMs = 2 * 86400000; // 2 days (very recent boost)
+
+            const scored = memories.map(m => {
+                const importance = typeof m.importance === "number" ? m.importance : 0.5;
+                const created = new Date(m.timestamp).getTime();
+                const lastAccess = m.lastAccess ? new Date(m.lastAccess).getTime() : created;
+                const ageDays = (now - created) / 86400000;
+                const idleDays = (now - lastAccess) / 86400000;
+                const catW = categoryBase[m.category] || 0.5;
+                const access = m.accessCount || 0;
+                const tags = new Set(m.tags || []);
+                const hasProtectTag = [...tags].some(t => PROTECT_TAGS.has(t));
+                const recent = now - lastAccess < recentWindowMs;
+                const veryRecent = now - lastAccess < freshWindowMs;
+                // Build score (higher = keep)
+                let score = 0;
+                score += importance * 2.2; // primary weight
+                score += catW * 0.8;
+                score += Math.min(access, 20) * 0.05; // up to +1
+                if (recent) score += 0.4;
+                if (veryRecent) score += 0.3;
+                if (hasProtectTag) score += 0.6;
+                // Penalties
+                score -= Math.min(Math.max(idleDays - 30, 0) * 0.01, 0.5); // idle after 30d
+                score -= Math.min(ageDays * 0.002, 0.4); // very old slight penalty
+                return { memory: m, score };
+            });
+
+            // Sort ascending by score (lowest first) to know which to purge
+            scored.sort((a, b) => a.score - b.score);
+            const excess = scored.length - maxEntries;
+            if (excess <= 0) return;
+
+            const toPurge = scored
+                .slice(0, excess)
+                .filter(s => s.score < 2.2) // avoid purging those with already decent score
+                .map(s => s.memory);
+            if (toPurge.length === 0) return;
+
+            for (const mem of toPurge) {
+                try {
+                    await this.updateMemory(mem.id, { isActive: false, lastModified: new Date() });
+                } catch (e) {
+                    console.warn("Failed smart purge memory", mem.id, e);
+                }
+            }
+            if (window.kimiEventBus) {
+                try {
+                    window.kimiEventBus.emit("memory:purged", {
+                        purged: toPurge.length,
+                        remaining: memories.length - toPurge.length
+                    });
+                } catch (e) {}
+            }
+        } catch (e) {
+            console.warn("smartPurgeMemories failed", e);
+        }
+    }
+
     // MEMORY RETRIEVAL FOR LLM
     async getRelevantMemories(context = "", limit = 10) {
         if (!this.memoryEnabled) return [];
@@ -1346,6 +1541,36 @@ class KimiMemorySystem {
         // Confidence and importance boost
         score += (memory.confidence || 0.5) * 0.05;
         score += (memory.importance || 0.5) * 0.05;
+
+        // Relationship specific boosts
+        try {
+            const tags = new Set(memory.tags || []);
+            const relTags = [
+                "relationship:stage",
+                "relationship:first_meet",
+                "relationship:first_date",
+                "relationship:first_kiss",
+                "relationship:anniversary",
+                "relationship:moved_in"
+            ];
+            if (memory.category === "relationships") score += 0.08;
+            if ([...tags].some(t => relTags.includes(t))) score += 0.07;
+            if ([...tags].some(t => t.startsWith("boundary:"))) score += 0.06; // boundaries important contextually
+            if ([...tags].some(t => t.startsWith("relationship:stage_"))) score += 0.05;
+        } catch {}
+
+        // Warmth influence (pull from emotion system if present). High warmth favors relational memories.
+        try {
+            if (window.kimiEmotionSystem && typeof window.kimiEmotionSystem._warmth === "number") {
+                const w = window.kimiEmotionSystem._warmth; // -50..50
+                if (
+                    w > 5 &&
+                    (memory.category === "relationships" || (memory.tags || []).some(t => t.startsWith("relationship:")))
+                ) {
+                    score += Math.min(0.06, (w / 50) * 0.06);
+                }
+            }
+        } catch {}
 
         return Math.min(1.0, score);
     }
@@ -1958,9 +2183,135 @@ class KimiMemorySystem {
             return false;
         }
     }
+
+    // === PASSIVE MEMORY DECAY ===
+    // Gradually lowers importance of older / unused memories while protecting key categories.
+    async applyMemoryDecay() {
+        // Guards
+        if (!this.db || !this.db.db || !this.db.db.memories) return false;
+        if (!this.memoryEnabled) return false;
+        const cfg = this.decayConfig || {};
+        if (!cfg.enabled) return false;
+        if (!cfg.halfLifeDays || cfg.halfLifeDays <= 0) return false;
+
+        const now = Date.now();
+        const lastRun = this._lastDecayRun || 0;
+        // If never run, just set timestamp and skip decay to avoid immediate drop on startup
+        if (!lastRun) {
+            this._lastDecayRun = now;
+            if (window.KIMI_DEBUG_MEMORIES) console.log("⏳ Memory decay initialized (no decay applied on first run)");
+            return true;
+        }
+
+        const deltaMs = now - lastRun;
+        const deltaDays = deltaMs / 86400000; // convert ms -> days
+        if (deltaDays <= 0) return true;
+
+        this._lastDecayRun = now;
+        // Persist last run timestamp (fire and forget)
+        try {
+            this.db.setPreference && this.db.setPreference("memoryLastDecayRun", this._lastDecayRun);
+        } catch {}
+
+        // Pre-calc exponential decay factor based on half-life
+        // importance' = minImportance + (importance - minImportance) * 0.5^(deltaDays / halfLife)
+        const halfLife = cfg.halfLifeDays;
+        const minImp = typeof cfg.minImportance === "number" ? cfg.minImportance : 0.05;
+        const protectCats = new Set(cfg.protectCategories || []);
+        const recentBoostDays = typeof cfg.recentBoostDays === "number" ? cfg.recentBoostDays : 7;
+        const accessRefreshBoost = typeof cfg.accessRefreshBoost === "number" ? cfg.accessRefreshBoost : 0.02;
+        const decayPow = Math.pow(0.5, deltaDays / halfLife);
+
+        let updated = 0;
+        let skipped = 0;
+        let protectedCount = 0;
+
+        try {
+            const memories = await this.getAllMemories();
+            const ops = [];
+            for (const mem of memories) {
+                if (!mem.isActive) continue; // ignore inactive
+                if (protectCats.has(mem.category)) {
+                    protectedCount++;
+                    continue; // fully protected categories
+                }
+
+                if (typeof mem.importance !== "number") {
+                    // initialize missing importance
+                    mem.importance = this.calculateImportance(mem);
+                }
+
+                const originalImportance = mem.importance;
+                // Apply exponential decay toward min importance
+                let newImportance = minImp + (originalImportance - minImp) * decayPow;
+
+                // Recent access boost (prevents too-fast fading of freshly used memories)
+                try {
+                    if (mem.lastAccess) {
+                        const lastAccessDays = (now - new Date(mem.lastAccess).getTime()) / 86400000;
+                        if (lastAccessDays <= recentBoostDays) {
+                            newImportance += (recentBoostDays - lastAccessDays) * 0.002; // small tapering boost
+                        }
+                    }
+                } catch {}
+
+                // Access refresh micro-boost if accessCount increased recently (heuristic: lastAccess within decay window)
+                try {
+                    if (mem.lastAccess && now - new Date(mem.lastAccess).getTime() <= deltaMs) {
+                        newImportance += accessRefreshBoost;
+                    }
+                } catch {}
+
+                // Clamp
+                if (newImportance > 1) newImportance = 1;
+                if (newImportance < 0) newImportance = 0;
+
+                // Skip tiny changes to reduce writes
+                if (Math.abs(newImportance - originalImportance) < 0.005) {
+                    skipped++;
+                    continue;
+                }
+
+                mem.importance = Number(newImportance.toFixed(3));
+                mem.lastModified = new Date();
+                ops.push(this.db.db.memories.update(mem.id, { importance: mem.importance, lastModified: mem.lastModified }));
+                updated++;
+
+                // Batch writes to avoid blocking UI thread
+                if (ops.length >= 50) {
+                    await Promise.all(ops);
+                    ops.length = 0;
+                }
+            }
+            if (ops.length) await Promise.all(ops);
+        } catch (e) {
+            console.warn("Memory decay pass failed", e);
+            return false;
+        }
+
+        if (window.KIMI_DEBUG_MEMORIES || updated) {
+            console.log(
+                `🧪 Memory decay run: Δdays=${deltaDays.toFixed(3)} updated=${updated} skipped=${skipped} protected=${protectedCount}`
+            );
+        }
+        return true;
+    }
+
+    // Manually trigger a decay run and get a simple report (promise of boolean)
+    async runDecayNow() {
+        if (window.KIMI_DEBUG_MEMORIES) console.log("▶️ Manual memory decay trigger");
+        return this.applyMemoryDecay();
+    }
+
+    // Stop passive decay scheduling (e.g., when disabling memory system)
+    stopMemoryDecay() {
+        if (this._decayTimer) {
+            clearTimeout(this._decayTimer);
+            this._decayTimer = null;
+            if (window.KIMI_DEBUG_MEMORIES) console.log("⏹ Passive memory decay stopped");
+        }
+    }
 }
 
 window.KimiMemorySystem = KimiMemorySystem;
 export default KimiMemorySystem;
-
-window.KimiMemorySystem = KimiMemorySystem;

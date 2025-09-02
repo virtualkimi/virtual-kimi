@@ -901,11 +901,51 @@ class KimiVideoManager {
 
         this._prefetchLikely(category);
 
+        const previous = { context: this.currentContext, emotion: this.currentEmotion };
+        if (window.kimiEventBus) {
+            try {
+                window.kimiEventBus.emit("video:willChange", {
+                    previous,
+                    next: { context: category, emotion, videoPath },
+                    ts: now
+                });
+            } catch (e) {}
+        }
+        // Anti-repetition strengthened: ensure recent history exists
+        if (!this._recentVideoHistory) this._recentVideoHistory = {};
+        const MAX_RECENT = 3;
+        // Replace selected video if it appears in recent list and there are alternatives
+        const recentList = this._recentVideoHistory[category] || [];
+        if (recentList.includes(videoPath) && (this.videoCategories[category] || []).length > 1) {
+            const alts = (this.videoCategories[category] || []).filter(v => !recentList.includes(v));
+            if (alts.length > 0) {
+                videoPath =
+                    typeof this._pickScoredVideo === "function"
+                        ? this._pickScoredVideo(category, alts, traits)
+                        : alts[Math.floor(Math.random() * alts.length)];
+            }
+        }
         this.loadAndSwitchVideo(videoPath, priority);
         // Always store normalized category as currentContext so event bindings match speakingPositive/Negative
         this.currentContext = category;
         this.currentEmotion = emotion;
         this.lastSwitchTime = now;
+        // Update history
+        const hist = this._recentVideoHistory[category] || [];
+        hist.push(videoPath);
+        while (hist.length > MAX_RECENT) hist.shift();
+        this._recentVideoHistory[category] = hist;
+        if (window.kimiEventBus) {
+            try {
+                window.kimiEventBus.emit("video:didChange", {
+                    context: category,
+                    emotion,
+                    videoPath,
+                    recent: [...hist],
+                    ts: now
+                });
+            } catch (e) {}
+        }
     }
 
     setupEventListenersForContext(context) {
@@ -1016,18 +1056,30 @@ class KimiVideoManager {
         if (traits && typeof affection === "number") {
             let weights = candidateVideos.map(video => {
                 if (category === "speakingPositive") {
-                    // Positive videos favored by affection, romance, and humor
-                    const base = 1 + (affection / 100) * 0.4; // Affection influence factor
-                    let bonus = 0;
+                    let warmth = 0;
+                    try {
+                        if (window.kimiEmotionSystem && typeof window.kimiEmotionSystem._warmth === "number")
+                            warmth = window.kimiEmotionSystem._warmth;
+                    } catch {}
+                    const warmthRatio = Math.min(1, Math.max(-1, warmth / (window.kimiEmotionSystem?.WARMTH_CFG?.maxAbs || 50)));
+                    const base = 1 + (affection / 100) * 0.35;
                     const rom = typeof traits.romance === "number" ? traits.romance : 50;
                     const hum = typeof traits.humor === "number" ? traits.humor : 50;
-                    if (emotion === "romantic") bonus += (rom / 100) * 0.3; // Romance context bonus
-                    if (emotion === "laughing") bonus += (hum / 100) * 0.3; // Humor context bonus
-                    return base + bonus;
+                    const romanceComponent = (rom / 100) * (emotion === "romantic" ? 0.35 : 0.2);
+                    const humorComponent = (hum / 100) * (emotion === "laughing" ? 0.35 : 0.15);
+                    const warmthBoost = warmthRatio >= 0 ? 1 + warmthRatio * 0.55 : 1 + warmthRatio * 0.25; // negative warmth reduces positive weight
+                    return base * (1 + romanceComponent + humorComponent) * warmthBoost;
                 }
                 if (category === "speakingNegative") {
-                    // Negative videos when affection is low (reduced weight to balance)
-                    return 1 + ((100 - affection) / 100) * 0.3; // Low-affection influence factor
+                    let warmth = 0;
+                    try {
+                        if (window.kimiEmotionSystem && typeof window.kimiEmotionSystem._warmth === "number")
+                            warmth = window.kimiEmotionSystem._warmth;
+                    } catch {}
+                    const warmthRatio = Math.min(1, Math.max(-1, warmth / (window.kimiEmotionSystem?.WARMTH_CFG?.maxAbs || 50)));
+                    const base = 1 + ((100 - affection) / 100) * 0.35;
+                    const warmthPenalty = warmthRatio > 0 ? 1 - warmthRatio * 0.65 : 1 - warmthRatio * 0.2; // cold slightly raises chance
+                    return base * warmthPenalty;
                 }
                 if (category === "neutral") {
                     // Neutral videos when affection is moderate, also influenced by intelligence
@@ -1887,28 +1939,12 @@ class KimiVideoManager {
 }
 
 function getMoodCategoryFromPersonality(traits) {
-    // Use unified emotion system
+    // Use unified emotion system if available
     if (window.kimiEmotionSystem) {
         return window.kimiEmotionSystem.getMoodCategoryFromPersonality(traits);
     }
-
-    // Fallback (should not be reached) - must match emotion system calculation
-    const keys = ["affection", "romance", "empathy", "playfulness", "humor", "intelligence"];
-    let sum = 0;
-    let count = 0;
-    keys.forEach(key => {
-        if (typeof traits[key] === "number") {
-            sum += traits[key];
-            count++;
-        }
-    });
-    const avg = count > 0 ? sum / count : 50;
-
-    if (avg >= 80) return "speakingPositive";
-    if (avg >= 60) return "neutral";
-    if (avg >= 40) return "neutral";
-    if (avg >= 20) return "speakingNegative";
-    return "speakingNegative";
+    // Fallback simplified: neutral baseline until system ready
+    return "neutral";
 }
 
 // Centralized initialization manager
@@ -2294,23 +2330,6 @@ class KimiUIStateManager {
     setActiveTab(tabName) {
         this.state.activeTab = tabName;
         if (this.tabManager) this.tabManager.activateTab(tabName);
-    }
-    /**
-     * @deprecated Prefer calling updateGlobalPersonalityUI() after updating traits.
-     * This direct setter will be removed in a future cleanup.
-     */
-    setPersonalityAverage(value) {
-        const v = Number(value) || 0;
-        const clamped = Math.max(0, Math.min(100, v));
-        this.state.favorability = clamped;
-        window.KimiDOMUtils.setText("#favorability-text", `${clamped.toFixed(2)}%`);
-        window.KimiDOMUtils.get("#favorability-bar").style.width = `${clamped}%`;
-    }
-    /**
-     * @deprecated Use setPersonalityAverage() (itself deprecated) or updateGlobalPersonalityUI().
-     */
-    setFavorability(value) {
-        this.setPersonalityAverage(value);
     }
     async setTranscript(text) {
         this.state.transcript = text;
