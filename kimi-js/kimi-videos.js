@@ -58,6 +58,8 @@ class KimiVideoManager {
         this._recentFailures = new Map();
         this._failureCooldown = 5000;
         this._consecutiveErrorCount = 0;
+        // Track per-video load attempts to adapt timeouts & avoid faux échecs
+        this._videoAttempts = new Map();
     }
 
     //Centralized crossfade transition between two videos.
@@ -1105,6 +1107,17 @@ class KimiVideoManager {
 
     loadAndSwitchVideo(videoSrc, priority = "normal") {
         const startTs = performance.now();
+        // Register attempt count (used for adaptive backoff)
+        const prevAttempts = this._videoAttempts.get(videoSrc) || 0;
+        const attempts = prevAttempts + 1;
+        this._videoAttempts.set(videoSrc, attempts);
+        // Light trimming to avoid unbounded growth
+        if (this._videoAttempts.size > 300) {
+            for (const key of this._videoAttempts.keys()) {
+                if (this._videoAttempts.size <= 200) break;
+                this._videoAttempts.delete(key);
+            }
+        }
         // Guard: ignore if recently failed and still in cooldown
         const lastFail = this._recentFailures.get(videoSrc);
         if (lastFail && performance.now() - lastFail < this._failureCooldown) {
@@ -1170,6 +1183,7 @@ class KimiVideoManager {
 
         // Stocker les références aux handlers pour pouvoir les nettoyer
         let fired = false;
+        let errorCause = "error-event"; // will be overwritten if timeout based
         const onReady = () => {
             if (fired) return;
             fired = true;
@@ -1210,16 +1224,27 @@ class KimiVideoManager {
             const networkState = mediaEl ? mediaEl.networkState : -1;
             let mediaErrorCode = null;
             if (mediaEl && mediaEl.error) mediaErrorCode = mediaEl.error.code;
+            const stillLoading = !mediaEl?.error && networkState === 2;
+            const realMediaError = !!mediaEl?.error;
+            // Differentiate timeout vs real media error for clarity
+            const tag = realMediaError
+                ? "VideoLoadFail:media-error"
+                : errorCause.startsWith("timeout")
+                  ? `VideoLoadFail:${errorCause}`
+                  : "VideoLoadFail:unknown";
             console.warn(
-                `Error loading video: ${videoSrc} (readyState=${readyState} networkState=${networkState} mediaError=${mediaErrorCode}) falling back to: ${fallbackVideo}`
+                `[${tag}] src=${videoSrc} readyState=${readyState} networkState=${networkState} mediaError=${mediaErrorCode} attempts=${attempts} fallback=${fallbackVideo}`
             );
             this._loadingInProgress = false;
             if (this._loadTimeout) {
                 clearTimeout(this._loadTimeout);
                 this._loadTimeout = null;
             }
-            this._recentFailures.set(videoSrc, performance.now());
-            this._consecutiveErrorCount++;
+            // Only mark as failure if c'est une vraie erreur décodage OU plusieurs timeouts persistants
+            if (realMediaError || (!stillLoading && errorCause.startsWith("timeout")) || attempts >= 3) {
+                this._recentFailures.set(videoSrc, performance.now());
+                this._consecutiveErrorCount++;
+            }
             // Stop runaway fallback loop: pause if too many sequential errors relative to pool size
             if (this._fallbackPool && this._consecutiveErrorCount >= this._fallbackPool.length * 2) {
                 console.error("Temporarily pausing fallback loop after repeated failures. Retrying in 2s.");
@@ -1276,12 +1301,17 @@ class KimiVideoManager {
         // Cap by clip length ratio if we know (assume 10000ms default when metadata absent)
         const currentClipMs = 10000; // All clips are 10s
         adaptiveTimeout = Math.min(adaptiveTimeout, Math.floor(currentClipMs * this._timeoutCapRatio));
+        // First ever attempt for a video: be more lenient if no historical avg yet
+        if (attempts === 1 && !this._avgLoadTime) {
+            adaptiveTimeout = Math.floor(adaptiveTimeout * 1.8); // ~5400ms au lieu de 3000ms typique
+        }
         this._loadTimeout = setTimeout(() => {
             if (!fired) {
                 // If metadata is there but not canplay yet, extend once
                 if (this.inactiveVideo.readyState >= 1 && this.inactiveVideo.readyState < 2) {
+                    errorCause = "timeout-metadata";
                     console.debug(
-                        `Extending timeout for ${videoSrc} (readyState=${this.inactiveVideo.readyState}) by ${this._timeoutExtension}ms`
+                        `Extending timeout (metadata) for ${videoSrc} readyState=${this.inactiveVideo.readyState} +${this._timeoutExtension}ms`
                     );
                     this._loadTimeout = setTimeout(() => {
                         if (!fired) {
@@ -1292,15 +1322,19 @@ class KimiVideoManager {
                     return;
                 }
                 // Grace retry: still fetching over network (networkState=2) with no data (readyState=0)
+                const maxGrace = 2; // allow up to two grace extensions
                 if (
                     this.inactiveVideo.networkState === 2 &&
                     this.inactiveVideo.readyState === 0 &&
-                    (this._graceRetryCounts?.[videoSrc] || 0) < 1
+                    (this._graceRetryCounts?.[videoSrc] || 0) < maxGrace
                 ) {
                     if (!this._graceRetryCounts) this._graceRetryCounts = {};
                     this._graceRetryCounts[videoSrc] = (this._graceRetryCounts[videoSrc] || 0) + 1;
-                    const extra = this._timeoutExtension + 600;
-                    console.debug(`Grace retry for ${videoSrc} (network loading). Extending by ${extra}ms`);
+                    const extra = this._timeoutExtension + 900;
+                    errorCause = "timeout-grace";
+                    console.debug(
+                        `Grace retry #${this._graceRetryCounts[videoSrc]} for ${videoSrc} (still NETWORK_LOADING). Ext +${extra}ms`
+                    );
                     this._loadTimeout = setTimeout(() => {
                         if (!fired) {
                             if (this.inactiveVideo.readyState >= 2) onReady();
@@ -1312,6 +1346,7 @@ class KimiVideoManager {
                 if (this.inactiveVideo.readyState >= 2) {
                     onReady();
                 } else {
+                    errorCause = errorCause === "error-event" ? "timeout-final" : errorCause;
                     this._currentErrorHandler();
                 }
             }
