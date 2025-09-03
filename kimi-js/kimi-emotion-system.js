@@ -3,22 +3,6 @@
 
 class KimiEmotionSystem {
     constructor(database = null) {
-        /*
-         * Personality Update Pipeline (Refactored)
-         * 1. Emotion detected -> base deltas applied via EMOTION_TRAIT_EFFECTS (central map).
-         *    - Each delta passes through adjustUp / adjustDown with global + per-trait multipliers
-         *      (window.KIMI_TRAIT_ADJUSTMENT) for consistent scaling.
-         * 2. Content keyword analysis (_analyzeTextContent) may override interim trait values (explicit matches).
-         * 3. Cross-trait modifiers (_applyCrossTraitModifiers) apply synergy / balancing rules (e.g. high empathy boosts affection, high romance stabilizes affection, intelligence supports empathy/humor).
-         * 4. Conversation-based drift (updatePersonalityFromConversation) uses TRAIT_KEYWORD_MODEL:
-         *      - Counts positive/negative keyword hits (user weighted 1.0, model weighted 0.5).
-         *      - Computes rawDelta = posHits*posFactor - negHits*negFactor.
-         *      - Applies sustained negativity amplification after streakPenaltyAfter.
-         *      - Clamps magnitude to maxStep per trait, then applies directly with bounds [0,100].
-         * 5. Persistence: _preparePersistTrait decides threshold & smoothing before batch write.
-         * 6. Global personality average (UI) = mean of six core traits (affection included).
-         * NOTE: Affection is fully independent (no derived average). All adjustments centralized here to avoid duplication.
-         */
         this.db = database;
         this.negativeStreaks = {};
 

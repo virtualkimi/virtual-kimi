@@ -198,29 +198,24 @@ class KimiVoiceManager {
             return;
         }
         this._initializingVoices = true;
-
         this.availableVoices = this.speechSynthesis.getVoices();
-
-        // Handle case where voices are not loaded yet (common timing issue)
+        // Resolve selectedLanguage before any early return so SR uses correct language
+        if (!this.selectedLanguage) {
+            try {
+                const selectedLanguage = await this.db?.getPreference("selectedLanguage", "en");
+                this.selectedLanguage = window.KimiLanguageUtils.normalizeLanguageCode(selectedLanguage || "en") || "en";
+            } catch (_) {
+                this.selectedLanguage = "en";
+            }
+        }
         if (this.availableVoices.length === 0) {
             this._initializingVoices = false;
-            // The onvoiceschanged listener will retry initialization
-            return;
-        }
-
-        // Resolve effective selectedLanguage if missing
-        if (!this.selectedLanguage) {
-            const selectedLanguage = await this.db?.getPreference("selectedLanguage", "en");
-            this.selectedLanguage = window.KimiLanguageUtils.normalizeLanguageCode(selectedLanguage || "en") || "en";
+            return; // onvoiceschanged will retry later
         }
         const effectiveLang = await this.getEffectiveLanguage(this.selectedLanguage);
-
         const savedVoice = await this.db?.getPreference("selectedVoice", "auto");
-
         const filteredVoices = this.getVoicesForLanguage(effectiveLang);
-
         if (savedVoice && savedVoice !== "auto") {
-            // Only search within language-compatible voices
             const foundVoice = filteredVoices.find(voice => voice.name === savedVoice);
             if (foundVoice) {
                 this.currentVoice = foundVoice;
@@ -231,14 +226,12 @@ class KimiVoiceManager {
                 this._initializingVoices = false;
                 return;
             } else {
-                // Saved voice not compatible with current language, fall back to auto-selection
                 console.log(
                     `🎤 Saved voice "${savedVoice}" not compatible with language "${effectiveLang}", using auto-selection`
                 );
                 await this.db?.setPreference("selectedVoice", "auto");
             }
         }
-
         // Prefer female voices if available in the language-compatible voices
         // Use real voice names since voice.gender is rarely provided by browsers
         const femaleVoice = filteredVoices.find(voice => {
@@ -1339,7 +1332,10 @@ class KimiVoiceManager {
     }
 
     async handleLanguageChange(e) {
-        const newLang = e.target.value;
+        const rawLang = e.target.value;
+        const newLang = window.KimiLanguageUtils?.normalizeLanguageCode
+            ? window.KimiLanguageUtils.normalizeLanguageCode(rawLang)
+            : rawLang;
         const oldLang = this.selectedLanguage;
         console.log(`🎤 Language changing: "${oldLang}" → "${newLang}"`);
 
@@ -1369,12 +1365,15 @@ class KimiVoiceManager {
 
             // Re-init voices to pick a correct voice for the new language
             await this.initVoices();
+            // Ensure voice selector reflects new language even if no voice chosen
+            this.updateVoiceSelector();
         } catch (err) {
             // On error, fall back to safe behavior: init voices and set 'auto'
             try {
                 await this.db?.setPreference("selectedVoice", "auto");
             } catch {}
             await this.initVoices();
+            this.updateVoiceSelector();
         }
 
         if (this.currentVoice) {
@@ -1383,7 +1382,7 @@ class KimiVoiceManager {
             console.warn(`🎤 No voice found for language "${newLang}"`);
         }
 
-        // Update recognition language safely (recreate instance to avoid stale internal state)
+        // Single clear path: recreate recognition instance with new language
         this._refreshRecognitionLanguage(newLang);
     }
 
