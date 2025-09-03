@@ -1,5 +1,15 @@
 # Virtual Kimi App Changelog
 
+# [1.1.5] - 2025-09-03
+
+### Bug Fixes
+
+- Fixed some issues.
+
+### Changed
+
+- Separated the KimiDataManager class and moved logic into the new file `kimi-data-manager.js`.
+
 # [1.1.4.1] - 2025-09-03
 
 ### Bug Fixes

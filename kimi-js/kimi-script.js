@@ -3,6 +3,7 @@ import KimiLLMManager from "./kimi-llm-manager.js";
 import KimiEmotionSystem from "./kimi-emotion-system.js";
 import KimiMemorySystem from "./kimi-memory-system.js";
 import KimiMemory from "./kimi-memory.js";
+import { KimiDataManager } from "./kimi-data-manager.js"; // Explicit import (phasing out window.KimiDataManager)
 
 document.addEventListener("DOMContentLoaded", async function () {
     const DEFAULT_SYSTEM_PROMPT = window.DEFAULT_SYSTEM_PROMPT;

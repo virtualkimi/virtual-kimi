@@ -37,29 +37,44 @@
         content="Virtual AI companion with evolving personality and advanced voice recognition.">
     <meta property="twitter:image" content="kimi-icons/virtualkimi-logo.png">
 
-    <!-- Schema.org markup for Google -->
+    <!-- Schema.org consolidated JSON-LD (WebPage + mainEntity SoftwareApplication) -->
     <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": "Virtual Kimi",
-        "description": "Virtual Kimi, your virtual AI girlfriend and companion with an evolving personality, voice recognition and immersive interface",
-        "applicationCategory": "AI Companion",
-        "operatingSystem": "Web Browser",
-        "offers": {
-            "@type": "Offer",
-            "price": "0",
-            "priceCurrency": "USD"
-        },
-        "creator": {
-            "@type": "Person",
-            "name": "Jean & Kimi"
-        },
-        "dateCreated": "2025-07-16",
-        "dateModified": "2025-09-03",
-        "version": "v1.1.4.1"
-    }
-    </script>
+        {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Virtual Kimi - Virtual AI Companion",
+            "description": "Virtual Kimi, your virtual AI girlfriend and companion with an evolving personality, multi-provider AI support, advanced voice recognition and immersive interface.",
+            "url": "https://virtualkimi.com/virtual-kimi-app/index.html",
+            "mainEntity": {
+                "@type": "SoftwareApplication",
+                "@id": "https://virtualkimi.com/virtual-kimi-app/#app",
+                "name": "Virtual Kimi",
+                "description": "Virtual Kimi, your virtual AI girlfriend and companion with an evolving personality, multi-provider AI support, voice recognition and immersive interface",
+                "applicationCategory": "AI Companion",
+                "operatingSystem": "Web Browser",
+                "offers": {
+                    "@type": "Offer",
+                    "price": "0",
+                    "priceCurrency": "USD"
+                },
+                "creator": {
+                    "@type": "Person",
+                    "name": "Jean & Kimi"
+                },
+                "dateCreated": "2025-07-16",
+                "dateModified": "2025-09-03",
+                "version": "v1.1.5",
+                "features": [
+                    "Advanced voice recognition",
+                    "Evolving personality with 6 adjustable traits",
+                    "Premium LLM integration",
+                    "5 customizable visual themes",
+                    "Persistent memory",
+                    "Intelligent affection system"
+                ]
+            }
+        }
+        </script>
 
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="favicon.ico">
@@ -1072,7 +1087,7 @@
                     <h3><i class="fas fa-code"></i> Technical Information</h3>
                     <div class="tech-info">
                         <p><strong>Created date :</strong> July 16, 2025</p>
-                        <p><strong>Version :</strong> v1.1.4.1</p>
+                        <p><strong>Version :</strong> v1.1.5</p>
                         <p><strong>Last update :</strong> September 03, 2025</p>
                         <p><strong>Technologies :</strong> HTML5, CSS3, JavaScript ES6+, IndexedDB, Web Speech
                             API</p>
@@ -1083,10 +1098,16 @@
             </div>
         </div>
     </div>
-    </div>
 
+    <!-- Script load order (critical):
+        1. Legacy globals (dexie, i18n) must load before modules needing them.
+        2. Base utilities (kimi-utils.js) define KimiBaseManager and helpers.
+        3. Managers that extend base (appearance, data) after utils.
+        4. Core module wiring (kimi-module.js) after managers so window.* hooks exist.
+        5. Initialization / orchestration (kimi-script.js) last.
+        Keep this order when adding new managers. -->
     <script src="dexie.min.js"></script>
-    <script src="kimi-locale/i18n.js" defer></script>
+    <script src="kimi-locale/i18n.js"></script>
     <script type="module" src="kimi-js/kimi-personality-utils.js"></script>
     <script type="module" src="kimi-js/kimi-utils.js"></script>
     <script type="module" src="kimi-js/kimi-main.js"></script>
@@ -1097,41 +1118,10 @@
     <script type="module" src="kimi-js/kimi-constants.js"></script>
     <script type="module" src="kimi-js/kimi-memory-ui.js"></script>
     <script type="module" src="kimi-js/kimi-appearance.js"></script>
+    <script type="module" src="kimi-js/kimi-data-manager.js"></script>
     <script type="module" src="kimi-js/kimi-module.js"></script>
     <script type="module" src="kimi-js/kimi-script.js"></script>
     <script type="module" src="kimi-js/kimi-plugin-manager.js"></script>
-
-    <!-- Schema.org JSON-LD for better SEO -->
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@type": "WebPage",
-        "name": "Virtual Kimi - Virtual AI Companion",
-    "description": "Virtual Kimi, your virtual AI girlfriend and companion with an evolving personality, multi-provider AI support, advanced voice recognition and immersive interface. The future of human-AI girlfriend relationships.",
-        "url": "https://virtualkimi.com/virtual-kimi-app/index.html",
-        "mainEntity": {
-            "@type": "SoftwareApplication",
-            "name": "Virtual Kimi",
-            "applicationCategory": "AI Companion",
-            "operatingSystem": "Web Browser",
-            "description": "Virtual Kimi, a virtual AI girlfriend and companion with an evolving personality, multi-provider AI support, voice recognition and immersive interface",
-            "features": [
-                "Advanced voice recognition",
-                "Evolving personality with 6 adjustable traits",
-                "Premium LLM integration",
-                "5 customizable visual themes",
-                "Persistent memory",
-                "Intelligent affection system"
-            ],
-            "author": {
-                "@type": "Person",
-                "name": "Jean & Kimi"
-            },
-            "dateCreated": "2025-07-16",
-                "version": "v1.1.4.1"
-        }
-    }
-    </script>
 </body>
 
 </html>
