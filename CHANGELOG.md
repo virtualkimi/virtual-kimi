@@ -1,5 +1,15 @@
 # Virtual Kimi App Changelog
 
+# [1.1.4.1] - 2025-09-03
+
+### Bug Fixes
+
+- Fixed an issue with language selection and speech recognition that could prevent correct voice detection and audio input. Improved handling and fallbacks to ensure consistent behavior.
+
+### Changed
+
+- Separated the KimiVideoManager class and moved video management logic into the new file `kimi-videos.js`.
+
 # [1.1.3] - 2025-09-01
 
 ### Bug Fixes
