@@ -111,21 +111,7 @@ window.KIMI_CONTEXT_KEYWORDS = {
         laughing: ["haha", "mdr", "rire", "drôle", "hilarant", "mort de rire", "ptdr", "rigole", "sourit", "tu plaisantes"],
         shy: ["timide", "gêné", "rougir", "honteux", "intimidé", "mal à l’aise", "réservé", "introverti", "timidité"],
         confident: ["confiance", "fier", "sûr", "fort", "déterminé", "assuré", "audacieux", "leader", "sans peur", "affirmé"],
-        romantic: [
-            "amour",
-            "romantique",
-            "tendre",
-            "câlin",
-            "bisou",
-            "mon cœur",
-            "chéri",
-            "ma belle",
-            "ma femme",
-            "merveilleuse",
-            "merveilleux",
-            "passionné",
-            "adoré"
-        ],
+        romantic: ["amour", "romantique", "tendre", "câlin", "bisou", "mon cœur", "chéri", "ma belle", "passionné", "adoré"],
         flirtatious: [
             "flirt",
             "taquin",
@@ -227,19 +213,7 @@ window.KIMI_CONTEXT_KEYWORDS = {
 
 window.KIMI_CONTEXT_POSITIVE = {
     en: ["happy", "joy", "great", "awesome", "perfect", "excellent", "magnificent", "lovely", "nice"],
-    fr: [
-        "heureux",
-        "joie",
-        "génial",
-        "parfait",
-        "excellent",
-        "magnifique",
-        "super",
-        "chouette",
-        "formidable",
-        "merveilleuse",
-        "merveilleux"
-    ],
+    fr: ["heureux", "joie", "génial", "parfait", "excellent", "magnifique", "super", "chouette"],
     es: ["feliz", "alegría", "genial", "perfecto", "excelente", "magnífico", "estupendo", "maravilloso"],
     de: ["glücklich", "freude", "toll", "perfekt", "ausgezeichnet", "großartig", "wunderbar", "herrlich"],
     it: ["felice", "gioia", "fantastico", "perfetto", "eccellente", "magnifico", "meraviglioso", "ottimo"],
@@ -398,18 +372,6 @@ window.KIMI_PERSONALITY_KEYWORDS = {
         empathy: {
             positive: ["listen", "understand", "empathy", "support", "help", "comfort", "compassion", "caring", "kindness"],
             negative: ["indifferent", "cold", "selfish", "ignore", "despise", "hostile", "uncaring"]
-        },
-        trust: {
-            positive: ["trust", "honest", "truth", "loyal", "loyalty", "reliable", "dependable", "safe"],
-            negative: ["lie", "lying", "betray", "betrayal", "cheat", "cheating", "unfaithful", "dishonest"]
-        },
-        intimacy: {
-            positive: ["intimate", "close", "deep", "vulnerable", "tender", "touch", "caress", "cuddle"],
-            negative: ["distant", "cold", "closed", "blocked", "awkward", "uncomfortable"]
-        },
-        boundary: {
-            positive: ["consent", "respect", "limit", "safe word", "ok with", "are you fine", "are you okay"],
-            negative: ["force", "coerce", "push you", "ignore your no", "against your will"]
         }
     },
     fr: {
@@ -448,20 +410,7 @@ window.KIMI_PERSONALITY_KEYWORDS = {
             ]
         },
         romance: {
-            positive: [
-                "câlin",
-                "amour",
-                "romantique",
-                "bisou",
-                "tendresse",
-                "passion",
-                "séduisant",
-                "charmant",
-                "adorable",
-                "merveilleuse",
-                "merveilleux",
-                "ma femme"
-            ],
+            positive: ["câlin", "amour", "romantique", "bisou", "tendresse", "passion", "séduisant", "charmant", "adorable"],
             negative: [
                 "froid",
                 "froide",
@@ -486,10 +435,7 @@ window.KIMI_PERSONALITY_KEYWORDS = {
                 "câlin",
                 "aimer",
                 "adorer",
-                "adorable",
-                "merveilleuse",
-                "merveilleux",
-                "ma femme"
+                "adorable"
             ],
             negative: [
                 "méchant",
@@ -507,14 +453,8 @@ window.KIMI_PERSONALITY_KEYWORDS = {
                 "idiote",
                 "stupide",
                 "con",
-                "conne",
                 "connard",
-                "connasse",
-                "connasses",
-                "salope",
-                "pute",
-                "putain",
-                "poufiasse"
+                "salope"
             ]
         },
         playfulness: {
@@ -545,18 +485,6 @@ window.KIMI_PERSONALITY_KEYWORDS = {
                 "bienveillance"
             ],
             negative: ["indifférent", "indifférente", "froid", "froide", "égoïste", "ignorer", "mépriser", "dénigrer", "hostile"]
-        },
-        trust: {
-            positive: ["confiance", "honnête", "fidèle", "fiable", "loyal", "sincère", "sécurité"],
-            negative: ["mensonge", "menti", "trahi", "trahison", "tromper", "infidèle", "malhonnête"]
-        },
-        intimacy: {
-            positive: ["intime", "proche", "profond", "vulnérable", "tendre", "toucher", "caresse", "câlin"],
-            negative: ["distant", "froide", "fermé", "bloqué", "mal à l'aise"]
-        },
-        boundary: {
-            positive: ["consentement", "respect", "limite", "d'accord", "ok pour", "ça te va"],
-            negative: ["forcer", "te pousser", "ignorer ton non", "contre ta volonté"]
         }
     },
     es: {

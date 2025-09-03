@@ -330,6 +330,25 @@ function updateFavorabilityLabel(characterKey) {
     }
 }
 
+// Delegated personality average computation (single source of truth in KimiEmotionSystem)
+function computePersonalityAverage(traits) {
+    if (window.kimiEmotionSystem && typeof window.kimiEmotionSystem.calculatePersonalityAverage === "function") {
+        return Number(window.kimiEmotionSystem.calculatePersonalityAverage(traits).toFixed(2));
+    }
+    // Fallback minimal (should rarely occur before emotion system init)
+    const keys = ["affection", "playfulness", "intelligence", "empathy", "humor", "romance"];
+    let sum = 0,
+        count = 0;
+    for (const k of keys) {
+        const v = traits && traits[k];
+        if (typeof v === "number" && isFinite(v)) {
+            sum += Math.max(0, Math.min(100, v));
+            count++;
+        }
+    }
+    return count ? Number((sum / count).toFixed(2)) : 0;
+}
+
 // Update UI elements (bar + percentage text + label) based on overall personality average
 async function updateGlobalPersonalityUI(characterKey = null) {
     try {
@@ -337,10 +356,7 @@ async function updateGlobalPersonalityUI(characterKey = null) {
         if (!db) return;
         const character = characterKey || (await db.getSelectedCharacter());
         const traits = await db.getAllPersonalityTraits(character);
-        const avg =
-            window.kimiEmotionSystem && typeof window.kimiEmotionSystem.calculatePersonalityAverage === "function"
-                ? Number(window.kimiEmotionSystem.calculatePersonalityAverage(traits).toFixed(2))
-                : 50;
+        const avg = computePersonalityAverage(traits);
         // Reuse existing favorability bar elements for global average
         const bar = document.getElementById("favorability-bar");
         const text = document.getElementById("favorability-text");
