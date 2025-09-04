@@ -10,7 +10,7 @@ class KimiVideoManager {
         this.currentEmotion = "neutral";
         this.lastSwitchTime = Date.now();
         this.pendingSwitch = null;
-        this.autoTransitionDuration = 9900;
+        this.autoTransitionDuration = 10000;
         this.transitionDuration = 300;
         this._prefetchCache = new Map();
         this._prefetchInFlight = new Set();
@@ -60,14 +60,20 @@ class KimiVideoManager {
         this._consecutiveErrorCount = 0;
         // Track per-video load attempts to adapt timeouts & avoid faux échecs
         this._videoAttempts = new Map();
-        // Neutral seamless pipeline controls
-        this.enableNeutralPipeline = true; // feature flag (can be toggled)
+        // Neutral pipeline disabled (previously handled seamless chaining)
+        this.enableNeutralPipeline = false;
         this._nextNeutralPlannedAt = 0;
-        this._scheduledNextNeutral = null; // src of next prepared neutral
+        this._scheduledNextNeutral = null;
         this._scheduledNeutralReady = false;
-        this._neutralGapMetrics = { lastGapMs: null, samples: [] };
-        // Public configurable crossfade duration (ms)
-        this.crossfadeDurationMs = 260; // default value, can be tuned externally
+        this._neutralGapMetrics = null;
+        // Speaking polarity throttling (prevents rapid flip-flop between positive / negative clips)
+        this._speakingPolarityLast = null; // 'positive' | 'negative'
+        this._speakingPolarityLastTs = 0;
+        this._speakingPolarityBaseInterval = 2500; // base ms between polarity changes (will be scaled)
+        this._speakingPolarityOverride = null; // manual override (ms) if set
+        this._speakingPolarityRejectCount = 0; // number of consecutive rejected flips
+        this._speakingPolarityMaxRejects = 2; // after this many rejects, allow next flip
+        this._avgSpeakingDuration = 10000; // ms approximate; can refine after metadata
 
         // Ensure the initially active video is visible (remove any stale inline opacity)
         try {
@@ -123,6 +129,31 @@ class KimiVideoManager {
             adaptiveHistorySize: adaptive,
             recentHistory: recent
         });
+    }
+
+    // Dynamically derive minimum interval between polarity changes using avg clip duration, with optional override.
+    _getPolarityMinInterval() {
+        if (typeof this._speakingPolarityOverride === "number") return this._speakingPolarityOverride;
+        const avg = this._avgSpeakingDuration || 10000; // ms
+        const derived = Math.round(avg * 0.22); // ~2200ms for 10s
+        const blended = Math.round((derived + this._speakingPolarityBaseInterval) / 2);
+        return Math.min(3400, Math.max(1900, blended));
+    }
+
+    setPolarityInterval(ms) {
+        if (typeof ms === "number" && ms >= 500) this._speakingPolarityOverride = ms;
+    }
+
+    clearPolarityIntervalOverride() {
+        this._speakingPolarityOverride = null;
+    }
+
+    _updateAvgSpeakingDuration(sampleDurationMs) {
+        if (!sampleDurationMs || isNaN(sampleDurationMs) || sampleDurationMs < 500) return;
+        const alpha = 0.25;
+        this._avgSpeakingDuration = this._avgSpeakingDuration
+            ? Math.round(alpha * sampleDurationMs + (1 - alpha) * this._avgSpeakingDuration)
+            : sampleDurationMs;
     }
 
     debugPrintHistory(category = null) {
@@ -188,7 +219,7 @@ class KimiVideoManager {
     setCharacter(characterName) {
         this.characterName = characterName;
 
-        // Nettoyer les handlers en cours lors du changement de personnage
+        // Clean up the ongoing handlers when changing characters.
         this._cleanupLoadingHandlers();
         // Reset per-character fallback pool so it will be rebuilt for the new character
         this._fallbackPool = null;
@@ -446,7 +477,7 @@ class KimiVideoManager {
         // Determine the category FIRST to ensure correct video selection
         const category = this.determineCategory(context, emotion, traits);
 
-        // Déterminer la priorité selon le contexte
+        // Determine the priority according to the context.
         let priority = "normal";
         if (context === "speaking" || context === "speakingPositive" || context === "speakingNegative") {
             priority = "speaking";
@@ -461,12 +492,27 @@ class KimiVideoManager {
             this._stickyUntil = Date.now() + 9500;
         }
 
-        // Chemin optimisé lorsque TTS parle/écoute (évite clignotements)
+        // Optimized path when TTS is speaking/listening (avoids flickering)
         if (
             window.voiceManager &&
             window.voiceManager.isSpeaking &&
             (context === "speaking" || context === "speakingPositive" || context === "speakingNegative")
         ) {
+            // Throttle polarity oscillations (e.g., positive -> negative -> positive too fast)
+            const nowTs = Date.now();
+            const desiredPolarity = emotion === "negative" ? "negative" : "positive";
+            const polarityInterval = this._getPolarityMinInterval();
+            if (
+                this._speakingPolarityLast &&
+                this._speakingPolarityLast !== desiredPolarity &&
+                nowTs - this._speakingPolarityLastTs < polarityInterval &&
+                this._speakingPolarityRejectCount < this._speakingPolarityMaxRejects
+            ) {
+                // Force reuse last polarity within throttle window
+                emotion = this._speakingPolarityLast;
+                context = emotion === "negative" ? "speakingNegative" : "speakingPositive";
+                this._speakingPolarityRejectCount++;
+            }
             const speakingPath = this.selectOptimalVideo(category, specificVideo, traits, affection, emotion);
             const speakingCurrent = this.activeVideo.querySelector("source").getAttribute("src");
             if (speakingCurrent !== speakingPath || this.activeVideo.ended) {
@@ -476,6 +522,24 @@ class KimiVideoManager {
             this.currentContext = category;
             this.currentEmotion = emotion;
             this.lastSwitchTime = Date.now();
+            this._speakingPolarityLast = emotion === "negative" ? "negative" : "positive";
+            this._speakingPolarityLastTs = nowTs;
+            if (this._debug)
+                this._logDebug("Polarity throttle state", {
+                    last: this._speakingPolarityLast,
+                    interval: this._getPolarityMinInterval()
+                });
+            if (desiredPolarity === this._speakingPolarityLast) {
+                // Flip accepted -> reset rejection counter
+                this._speakingPolarityRejectCount = 0;
+            }
+            if (this._debug)
+                this._logDebug("Polarity throttle state", {
+                    last: this._speakingPolarityLast,
+                    interval: polarityInterval,
+                    rejected: this._speakingPolarityRejectCount,
+                    override: this._speakingPolarityOverride
+                });
             return;
         }
         if (window.voiceManager && window.voiceManager.isListening && context === "listening") {
@@ -491,7 +555,7 @@ class KimiVideoManager {
             return;
         }
 
-        // Sélection standard
+        // Standard selection
         let videoPath = this.selectOptimalVideo(category, specificVideo, traits, affection, emotion);
         const currentVideoSrc = this.activeVideo.querySelector("source").getAttribute("src");
 
@@ -591,6 +655,14 @@ class KimiVideoManager {
                         return;
                     }
                 }
+                // If still in active listening phase, loop listening instead of neutral
+                if (window.voiceManager && window.voiceManager.isListening) {
+                    this.isEmotionVideoPlaying = false;
+                    this.currentEmotionContext = null;
+                    this._neutralLock = false;
+                    this.switchToContext("listening", "listening");
+                    return;
+                }
                 // Otherwise, allow pending high-priority switch or return to neutral
                 this.isEmotionVideoPlaying = false;
                 this.currentEmotionContext = null;
@@ -613,17 +685,9 @@ class KimiVideoManager {
 
         // Neutral: on end, pick another neutral to avoid static last frame
         if (context === "neutral") {
-            this._globalEndedHandler = () => this._handleNeutralEnded();
+            // Simple neutral loop: rely on returnToNeutral after ended
+            this._globalEndedHandler = () => this.returnToNeutral();
             this.activeVideo.addEventListener("ended", this._globalEndedHandler, { once: true });
-            if (this.enableNeutralPipeline) {
-                // Attach progressive scheduler on timeupdate
-                if (!this._neutralTimeHandler) {
-                    this._neutralTimeHandler = () => this._maybeScheduleNextNeutral();
-                }
-                this.activeVideo.addEventListener("timeupdate", this._neutralTimeHandler);
-                // Immediately attempt schedule (in case duration already known)
-                this._maybeScheduleNextNeutral(true);
-            }
         }
     }
 
@@ -858,6 +922,26 @@ class KimiVideoManager {
         this.currentEmotionContext = emotion;
     }
 
+    // Infer appropriate speaking category based on current / recent emotions
+    _inferSpeakingCategory(defaultEmotion = "positive") {
+        // If we still have an explicit current emotion context, prefer it
+        let emo = this.currentEmotionContext || this.currentEmotion || defaultEmotion;
+        if (emo !== "positive" && emo !== "negative") {
+            // Look back into emotion history for a recent polarity
+            if (Array.isArray(this.emotionHistory)) {
+                for (let i = this.emotionHistory.length - 1; i >= 0; i--) {
+                    const e = this.emotionHistory[i];
+                    if (e === "positive" || e === "negative") {
+                        emo = e;
+                        break;
+                    }
+                }
+            }
+        }
+        if (emo !== "negative") return { category: "speakingPositive", emotion: "positive" };
+        return { category: "speakingNegative", emotion: "negative" };
+    }
+
     returnToNeutral() {
         // Always ensure we resume playback with a fresh neutral video to avoid freeze
         if (this._neutralLock) return;
@@ -870,18 +954,19 @@ class KimiVideoManager {
         this.isEmotionVideoPlaying = false;
         this.currentEmotionContext = null;
 
-        // If pipeline already prepared a neutral and ready, perform immediate swap
-        if (
-            this.enableNeutralPipeline &&
-            this._scheduledNextNeutral &&
-            this._scheduledNeutralReady &&
-            this.currentContext === "neutral"
-        ) {
-            this._handleNeutralEnded();
+        // Neutral pipeline disabled: pick a fresh neutral only if not actively speaking.
+        // If the voice (TTS) is in progress, we switch to an adapted speaking video (positive/negative) instead of looping on neutral.
+        if (window.voiceManager && window.voiceManager.isSpeaking) {
+            const { category, emotion } = this._inferSpeakingCategory();
+            this.switchToContext(category, emotion);
+            return;
+        }
+        // Maintain listening loop while user input capture is active
+        if (window.voiceManager && window.voiceManager.isListening) {
+            this.switchToContext("listening", "listening");
             return;
         }
 
-        // Si la voix est encore en cours, relancer une vidéo neutre en boucle
         const category = "neutral";
         const currentVideoSrc = this.activeVideo.querySelector("source").getAttribute("src");
         const available = this.videoCategories[category] || [];
@@ -899,21 +984,6 @@ class KimiVideoManager {
             this.currentContext = "neutral";
             this.currentEmotion = "neutral";
             this.lastSwitchTime = Date.now();
-            if (this.enableNeutralPipeline) {
-                queueMicrotask(() => this._maybeScheduleNextNeutral(true));
-            }
-            // Si la voix est encore en cours, s'assurer qu'on relance une vidéo neutre à la fin
-            if (window.voiceManager && window.voiceManager.isSpeaking) {
-                this.activeVideo.addEventListener(
-                    "ended",
-                    () => {
-                        if (window.voiceManager && window.voiceManager.isSpeaking) {
-                            this.returnToNeutral();
-                        }
-                    },
-                    { once: true }
-                );
-            }
         } else {
             // Fallback to existing path if list empty
             this.switchToContext("neutral");
@@ -1096,86 +1166,50 @@ class KimiVideoManager {
 
     loadAndSwitchVideo(videoSrc, priority = "normal") {
         const startTs = performance.now();
-        // Register attempt count (used for adaptive backoff)
-        const prevAttempts = this._videoAttempts.get(videoSrc) || 0;
-        const attempts = prevAttempts + 1;
+        // Basic attempt count (max 2 attempts per source in one call chain)
+        const attempts = (this._videoAttempts.get(videoSrc) || 0) + 1;
         this._videoAttempts.set(videoSrc, attempts);
-        // Light trimming to avoid unbounded growth
-        if (this._videoAttempts.size > 300) {
-            for (const key of this._videoAttempts.keys()) {
-                if (this._videoAttempts.size <= 200) break;
-                this._videoAttempts.delete(key);
-            }
-        }
-        // Guard: ignore if recently failed and still in cooldown
+        if (attempts > 2) return; // hard stop
+
+        // Cooldown skip (simple): if failed recently, choose another neutral immediately
         const lastFail = this._recentFailures.get(videoSrc);
         if (lastFail && performance.now() - lastFail < this._failureCooldown) {
-            // Pick an alternative neutral as quick substitution
-            const neutralList = (this.videoCategories && this.videoCategories.neutral) || [];
-            const alt = neutralList.find(v => v !== videoSrc) || neutralList[0];
+            const neutrals = (this.videoCategories && this.videoCategories.neutral) || [];
+            const alt = neutrals.find(v => v !== videoSrc) || neutrals[0];
             if (alt && alt !== videoSrc) {
-                console.warn(`Skipping recently failed video (cooldown): ${videoSrc} -> trying alt: ${alt}`);
-                return this.loadAndSwitchVideo(alt, priority);
-            }
-        }
-        // Avoid redundant loading if the requested source is already active or currently loading in inactive element
-        const activeSrc = this.activeVideo?.querySelector("source")?.getAttribute("src");
-        const inactiveSrc = this.inactiveVideo?.querySelector("source")?.getAttribute("src");
-        if (videoSrc && (videoSrc === activeSrc || (this._loadingInProgress && videoSrc === inactiveSrc))) {
-            if (priority !== "high" && priority !== "speaking") {
-                return; // no need to reload same video
-            }
-        }
-        // Only log high priority or error cases to reduce noise
-        if (priority === "speaking" || priority === "high") {
-            console.log(`🎬 Loading video: ${videoSrc} (priority: ${priority})`);
-        }
-
-        // Si une vidéo haute priorité arrive, on peut interrompre le chargement en cours
-        if (this._loadingInProgress) {
-            if (priority === "high" || priority === "speaking") {
-                this._loadingInProgress = false;
-                // Nettoyer les event listeners en cours sur la vidéo inactive
-                this.inactiveVideo.removeEventListener("canplay", this._currentLoadHandler);
-                this.inactiveVideo.removeEventListener("loadeddata", this._currentLoadHandler);
-                this.inactiveVideo.removeEventListener("error", this._currentErrorHandler);
-                if (this._loadTimeout) {
-                    clearTimeout(this._loadTimeout);
-                    this._loadTimeout = null;
-                }
-            } else {
+                this.loadAndSwitchVideo(alt, priority);
                 return;
             }
         }
 
+        const activeSrc = this.activeVideo?.querySelector("source")?.getAttribute("src");
+        if (videoSrc === activeSrc && priority !== "speaking" && priority !== "high") return;
+        if (this._loadingInProgress && priority !== "speaking" && priority !== "high") return;
+
+        if (this._loadingInProgress) {
+            // Cancel current load listeners
+            this.inactiveVideo.removeEventListener("canplay", this._currentLoadHandler);
+            this.inactiveVideo.removeEventListener("loadeddata", this._currentLoadHandler);
+            this.inactiveVideo.removeEventListener("error", this._currentErrorHandler);
+            if (this._loadTimeout) clearTimeout(this._loadTimeout);
+            this._loadingInProgress = false;
+        }
+
         this._loadingInProgress = true;
-
-        // Nettoyer tous les timers en cours
         clearTimeout(this.autoTransitionTimer);
-        if (this._loadTimeout) {
-            clearTimeout(this._loadTimeout);
-            this._loadTimeout = null;
-        }
+        if (this._loadTimeout) clearTimeout(this._loadTimeout);
+        this._loadTimeout = null;
 
-        const pref = this._prefetchCache.get(videoSrc);
-        if (pref && (pref.readyState >= 2 || pref.buffered.length > 0)) {
-            const source = this.inactiveVideo.querySelector("source");
-            source.setAttribute("src", videoSrc);
-            try {
-                this.inactiveVideo.currentTime = 0;
-            } catch {}
-            this.inactiveVideo.load();
-        } else {
-            this.inactiveVideo.querySelector("source").setAttribute("src", videoSrc);
-            this.inactiveVideo.load();
-        }
+        this.inactiveVideo.querySelector("source").setAttribute("src", videoSrc);
+        try {
+            this.inactiveVideo.currentTime = 0;
+        } catch {}
+        this.inactiveVideo.load();
 
-        // Stocker les références aux handlers pour pouvoir les nettoyer
-        let fired = false;
-        let errorCause = "error-event"; // will be overwritten if timeout based
-        const onReady = () => {
-            if (fired) return;
-            fired = true;
+        let finished = false;
+        const finalizeSuccess = () => {
+            if (finished) return;
+            finished = true;
             this._loadingInProgress = false;
             if (this._loadTimeout) {
                 clearTimeout(this._loadTimeout);
@@ -1184,93 +1218,38 @@ class KimiVideoManager {
             this.inactiveVideo.removeEventListener("canplay", this._currentLoadHandler);
             this.inactiveVideo.removeEventListener("loadeddata", this._currentLoadHandler);
             this.inactiveVideo.removeEventListener("error", this._currentErrorHandler);
-            // Update rolling average load time
-            const duration = performance.now() - startTs;
-            this._loadTimeSamples.push(duration);
+            // Rolling avg (light)
+            const dt = performance.now() - startTs;
+            this._loadTimeSamples.push(dt);
             if (this._loadTimeSamples.length > this._maxSamples) this._loadTimeSamples.shift();
-            const sum = this._loadTimeSamples.reduce((a, b) => a + b, 0);
-            this._avgLoadTime = sum / this._loadTimeSamples.length;
-            this._consecutiveErrorCount = 0; // reset on success
+            this._avgLoadTime = this._loadTimeSamples.reduce((a, b) => a + b, 0) / this._loadTimeSamples.length;
+            this._consecutiveErrorCount = 0;
             this.performSwitch();
         };
-        this._currentLoadHandler = onReady;
 
-        const folder = getCharacterInfo(this.characterName).videoFolder;
-        // Rotating fallback pool (stable neutrals first positions)
-        // Build or rebuild fallback pool when absent or when character changed
-        if (!this._fallbackPool || this._fallbackPoolCharacter !== this.characterName) {
-            const neutralList = (this.videoCategories && this.videoCategories.neutral) || [];
-            // Choose first 3 as core reliable set; if less than 3 available, take all
-            this._fallbackPool = neutralList.slice(0, 3);
-            this._fallbackIndex = 0;
-            this._fallbackPoolCharacter = this.characterName;
-        }
-        const fallbackVideo = this._fallbackPool[this._fallbackIndex % this._fallbackPool.length];
+        this._currentLoadHandler = () => finalizeSuccess();
 
-        this._currentErrorHandler = e => {
-            const mediaEl = this.inactiveVideo;
-            const readyState = mediaEl ? mediaEl.readyState : -1;
-            const networkState = mediaEl ? mediaEl.networkState : -1;
-            let mediaErrorCode = null;
-            if (mediaEl && mediaEl.error) mediaErrorCode = mediaEl.error.code;
-            const stillLoading = !mediaEl?.error && networkState === 2;
-            const realMediaError = !!mediaEl?.error;
-            // Differentiate timeout vs real media error for clarity
-            const tag = realMediaError
-                ? "VideoLoadFail:media-error"
-                : errorCause.startsWith("timeout")
-                  ? `VideoLoadFail:${errorCause}`
-                  : "VideoLoadFail:unknown";
-            console.warn(
-                `[${tag}] src=${videoSrc} readyState=${readyState} networkState=${networkState} mediaError=${mediaErrorCode} attempts=${attempts} fallback=${fallbackVideo}`
-            );
+        this._currentErrorHandler = () => {
+            if (finished) return;
+            finished = true;
             this._loadingInProgress = false;
             if (this._loadTimeout) {
                 clearTimeout(this._loadTimeout);
                 this._loadTimeout = null;
             }
-            // Only mark as failure if c'est une vraie erreur décodage OU plusieurs timeouts persistants
-            if (realMediaError || (!stillLoading && errorCause.startsWith("timeout")) || attempts >= 3) {
-                this._recentFailures.set(videoSrc, performance.now());
-                this._consecutiveErrorCount++;
-            }
-            // Stop runaway fallback loop: pause if too many sequential errors relative to pool size
-            if (this._fallbackPool && this._consecutiveErrorCount >= this._fallbackPool.length * 2) {
-                console.error("Temporarily pausing fallback loop after repeated failures. Retrying in 2s.");
-                setTimeout(() => {
-                    this._consecutiveErrorCount = 0;
-                    this.loadAndSwitchVideo(fallbackVideo, "high");
-                }, 2000);
-                return;
-            }
-            if (videoSrc !== fallbackVideo) {
-                // Try fallback video
-                this._fallbackIndex = (this._fallbackIndex + 1) % this._fallbackPool.length; // advance for next time
-                this.loadAndSwitchVideo(fallbackVideo, "high");
-            } else {
-                // Ultimate fallback: try any neutral video
-                console.error(`Fallback video also failed: ${fallbackVideo}. Trying ultimate fallback.`);
-                const neutralVideos = this.videoCategories.neutral || [];
-                if (neutralVideos.length > 0) {
-                    // Try a different neutral video
-                    const ultimateFallback = neutralVideos.find(video => video !== fallbackVideo);
-                    if (ultimateFallback) {
-                        this.loadAndSwitchVideo(ultimateFallback, "high");
-                    } else {
-                        // Last resort: try first neutral video anyway
-                        this.loadAndSwitchVideo(neutralVideos[0], "high");
-                    }
-                } else {
-                    // Critical error: no neutral videos available
-                    console.error("CRITICAL: No neutral videos available!");
-                    this._switchInProgress = false;
+            this.inactiveVideo.removeEventListener("canplay", this._currentLoadHandler);
+            this.inactiveVideo.removeEventListener("loadeddata", this._currentLoadHandler);
+            this.inactiveVideo.removeEventListener("error", this._currentErrorHandler);
+            this._recentFailures.set(videoSrc, performance.now());
+            this._consecutiveErrorCount++;
+            // Single retry with alternative neutral if first attempt
+            if (attempts === 1) {
+                const neutrals = (this.videoCategories && this.videoCategories.neutral) || [];
+                const alt = neutrals.find(v => v !== videoSrc);
+                if (alt) {
+                    setTimeout(() => this.loadAndSwitchVideo(alt, priority), 0);
+                    return;
                 }
-            }
-            // Escalate diagnostics if many consecutive errors
-            if (this._consecutiveErrorCount >= 3) {
-                console.info(
-                    `Diagnostics: avgLoadTime=${this._avgLoadTime?.toFixed(1) || "n/a"}ms samples=${this._loadTimeSamples.length} prefetchCache=${this._prefetchCache.size}`
-                );
             }
         };
 
@@ -1278,68 +1257,20 @@ class KimiVideoManager {
         this.inactiveVideo.addEventListener("canplay", this._currentLoadHandler, { once: true });
         this.inactiveVideo.addEventListener("error", this._currentErrorHandler, { once: true });
 
-        if (this.inactiveVideo.readyState >= 2) {
-            queueMicrotask(() => onReady());
-        }
-
-        // Dynamic timeout: refined formula avg*1.5 + buffer, bounded
-        let adaptiveTimeout = this._minTimeout;
-        if (this._avgLoadTime) {
-            adaptiveTimeout = Math.min(this._maxTimeout, Math.max(this._minTimeout, this._avgLoadTime * 1.5 + 400));
-        }
-        // Cap by clip length ratio if we know (assume 10000ms default when metadata absent)
-        const currentClipMs = 10000; // All clips are 10s
-        adaptiveTimeout = Math.min(adaptiveTimeout, Math.floor(currentClipMs * this._timeoutCapRatio));
-        // First ever attempt for a video: be more lenient if no historical avg yet
-        if (attempts === 1 && !this._avgLoadTime) {
-            adaptiveTimeout = Math.floor(adaptiveTimeout * 1.8); // ~5400ms au lieu de 3000ms typique
-        }
+        // Simple timeout: 5000ms + single extension 1500ms if metadata only
+        const baseTimeout = 5000;
         this._loadTimeout = setTimeout(() => {
-            if (!fired) {
-                // If metadata is there but not canplay yet, extend once
-                if (this.inactiveVideo.readyState >= 1 && this.inactiveVideo.readyState < 2) {
-                    errorCause = "timeout-metadata";
-                    console.debug(
-                        `Extending timeout (metadata) for ${videoSrc} readyState=${this.inactiveVideo.readyState} +${this._timeoutExtension}ms`
-                    );
-                    this._loadTimeout = setTimeout(() => {
-                        if (!fired) {
-                            if (this.inactiveVideo.readyState >= 2) onReady();
-                            else this._currentErrorHandler();
-                        }
-                    }, this._timeoutExtension);
-                    return;
-                }
-                // Grace retry: still fetching over network (networkState=2) with no data (readyState=0)
-                const maxGrace = 2; // allow up to two grace extensions
-                if (
-                    this.inactiveVideo.networkState === 2 &&
-                    this.inactiveVideo.readyState === 0 &&
-                    (this._graceRetryCounts?.[videoSrc] || 0) < maxGrace
-                ) {
-                    if (!this._graceRetryCounts) this._graceRetryCounts = {};
-                    this._graceRetryCounts[videoSrc] = (this._graceRetryCounts[videoSrc] || 0) + 1;
-                    const extra = this._timeoutExtension + 900;
-                    errorCause = "timeout-grace";
-                    console.debug(
-                        `Grace retry #${this._graceRetryCounts[videoSrc]} for ${videoSrc} (still NETWORK_LOADING). Ext +${extra}ms`
-                    );
-                    this._loadTimeout = setTimeout(() => {
-                        if (!fired) {
-                            if (this.inactiveVideo.readyState >= 2) onReady();
-                            else this._currentErrorHandler();
-                        }
-                    }, extra);
-                    return;
-                }
-                if (this.inactiveVideo.readyState >= 2) {
-                    onReady();
-                } else {
-                    errorCause = errorCause === "error-event" ? "timeout-final" : errorCause;
-                    this._currentErrorHandler();
-                }
+            if (finished) return;
+            if (this.inactiveVideo.readyState === 1) {
+                // HAVE_METADATA only
+                this._loadTimeout = setTimeout(() => {
+                    if (!finished) this._currentErrorHandler();
+                }, 1500);
+                return;
             }
-        }, adaptiveTimeout);
+            if (this.inactiveVideo.readyState >= 2) finalizeSuccess();
+            else this._currentErrorHandler();
+        }, baseTimeout);
     }
 
     usePreloadedVideo(preloadedVideo, videoSrc) {
@@ -1393,7 +1324,7 @@ class KimiVideoManager {
                                     const target = Math.max(1000, d * 1000 - 1100);
                                     this.autoTransitionDuration = target;
                                 } else {
-                                    this.autoTransitionDuration = 9900;
+                                    this.autoTransitionDuration = 10000;
                                 }
                                 this._prefetchNeutralDynamic();
                             } catch {}
@@ -1424,7 +1355,7 @@ class KimiVideoManager {
                         const target = Math.max(1000, d * 1000 - 1100);
                         this.autoTransitionDuration = target;
                     } else {
-                        this.autoTransitionDuration = 9900;
+                        this.autoTransitionDuration = 10000;
                     }
                     this._prefetchNeutralDynamic();
                 } catch {}
@@ -1438,69 +1369,70 @@ class KimiVideoManager {
             toVideo.currentTime = 0;
         } catch {}
         const ready = toVideo.readyState >= 2; // HAVE_CURRENT_DATA
+        const performSimpleSwap = () => {
+            // Remove active class from old, add to new, rely on CSS transitions (opacity) only
+            fromVideo.classList.remove("active");
+            toVideo.classList.add("active");
+            finalizeSwap();
+        };
         if (!ready) {
             const onReady = () => {
                 toVideo.removeEventListener("canplay", onReady);
-                this._crossfadeSwitch(fromVideo, toVideo, finalizeSwap);
+                performSimpleSwap();
             };
             toVideo.addEventListener("canplay", onReady, { once: true });
-            // Trigger load if not already
             try {
                 toVideo.load();
             } catch {}
-            // Also try to play (some browsers will start buffering more aggressively)
             toVideo.play().catch(() => {});
         } else {
-            // Already ready -> swap immediately
             toVideo.play().catch(() => {});
-            this._crossfadeSwitch(fromVideo, toVideo, finalizeSwap);
+            performSimpleSwap();
         }
     }
 
-    _crossfadeSwitch(fromVideo, toVideo, finalizeSwap) {
-        // If already active or same element, just finalize
-        if (fromVideo === toVideo) {
-            finalizeSwap();
-            return;
-        }
-        // Ensure starting states
-        fromVideo.classList.add("active");
-        toVideo.classList.add("active"); // temporarily both visible
-        // Force initial opacity values to avoid flash; use inline to override CSS race
-        fromVideo.style.opacity = "1";
-        toVideo.style.opacity = "0";
-        const DURATION = Math.max(60, Math.min(1000, this.crossfadeDurationMs || 260)); // clamp 60-1000ms
-        const start = performance.now();
-        const ease = t => t * (2 - t); // simple ease-out
-        const step = now => {
-            const p = Math.min(1, (now - start) / DURATION);
-            const e = ease(p);
-            toVideo.style.opacity = String(e);
-            fromVideo.style.opacity = String(1 - e);
-            if (p < 1) {
-                requestAnimationFrame(step);
-            } else {
-                // Cleanup before official finalizeSwap (which swaps refs & classes)
-                fromVideo.classList.remove("active");
-                // Remove inline so future transitions rely on class again
-                fromVideo.style.opacity = "";
-                toVideo.style.opacity = "";
-                finalizeSwap();
-            }
+    /**
+     * Ensure videos resume correctly when a blocking modal (settings or memory) is closed.
+     * Some browsers may pause autoplaying inline videos when large overlays appear; we hook
+     * into overlay class / style changes to attempt a resume if appropriate.
+     */
+    _installModalResumeObserver() {
+        if (this._modalObserverInstalled) return;
+        this._modalObserverInstalled = true;
+        const tryResume = () => {
+            try {
+                const v = this.activeVideo;
+                if (v && v.paused && !v.ended) {
+                    v.play().catch(() => {});
+                } else if (v && v.ended && typeof this.returnToNeutral === "function") {
+                    this.returnToNeutral();
+                }
+            } catch {}
         };
-        // Try to align first frame of new video (avoid black frame) using requestVideoFrameCallback when supported
-        try {
-            if (typeof toVideo.requestVideoFrameCallback === "function") {
-                toVideo.requestVideoFrameCallback(() => {
-                    requestAnimationFrame(step);
-                });
-            } else {
-                requestAnimationFrame(step);
-            }
-        } catch {
-            requestAnimationFrame(step);
-        }
+        const observeEl = id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const obs = new MutationObserver(muts => {
+                for (const m of muts) {
+                    if (m.type === "attributes" && (m.attributeName === "class" || m.attributeName === "style")) {
+                        // When modal becomes hidden
+                        const hidden = (el.style.display && el.style.display === "none") || !el.classList.contains("visible");
+                        if (hidden) setTimeout(tryResume, 30);
+                    }
+                }
+            });
+            obs.observe(el, { attributes: true, attributeFilter: ["class", "style"] });
+        };
+        // Known modals
+        observeEl("memory-overlay");
+        observeEl("settings-overlay");
+        // Visibility change (tab switching)
+        document.addEventListener("visibilitychange", () => {
+            if (!document.hidden) setTimeout(tryResume, 60);
+        });
     }
+
+    // (Removed JS crossfade: now handled purely by CSS transitions on the .active class.)
 
     // Watchdog to detect freeze when a 10s clip reaches end but 'ended' listener may not fire (browser quirk)
     _startFreezeWatchdog() {
@@ -1655,97 +1587,7 @@ class KimiVideoManager {
         };
     }
 
-    /* ===================== NEUTRAL PIPELINE (Seamless chaining) ===================== */
-    _maybeScheduleNextNeutral(force = false) {
-        if (!this.enableNeutralPipeline) return;
-        if (this.currentContext !== "neutral") return;
-        const v = this.activeVideo;
-        if (!v) return;
-        const dur = v.duration;
-        if (!dur || isNaN(dur) || dur < 2) return; // need valid duration
-        const remaining = dur - v.currentTime;
-        const THRESHOLD = 2.0; // seconds before end to prepare next
-        if (!force && remaining > THRESHOLD) return;
-        // Avoid re-planning if already ready
-        if (!force && this._scheduledNextNeutral && this._scheduledNeutralReady) return;
-        if (this._schedulingNeutralInProgress) return;
-        this._schedulingNeutralInProgress = true;
-        try {
-            const currentSrc = v.querySelector("source").getAttribute("src");
-            const list = (this.videoCategories && this.videoCategories.neutral) || [];
-            if (!list.length) return;
-            const pool = list.filter(s => s !== currentSrc && s !== this._scheduledNextNeutral);
-            const next = pool.length ? pool[Math.floor(Math.random() * pool.length)] : list[0];
-            const inactive = this.inactiveVideo;
-            if (!inactive) return;
-            const pref = this._prefetchCache.get(next);
-            if (pref && pref.readyState >= 2) {
-                inactive.querySelector("source").setAttribute("src", next);
-                try {
-                    inactive.currentTime = 0;
-                } catch {}
-                inactive.load();
-                this._scheduledNextNeutral = next;
-                this._scheduledNeutralReady = true;
-            } else {
-                inactive.querySelector("source").setAttribute("src", next);
-                inactive.load();
-                this._scheduledNextNeutral = next;
-                this._scheduledNeutralReady = false;
-                const onReady = () => {
-                    inactive.removeEventListener("canplay", onReady);
-                    inactive.removeEventListener("loadeddata", onReady);
-                    this._scheduledNeutralReady = true;
-                    if (this._debug) console.log("🎬 Neutral pipeline prepared:", next);
-                };
-                inactive.addEventListener("canplay", onReady, { once: true });
-                inactive.addEventListener("loadeddata", onReady, { once: true });
-            }
-            if (this._debug) console.log("🎬 Planning next neutral in advance", { next, remaining: remaining.toFixed(2) });
-        } finally {
-            this._schedulingNeutralInProgress = false;
-        }
-    }
-
-    _handleNeutralEnded() {
-        if (this.enableNeutralPipeline && this._scheduledNextNeutral && this._scheduledNeutralReady) {
-            const startTs = performance.now();
-            const fromVideo = this.activeVideo;
-            const toVideo = this.inactiveVideo;
-            try {
-                toVideo.currentTime = 0;
-            } catch {}
-            const finalize = () => {
-                fromVideo.classList.remove("active");
-                toVideo.classList.add("active");
-                const prevActive = this.activeVideo;
-                this.activeVideo = toVideo;
-                this.inactiveVideo = prevActive;
-                const p = this.activeVideo.play();
-                if (p && p.then) p.catch(() => {}).finally(() => this._afterNeutralSwap(startTs));
-                else this._afterNeutralSwap(startTs);
-            };
-            finalize();
-        } else {
-            this.returnToNeutral();
-        }
-    }
-
-    _afterNeutralSwap(startTs) {
-        const gap = performance.now() - startTs;
-        this._neutralGapMetrics.lastGapMs = gap;
-        this._neutralGapMetrics.samples.push(gap);
-        if (this._neutralGapMetrics.samples.length > 20) this._neutralGapMetrics.samples.shift();
-        if (this._debug) console.log(`🎬 Neutral seamless swap gap=${gap.toFixed(1)}ms`);
-        this._scheduledNextNeutral = null;
-        this._scheduledNeutralReady = false;
-        this.currentContext = "neutral";
-        this.currentEmotion = "neutral";
-        this.lastSwitchTime = Date.now();
-        this.setupEventListenersForContext("neutral");
-        this._startFreezeWatchdog();
-        queueMicrotask(() => this._maybeScheduleNextNeutral(true));
-    }
+    // Neutral pipeline methods removed (simplified looping now handled by returnToNeutral + ended handlers)
 
     // METHODS TO ANALYZE EMOTIONS FROM TEXT
     // CLEANUP
