@@ -696,12 +696,14 @@ class KimiVoiceManager {
                             info.context === "dancing");
                     if (!isEmotionClip) {
                         requestAnimationFrame(() => {
-                            window.kimiVideo.returnToNeutral();
+                            if (window.kimiVideo.ensureActivePlayback) window.kimiVideo.ensureActivePlayback();
+                            else window.kimiVideo.returnToNeutral();
                         });
                     }
                 } catch (_) {
                     requestAnimationFrame(() => {
-                        window.kimiVideo.returnToNeutral();
+                        if (window.kimiVideo.ensureActivePlayback) window.kimiVideo.ensureActivePlayback();
+                        else window.kimiVideo.returnToNeutral();
                     });
                 }
             }

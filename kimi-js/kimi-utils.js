@@ -542,13 +542,14 @@ class KimiOverlayManager {
                         if (!v) return;
                         // If ended -> immediately cycle neutral to avoid static frame
                         if (v.ended) {
-                            if (typeof kv.returnToNeutral === "function") kv.returnToNeutral();
+                            // Let manager handle picking next neutral
+                            if (kv.ensureActivePlayback) kv.ensureActivePlayback();
+                            else if (kv.returnToNeutral) kv.returnToNeutral();
                         } else {
-                            // Near-end ( <400ms rest ) -> preemptively rotate to avoid stuck on last frame
                             if (v.duration && !isNaN(v.duration) && v.duration - v.currentTime < 0.4) {
-                                if (typeof kv.returnToNeutral === "function") kv.returnToNeutral();
+                                if (kv.returnToNeutral) kv.returnToNeutral();
                             } else if (v.paused) {
-                                v.play().catch(() => {});
+                                kv.ensureActivePlayback ? kv.ensureActivePlayback() : v.play().catch(() => {});
                             }
                         }
                         // Restart freeze watchdog if available
@@ -576,12 +577,9 @@ class KimiOverlayManager {
         if (kv && kv.activeVideo) {
             try {
                 const v = kv.activeVideo;
-                if (v.ended) {
-                    if (typeof kv.returnToNeutral === "function") kv.returnToNeutral();
-                } else if (v.paused) {
-                    v.play().catch(() => {
-                        if (typeof kv.returnToNeutral === "function") kv.returnToNeutral();
-                    });
+                if (v.ended || v.paused) {
+                    if (kv.ensureActivePlayback) kv.ensureActivePlayback();
+                    else if (kv.returnToNeutral) kv.returnToNeutral();
                 }
             } catch {}
         }

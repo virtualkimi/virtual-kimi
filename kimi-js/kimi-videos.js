@@ -1,6 +1,8 @@
 // Utility class for centralized video management
 class KimiVideoManager {
     constructor(video1, video2, characterName = "kimi") {
+        // Fixed clip duration (all character videos are 10s)
+        this.CLIP_DURATION_MS = 10000;
         this.characterName = characterName;
         this.video1 = video1;
         this.video2 = video2;
@@ -10,7 +12,7 @@ class KimiVideoManager {
         this.currentEmotion = "neutral";
         this.lastSwitchTime = Date.now();
         this.pendingSwitch = null;
-        this.autoTransitionDuration = 10000;
+        this.autoTransitionDuration = this.CLIP_DURATION_MS;
         this.transitionDuration = 300;
         this._prefetchCache = new Map();
         this._prefetchInFlight = new Set();
@@ -81,6 +83,9 @@ class KimiVideoManager {
                 this.activeVideo.style.opacity = ""; // rely purely on CSS class
             }
         } catch {}
+
+        // Optional debug overlay (activated via setDebug(true))
+        this._debugOverlay = null;
     }
 
     //Centralized video element creation utility.
@@ -110,12 +115,21 @@ class KimiVideoManager {
 
     setDebug(enabled) {
         this._debug = !!enabled;
+        if (this._debug && !this._debugOverlay) {
+            this._installDebugOverlay();
+        } else if (!this._debug && this._debugOverlay) {
+            try {
+                this._debugOverlay.remove();
+            } catch {}
+            this._debugOverlay = null;
+        }
     }
 
     _logDebug(message, payload = null) {
         if (!this._debug) return;
         if (payload) console.log("🎬 VideoManager:", message, payload);
         else console.log("🎬 VideoManager:", message);
+        this._updateDebugOverlay();
     }
 
     _logSelection(category, selectedSrc, candidates = []) {
@@ -489,7 +503,7 @@ class KimiVideoManager {
         if (context === "dancing") {
             this._stickyContext = "dancing";
             // Lock roughly for one clip duration; will also be cleared on end/neutral
-            this._stickyUntil = Date.now() + 9500;
+            this._stickyUntil = Date.now() + (this.CLIP_DURATION_MS - 500);
         }
 
         // Optimized path when TTS is speaking/listening (avoids flickering)
@@ -943,6 +957,12 @@ class KimiVideoManager {
     }
 
     returnToNeutral() {
+        // Throttle neutral transitions to avoid churn when multiple triggers fire close together
+        const nowTs = Date.now();
+        if (!this._lastNeutralAt) this._lastNeutralAt = 0;
+        const MIN_NEUTRAL_INTERVAL = 800; // ms
+        if (nowTs - this._lastNeutralAt < MIN_NEUTRAL_INTERVAL) return;
+        this._lastNeutralAt = nowTs;
         // Always ensure we resume playback with a fresh neutral video to avoid freeze
         if (this._neutralLock) return;
         this._neutralLock = true;
@@ -1115,11 +1135,11 @@ class KimiVideoManager {
         } else {
             switch (this.currentContext) {
                 case "dancing":
-                    duration = 10000; // 10 secondes pour dancing (durée réelle des vidéos)
+                    duration = this.CLIP_DURATION_MS; // dancing clip length
                     break;
                 case "speakingPositive":
                 case "speakingNegative":
-                    duration = 10000; // 10 secondes pour speaking (durée réelle des vidéos)
+                    duration = this.CLIP_DURATION_MS; // speaking clip length
                     break;
                 case "neutral":
                     // Pas d'auto-transition pour neutral (état par défaut, boucle en continu)
@@ -1128,7 +1148,7 @@ class KimiVideoManager {
                     // Pas d'auto-transition pour listening (personnage écoute l'utilisateur)
                     return;
                 default:
-                    duration = this.autoTransitionDuration; // 10 secondes par défaut
+                    duration = this.autoTransitionDuration; // default derived duration
             }
         }
 
@@ -1143,26 +1163,6 @@ class KimiVideoManager {
     }
 
     // COMPATIBILITY WITH THE OLD SYSTEM
-    switchVideo(emotion = null) {
-        if (emotion) {
-            this.switchToContext("speaking", emotion);
-        } else {
-            this.switchToContext("neutral");
-        }
-    }
-
-    autoSwitchToNeutral() {
-        this._neutralLock = false;
-        this.isEmotionVideoPlaying = false;
-        this.currentEmotionContext = null;
-        this.switchToContext("neutral");
-    }
-
-    getNextVideo(emotion, currentSrc) {
-        // Adapt the old method for compatibility
-        const category = this.determineCategory("speaking", emotion);
-        return this.selectOptimalVideo(category);
-    }
 
     loadAndSwitchVideo(videoSrc, priority = "normal") {
         const startTs = performance.now();
@@ -1251,6 +1251,11 @@ class KimiVideoManager {
                     return;
                 }
             }
+            // If no retry path succeeded, invoke centralized recovery
+            try {
+                this._logDebug && this._logDebug("Video load error → recovery", { src: videoSrc, attempts });
+            } catch {}
+            this._recoverFromVideoError(videoSrc, priority);
         };
 
         this.inactiveVideo.addEventListener("loadeddata", this._currentLoadHandler, { once: true });
@@ -1269,7 +1274,12 @@ class KimiVideoManager {
                 return;
             }
             if (this.inactiveVideo.readyState >= 2) finalizeSuccess();
-            else this._currentErrorHandler();
+            else {
+                try {
+                    this._logDebug && this._logDebug("Video load timeout", { src: videoSrc, rs: this.inactiveVideo.readyState });
+                } catch {}
+                this._currentErrorHandler();
+            }
         }, baseTimeout);
     }
 
@@ -1324,7 +1334,7 @@ class KimiVideoManager {
                                     const target = Math.max(1000, d * 1000 - 1100);
                                     this.autoTransitionDuration = target;
                                 } else {
-                                    this.autoTransitionDuration = 10000;
+                                    this.autoTransitionDuration = this.CLIP_DURATION_MS;
                                 }
                                 this._prefetchNeutralDynamic();
                             } catch {}
@@ -1355,7 +1365,7 @@ class KimiVideoManager {
                         const target = Math.max(1000, d * 1000 - 1100);
                         this.autoTransitionDuration = target;
                     } else {
-                        this.autoTransitionDuration = 10000;
+                        this.autoTransitionDuration = this.CLIP_DURATION_MS;
                     }
                     this._prefetchNeutralDynamic();
                 } catch {}
@@ -1396,6 +1406,38 @@ class KimiVideoManager {
      * Some browsers may pause autoplaying inline videos when large overlays appear; we hook
      * into overlay class / style changes to attempt a resume if appropriate.
      */
+    // Attempt to chain another speaking video when current one stalls/ends but TTS continues
+    _chainSpeakingFallback() {
+        try {
+            const emotion = this.currentEmotionContext || this.currentEmotion || "positive";
+            const category = emotion === "negative" ? "speakingNegative" : "speakingPositive";
+            const next = this.selectOptimalVideo(category, null, null, null, emotion);
+            if (next) {
+                this.loadAndSwitchVideo(next, "speaking");
+                this.currentContext = category;
+                this.currentEmotion = emotion === "negative" ? "negative" : "positive";
+                this.isEmotionVideoPlaying = true;
+                this.currentEmotionContext = emotion;
+                this.lastSwitchTime = Date.now();
+            }
+        } catch {}
+    }
+
+    // Central recovery path for load errors or repeated stalls
+    _recoverFromVideoError(failedSrc, priority) {
+        try {
+            if (window.voiceManager && window.voiceManager.isSpeaking) {
+                this._chainSpeakingFallback();
+                return;
+            }
+            if (window.voiceManager && window.voiceManager.isListening) {
+                this.switchToContext("listening", "listening");
+                return;
+            }
+            this.returnToNeutral();
+        } catch {}
+    }
+
     _installModalResumeObserver() {
         if (this._modalObserverInstalled) return;
         this._modalObserverInstalled = true;
@@ -1471,6 +1513,11 @@ class KimiVideoManager {
             }
             // Extra safety: if video paused unexpectedly before end
             if (!v.paused && !v.ended && Date.now() - this._lastProgressTime > 4000) {
+                try {
+                    v.play().catch(() => {});
+                } catch {}
+            } else if (v.paused && !v.ended) {
+                // Resume if paused but not finished
                 try {
                     v.play().catch(() => {});
                 } catch {}
@@ -1585,6 +1632,56 @@ class KimiVideoManager {
             emotion: this.currentEmotion,
             category: this.determineCategory(this.currentContext, this.currentEmotion)
         };
+    }
+
+    _installDebugOverlay() {
+        const div = document.createElement("div");
+        div.style.position = "fixed";
+        div.style.bottom = "6px";
+        div.style.left = "6px";
+        div.style.padding = "6px 8px";
+        div.style.background = "rgba(0,0,0,0.55)";
+        div.style.color = "#fff";
+        div.style.font = "12px/1.35 monospace";
+        div.style.zIndex = 9999;
+        div.style.pointerEvents = "none";
+        div.style.borderRadius = "4px";
+        div.style.maxWidth = "300px";
+        div.style.whiteSpace = "pre-wrap";
+        div.id = "kimi-video-debug";
+        document.body.appendChild(div);
+        this._debugOverlay = div;
+        this._updateDebugOverlay();
+    }
+
+    _updateDebugOverlay() {
+        if (!this._debug || !this._debugOverlay) return;
+        const v = this.activeVideo;
+        let info = this.getCurrentVideoInfo();
+        let status = "";
+        try {
+            status =
+                `t=${v.currentTime.toFixed(2)} / ${isNaN(v.duration) ? "?" : v.duration.toFixed(2)}\n` +
+                `paused=${v.paused} ended=${v.ended} ready=${v.readyState}\n` +
+                `ctx=${info.context} emo=${info.emotion}\n` +
+                `switching=${this._switchInProgress} loading=${this._loadingInProgress}`;
+        } catch {
+            status = "n/a";
+        }
+        this._debugOverlay.textContent = status;
+    }
+
+    // Public helper to ensure the active clip is playing (centralized safety)
+    ensureActivePlayback() {
+        try {
+            const v = this.activeVideo;
+            if (!v) return;
+            if (v.ended) {
+                this.returnToNeutral();
+                return;
+            }
+            if (v.paused) v.play().catch(() => {});
+        } catch {}
     }
 
     // Neutral pipeline methods removed (simplified looping now handled by returnToNeutral + ended handlers)
