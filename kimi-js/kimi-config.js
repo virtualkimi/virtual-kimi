@@ -113,8 +113,10 @@ window.KIMI_CONFIG.validate = function (value, type) {
     try {
         const range = this.RANGES[type];
         if (!range) return { valid: true, value };
+
         const numValue = parseFloat(value);
         if (isNaN(numValue)) return { valid: false, value: this.DEFAULTS[type] };
+
         const clampedValue = Math.max(range.min, Math.min(range.max, numValue));
         return { valid: true, value: clampedValue };
     } catch (error) {

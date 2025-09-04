@@ -191,9 +191,15 @@ class KimiMemoryUI {
             if (kv && kv.activeVideo) {
                 try {
                     const v = kv.activeVideo;
-                    if (v.ended || v.paused) {
-                        if (kv.ensureActivePlayback) kv.ensureActivePlayback();
-                        else if (kv.returnToNeutral) kv.returnToNeutral();
+                    if (v.ended) {
+                        if (typeof kv.returnToNeutral === "function") kv.returnToNeutral();
+                    } else if (v.paused) {
+                        // Use centralized video utility for play
+                        window.KimiVideoManager.getVideoElement(v)
+                            .play()
+                            .catch(() => {
+                                if (typeof kv.returnToNeutral === "function") kv.returnToNeutral();
+                            });
                     }
                 } catch {}
             }

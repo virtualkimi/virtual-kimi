@@ -15,16 +15,6 @@ class KimiPluginManager {
             path.startsWith("kimi-plugins/")
         );
     }
-    // New: validate file name inside a plugin directory (relative path only)
-    isValidPluginFileName(file) {
-        return (
-            typeof file === "string" &&
-            /^[-a-zA-Z0-9_\/.]+$/.test(file) &&
-            !file.startsWith("/") &&
-            !file.includes("..") &&
-            !/^https?:\/:/i.test(file)
-        );
-    }
     async loadPlugins() {
         const pluginDirs = await this.getPluginDirs();
         this.plugins = [];
@@ -37,17 +27,22 @@ class KimiPluginManager {
 
                 // Basic manifest validation and path sanitization (deny external or absolute URLs)
                 const validTypes = new Set(["theme", "voice", "behavior"]);
-                // DEPRECATION: inlined isSafePath replaced by isValidPluginFileName()
+                const isSafePath = p =>
+                    typeof p === "string" &&
+                    /^[-a-zA-Z0-9_\/.]+$/.test(p) &&
+                    !p.startsWith("/") &&
+                    !p.includes("..") &&
+                    !/^https?:\/\//i.test(p);
 
                 if (!manifest.name || !manifest.type || !validTypes.has(manifest.type)) {
                     console.warn(`Invalid plugin manifest in ${dir}: missing name or invalid type`);
                     continue;
                 }
-                if (manifest.style && !this.isValidPluginFileName(manifest.style)) {
+                if (manifest.style && !isSafePath(manifest.style)) {
                     console.warn(`Blocked unsafe style path in ${dir}: ${manifest.style}`);
                     delete manifest.style;
                 }
-                if (manifest.main && !this.isValidPluginFileName(manifest.main)) {
+                if (manifest.main && !isSafePath(manifest.main)) {
                     console.warn(`Blocked unsafe main path in ${dir}: ${manifest.main}`);
                     delete manifest.main;
                 }
