@@ -899,6 +899,7 @@ body {
     background-color: #1a1a1a;
     backface-visibility: hidden;
     transition: opacity 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: opacity;
 }
 
 .content-overlay {
