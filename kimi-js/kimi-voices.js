@@ -498,9 +498,10 @@ class KimiVoiceManager {
     getVoicePreference(paramType, options = {}) {
         // Hierarchy: options > memory.preferences > kimiMemory.preferences > DOM element > default
         const defaults = {
-            rate: window.KIMI_CONFIG?.DEFAULTS?.VOICE_RATE || 1.1,
-            pitch: window.KIMI_CONFIG?.DEFAULTS?.VOICE_PITCH || 1.1,
-            volume: window.KIMI_CONFIG?.DEFAULTS?.VOICE_VOLUME || 0.8
+            // Use nullish coalescing to preserve explicit 0 values in config
+            rate: window.KIMI_CONFIG?.DEFAULTS?.VOICE_RATE ?? 1.1,
+            pitch: window.KIMI_CONFIG?.DEFAULTS?.VOICE_PITCH ?? 1.1,
+            volume: window.KIMI_CONFIG?.DEFAULTS?.VOICE_VOLUME ?? 0.8
         };
 
         const elementIds = {

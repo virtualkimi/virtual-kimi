@@ -1442,6 +1442,23 @@ async function sendMessage() {
 }
 
 function setupSettingsListeners(kimiDB, kimiMemory) {
+    // ---------------------------------------------------------------------------
+    // Slider value coercion utilities
+    // Ensures that numeric sliders preserve explicit 0 instead of falling back
+    // to defaults via the logical OR (||) operator. We only fall back when the
+    // parsed value is NaN or validation returns undefined (never when value === 0).
+    // Use coerceFloat / coerceInt in all handlers to standardize behavior.
+    // ---------------------------------------------------------------------------
+    const coerceFloat = (raw, fallback, validationValue) => {
+        if (validationValue !== undefined) return validationValue;
+        const parsed = parseFloat(raw);
+        return Number.isNaN(parsed) ? fallback : parsed;
+    };
+    const coerceInt = (raw, fallback, validationValue) => {
+        if (validationValue !== undefined) return validationValue;
+        const parsed = parseInt(raw, 10);
+        return Number.isNaN(parsed) ? fallback : parsed;
+    };
     const voiceRateSlider = document.getElementById("voice-rate");
     const voicePitchSlider = document.getElementById("voice-pitch");
     const voiceVolumeSlider = document.getElementById("voice-volume");
@@ -1526,7 +1543,7 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     if (voiceRateSlider) {
         const listener = e => {
             const validation = window.KimiValidationUtils?.validateRange(e.target.value, "voiceRate");
-            const value = validation?.value || parseFloat(e.target.value) || 1.1;
+            const value = coerceFloat(e.target.value, 1.1, validation?.value);
 
             document.getElementById("voice-rate-value").textContent = value;
             e.target.value = value; // Ensure slider shows validated value
@@ -1538,7 +1555,7 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     if (voicePitchSlider) {
         const listener = e => {
             const validation = window.KimiValidationUtils?.validateRange(e.target.value, "voicePitch");
-            const value = validation?.value || parseFloat(e.target.value) || 1.1;
+            const value = coerceFloat(e.target.value, 1.1, validation?.value);
 
             document.getElementById("voice-pitch-value").textContent = value;
             e.target.value = value;
@@ -1550,7 +1567,7 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     if (voiceVolumeSlider) {
         const listener = e => {
             const validation = window.KimiValidationUtils?.validateRange(e.target.value, "voiceVolume");
-            const value = validation?.value || parseFloat(e.target.value) || 0.8;
+            const value = coerceFloat(e.target.value, 0.8, validation?.value);
 
             document.getElementById("voice-volume-value").textContent = value;
             e.target.value = value;
@@ -1613,7 +1630,7 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     if (llmTemperatureSlider) {
         const listener = e => {
             const validation = window.KimiValidationUtils?.validateRange(e.target.value, "llmTemperature");
-            const value = validation?.value || parseFloat(e.target.value) || 0.9;
+            const value = coerceFloat(e.target.value, 0.9, validation?.value);
 
             document.getElementById("llm-temperature-value").textContent = value;
             e.target.value = value;
@@ -1625,7 +1642,7 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     if (llmMaxTokensSlider) {
         const listener = e => {
             const validation = window.KimiValidationUtils?.validateRange(e.target.value, "llmMaxTokens");
-            const value = validation?.value || parseInt(e.target.value) || 400;
+            const value = coerceInt(e.target.value, 400, validation?.value);
 
             document.getElementById("llm-max-tokens-value").textContent = value;
             e.target.value = value;
@@ -1637,7 +1654,7 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     if (llmTopPSlider) {
         const listener = e => {
             const validation = window.KimiValidationUtils?.validateRange(e.target.value, "llmTopP");
-            const value = validation?.value || parseFloat(e.target.value) || 0.9;
+            const value = coerceFloat(e.target.value, 0.9, validation?.value);
 
             document.getElementById("llm-top-p-value").textContent = value;
             e.target.value = value;
@@ -1649,7 +1666,7 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     if (llmFrequencyPenaltySlider) {
         const listener = e => {
             const validation = window.KimiValidationUtils?.validateRange(e.target.value, "llmFrequencyPenalty");
-            const value = validation?.value || parseFloat(e.target.value) || 0.9;
+            const value = coerceFloat(e.target.value, 0.9, validation?.value);
 
             document.getElementById("llm-frequency-penalty-value").textContent = value;
             e.target.value = value;
@@ -1661,7 +1678,7 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     if (llmPresencePenaltySlider) {
         const listener = e => {
             const validation = window.KimiValidationUtils?.validateRange(e.target.value, "llmPresencePenalty");
-            const value = validation?.value || parseFloat(e.target.value) || 0.8;
+            const value = coerceFloat(e.target.value, 0.8, validation?.value);
 
             document.getElementById("llm-presence-penalty-value").textContent = value;
             e.target.value = value;
@@ -1697,7 +1714,7 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     if (interfaceOpacitySlider) {
         const listener = e => {
             const validation = window.KimiValidationUtils?.validateRange(e.target.value, "interfaceOpacity");
-            const value = validation?.value || parseFloat(e.target.value) || 0.8;
+            const value = coerceFloat(e.target.value, 0.8, validation?.value);
 
             document.getElementById("interface-opacity-value").textContent = value;
             e.target.value = value;

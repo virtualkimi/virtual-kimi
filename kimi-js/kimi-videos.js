@@ -60,54 +60,13 @@ class KimiVideoManager {
         this._consecutiveErrorCount = 0;
         // Track per-video load attempts to adapt timeouts & avoid faux échecs
         this._videoAttempts = new Map();
-    }
 
-    //Centralized crossfade transition between two videos.
-    static crossfadeVideos(fromVideo, toVideo, duration = 300, onComplete) {
-        // Resolve duration from CSS variable if present
+        // Ensure the initially active video is visible (remove any stale inline opacity)
         try {
-            const cssDur = getComputedStyle(document.documentElement).getPropertyValue("--video-fade-duration").trim();
-            if (cssDur) {
-                // Convert CSS time to ms number if needed (e.g., '300ms' or '0.3s')
-                if (cssDur.endsWith("ms")) duration = parseFloat(cssDur);
-                else if (cssDur.endsWith("s")) duration = Math.round(parseFloat(cssDur) * 1000);
+            if (this.activeVideo && this.activeVideo.style && this.activeVideo.classList.contains("active")) {
+                this.activeVideo.style.opacity = ""; // rely purely on CSS class
             }
         } catch {}
-
-        // Preload and strict synchronization
-        const easing = "ease-in-out";
-        fromVideo.style.transition = `opacity ${duration}ms ${easing}`;
-        toVideo.style.transition = `opacity ${duration}ms ${easing}`;
-        // Prepare target video (opacity 0, top z-index)
-        toVideo.style.opacity = "0";
-        toVideo.style.zIndex = "2";
-        fromVideo.style.zIndex = "1";
-
-        // Start target video slightly before the crossfade
-        const startTarget = () => {
-            if (toVideo.paused) toVideo.play().catch(() => {});
-            // Lance le fondu croisé
-            setTimeout(() => {
-                fromVideo.style.opacity = "0";
-                toVideo.style.opacity = "1";
-            }, 20);
-            // After transition, adjust z-index and call the callback
-            setTimeout(() => {
-                fromVideo.style.zIndex = "1";
-                toVideo.style.zIndex = "2";
-                if (onComplete) onComplete();
-            }, duration + 30);
-        };
-
-        // If target video is not ready, wait for canplay
-        if (toVideo.readyState < 3) {
-            toVideo.addEventListener("canplay", startTarget, { once: true });
-            toVideo.load();
-        } else {
-            startTarget();
-        }
-        // Ensure source video is playing
-        if (fromVideo.paused) fromVideo.play().catch(() => {});
     }
 
     //Centralized video element creation utility.
@@ -119,7 +78,6 @@ class KimiVideoManager {
         video.muted = true;
         video.playsinline = true;
         video.preload = "auto";
-        video.style.opacity = "0";
         video.innerHTML =
             '<source src="" type="video/mp4" /><span data-i18n="video_not_supported">Your browser does not support the video tag.</span>';
         return video;
@@ -1376,10 +1334,11 @@ class KimiVideoManager {
         const fromVideo = this.activeVideo;
         const toVideo = this.inactiveVideo;
 
-        // Perform a JS-managed crossfade for smoother transitions
-        // Let crossfadeVideos resolve duration from CSS variable (--video-fade-duration)
-        this.constructor.crossfadeVideos(fromVideo, toVideo, undefined, () => {
-            // After crossfade completion, finalize state and classes
+        const finalizeSwap = () => {
+            // Clear any inline opacity to rely solely on class-based visibility
+            fromVideo.style.opacity = "";
+            toVideo.style.opacity = "";
+
             fromVideo.classList.remove("active");
             toVideo.classList.add("active");
 
@@ -1397,22 +1356,20 @@ class KimiVideoManager {
                             const src = this.activeVideo?.querySelector("source")?.getAttribute("src");
                             const info = { context: this.currentContext, emotion: this.currentEmotion };
                             console.log("🎬 VideoManager: Now playing:", src, info);
-                            // Recompute autoTransitionDuration from actual duration if available (C)
                             try {
                                 const d = this.activeVideo.duration;
                                 if (!isNaN(d) && d > 0.5) {
-                                    // Keep 1s headroom before natural end for auto scheduling
                                     const target = Math.max(1000, d * 1000 - 1100);
                                     this.autoTransitionDuration = target;
                                 } else {
-                                    this.autoTransitionDuration = 9900; // fallback for 10s clips
+                                    this.autoTransitionDuration = 9900;
                                 }
-                                // Dynamic neutral prefetch to widen diversity without burst
                                 this._prefetchNeutralDynamic();
                             } catch {}
                         } catch {}
                         this._switchInProgress = false;
                         this.setupEventListenersForContext(this.currentContext);
+                        this._startFreezeWatchdog();
                     })
                     .catch(error => {
                         console.warn("Failed to play video:", error);
@@ -1428,7 +1385,7 @@ class KimiVideoManager {
                         this.setupEventListenersForContext(this.currentContext);
                     });
             } else {
-                // Non-promise play fallback
+                // Non-promise fallback
                 this._switchInProgress = false;
                 try {
                     const d = this.activeVideo.duration;
@@ -1441,8 +1398,82 @@ class KimiVideoManager {
                     this._prefetchNeutralDynamic();
                 } catch {}
                 this.setupEventListenersForContext(this.currentContext);
+                this._startFreezeWatchdog();
             }
-        });
+        };
+
+        // Ensure target video is at start and attempt playback ahead of swap
+        try {
+            toVideo.currentTime = 0;
+        } catch {}
+        const ready = toVideo.readyState >= 2; // HAVE_CURRENT_DATA
+        if (!ready) {
+            const onReady = () => {
+                toVideo.removeEventListener("canplay", onReady);
+                finalizeSwap();
+            };
+            toVideo.addEventListener("canplay", onReady, { once: true });
+            // Trigger load if not already
+            try {
+                toVideo.load();
+            } catch {}
+            // Also try to play (some browsers will start buffering more aggressively)
+            toVideo.play().catch(() => {});
+        } else {
+            // Already ready -> swap immediately
+            toVideo.play().catch(() => {});
+            finalizeSwap();
+        }
+    }
+
+    // Watchdog to detect freeze when a 10s clip reaches end but 'ended' listener may not fire (browser quirk)
+    _startFreezeWatchdog() {
+        clearInterval(this._freezeInterval);
+        const v = this.activeVideo;
+        if (!v) return;
+        const CHECK_MS = 1000;
+        this._lastProgressTime = Date.now();
+        let lastTime = v.currentTime;
+        // Stalled detection via progress event
+        const onStalled = () => {
+            this._lastProgressTime = Date.now();
+        };
+        v.addEventListener("timeupdate", onStalled);
+        v.addEventListener("progress", onStalled);
+        this._freezeInterval = setInterval(() => {
+            if (v !== this.activeVideo) return; // switched
+            const dur = v.duration || 9.9; // assume 9.9s
+            const nearEnd = v.currentTime >= dur - 0.25; // last 250ms
+            const progressed = v.currentTime !== lastTime;
+            if (progressed) {
+                lastTime = v.currentTime;
+                this._lastProgressTime = Date.now();
+            }
+            // If near end and not auto-transitioned within 500ms, trigger manual neutral
+            if (nearEnd && Date.now() - this._lastProgressTime > 600) {
+                // Ensure we are not already neutral cycling
+                if (this.currentContext === "neutral") {
+                    // Pick another neutral to animate
+                    try {
+                        this.returnToNeutral();
+                    } catch {}
+                } else {
+                    if (!this._processPendingSwitches()) this.returnToNeutral();
+                }
+            }
+            // Extra safety: if video paused unexpectedly before end
+            if (!v.paused && !v.ended && Date.now() - this._lastProgressTime > 4000) {
+                try {
+                    v.play().catch(() => {});
+                } catch {}
+            }
+            // Cleanup if naturally ended (ended handler will schedule next)
+            if (v.ended) {
+                clearInterval(this._freezeInterval);
+                v.removeEventListener("timeupdate", onStalled);
+                v.removeEventListener("progress", onStalled);
+            }
+        }, CHECK_MS);
     }
 
     _prefetchNeutralDynamic() {

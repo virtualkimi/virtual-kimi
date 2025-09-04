@@ -119,9 +119,6 @@
     --mic-pulse-color: rgba(39, 174, 96, 0.5);
     --mic-pulse-listening-color: rgba(39, 174, 96, 0.4);
 
-    /* Video crossfade timing */
-    --video-fade-duration: 400ms;
-
     /* Cards & Stats */
     --card-bg: rgba(255, 255, 255, 0.02);
     --card-border: rgba(255, 255, 255, 0.05);
@@ -899,16 +896,9 @@ body {
     height: 100%;
     object-fit: contain;
     opacity: 0;
-    transition: opacity var(--video-fade-duration) cubic-bezier(0.4, 0, 0.2, 1);
     background-color: #1a1a1a;
-    will-change: opacity;
     backface-visibility: hidden;
-}
-
-.bg-video.transitioning {
-    opacity: 0;
-    transition: opacity var(--video-fade-duration) cubic-bezier(0.4, 0, 0.2, 1);
-    pointer-events: none;
+    transition: opacity 300ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .content-overlay {

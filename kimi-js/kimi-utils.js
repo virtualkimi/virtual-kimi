@@ -20,24 +20,10 @@ window.KimiValidationUtils = {
         return div.innerHTML;
     },
     validateRange(value, key) {
-        const bounds = {
-            voiceRate: { min: 0.5, max: 2, def: 1.1 },
-            voicePitch: { min: 0.5, max: 2, def: 1.1 },
-            voiceVolume: { min: 0, max: 1, def: 0.8 },
-            llmTemperature: { min: 0, max: 1, def: 0.9 },
-            llmMaxTokens: { min: 1, max: 8192, def: 400 },
-            llmTopP: { min: 0, max: 1, def: 0.9 },
-            llmFrequencyPenalty: { min: 0, max: 2, def: 0.9 },
-            llmPresencePenalty: { min: 0, max: 2, def: 0.8 },
-            interfaceOpacity: { min: 0.1, max: 1, def: 0.8 }
-        };
-        const b = bounds[key] || { min: 0, max: 100, def: 0 };
-        const v = window.KimiSecurityUtils
-            ? window.KimiSecurityUtils.validateRange(value, b.min, b.max, b.def)
-            : isNaN(parseFloat(value))
-              ? b.def
-              : Math.max(b.min, Math.min(b.max, parseFloat(value)));
-        return { value: v, clamped: v !== parseFloat(value) };
+        if (!window.KimiRange) {
+            throw new Error("KimiRange not initialized before validateRange call");
+        }
+        return window.KimiRange.clamp(key, value);
     }
 };
 
@@ -89,6 +75,40 @@ const KimiProviderPlaceholders = {
 };
 window.KimiProviderPlaceholders = KimiProviderPlaceholders;
 export { KimiProviderUtils, KimiProviderPlaceholders };
+
+// Unified range management (central source of truth for numeric clamping)
+// Keys map UI/logic identifiers to CONFIG constant names.
+window.KimiRange = {
+    KEY_MAP: {
+        voiceRate: "VOICE_RATE",
+        voicePitch: "VOICE_PITCH",
+        voiceVolume: "VOICE_VOLUME",
+        llmTemperature: "LLM_TEMPERATURE",
+        llmMaxTokens: "LLM_MAX_TOKENS",
+        llmTopP: "LLM_TOP_P",
+        llmFrequencyPenalty: "LLM_FREQUENCY_PENALTY",
+        llmPresencePenalty: "LLM_PRESENCE_PENALTY",
+        interfaceOpacity: "INTERFACE_OPACITY"
+    },
+    getBounds(key) {
+        try {
+            const configKey = this.KEY_MAP[key];
+            if (configKey && window.KIMI_CONFIG && window.KIMI_CONFIG.RANGES && window.KIMI_CONFIG.RANGES[configKey]) {
+                const range = window.KIMI_CONFIG.RANGES[configKey];
+                const def = window.KIMI_CONFIG.DEFAULTS?.[configKey] ?? range.min;
+                return { min: range.min, max: range.max, def };
+            }
+        } catch {}
+        return { min: 0, max: 100, def: 0 };
+    },
+    clamp(key, value) {
+        const b = this.getBounds(key);
+        const num = parseFloat(value);
+        if (isNaN(num)) return { value: b.def, clamped: true };
+        const v = Math.max(b.min, Math.min(b.max, num));
+        return { value: v, clamped: v !== num };
+    }
+};
 
 // Performance utility functions for debouncing and throttling
 window.KimiPerformanceUtils = {
@@ -201,12 +221,8 @@ class KimiSecurityUtils {
 
         switch (type) {
             case "html":
-                return input
-                    .replace(/&/g, "&amp;")
-                    .replace(/</g, "&lt;")
-                    .replace(/>/g, "&gt;")
-                    .replace(/"/g, "&quot;")
-                    .replace(/'/g, "&#x27;");
+                // Reuse centralized escape logic (removes duplication with KimiValidationUtils.escapeHtml)
+                return window.KimiValidationUtils?.escapeHtml(input) || input;
             case "number":
                 const num = parseFloat(input);
                 return isNaN(num) ? 0 : num;
@@ -223,12 +239,6 @@ class KimiSecurityUtils {
             default:
                 return input.trim();
         }
-    }
-
-    static validateRange(value, min, max, defaultValue = 0) {
-        const num = parseFloat(value);
-        if (isNaN(num)) return defaultValue;
-        return Math.max(min, Math.min(max, num));
     }
 
     static validateApiKey(key) {
@@ -521,6 +531,42 @@ class KimiOverlayManager {
     open(name) {
         const el = this.overlays[name];
         if (el) el.classList.add("visible");
+        // Special handling: opening settings overlay sometimes causes active video to freeze (browser rendering stall)
+        if (name === "settings-overlay") {
+            const kv = window.kimiVideo;
+            if (kv && kv.activeVideo) {
+                // Short delay so layout / repaint settles before forcing playback
+                setTimeout(() => {
+                    try {
+                        const v = kv.activeVideo;
+                        if (!v) return;
+                        // If ended -> immediately cycle neutral to avoid static frame
+                        if (v.ended) {
+                            if (typeof kv.returnToNeutral === "function") kv.returnToNeutral();
+                        } else {
+                            // Near-end ( <400ms rest ) -> preemptively rotate to avoid stuck on last frame
+                            if (v.duration && !isNaN(v.duration) && v.duration - v.currentTime < 0.4) {
+                                if (typeof kv.returnToNeutral === "function") kv.returnToNeutral();
+                            } else if (v.paused) {
+                                v.play().catch(() => {});
+                            }
+                        }
+                        // Restart freeze watchdog if available
+                        if (typeof kv._startFreezeWatchdog === "function") kv._startFreezeWatchdog();
+                    } catch {}
+                }, 50);
+                // Deferred recheck (covers cases where autoplay is blocked after overlay animation)
+                setTimeout(() => {
+                    try {
+                        const v = kv.activeVideo;
+                        if (!v) return;
+                        if (!v.ended && (v.paused || v.readyState < 2)) {
+                            v.play().catch(() => {});
+                        }
+                    } catch {}
+                }, 600);
+            }
+        }
     }
     close(name) {
         const el = this.overlays[name];

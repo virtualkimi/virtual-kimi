@@ -1,5 +1,12 @@
 # Virtual Kimi App Changelog
 
+# [1.1.6] - 2025-09-04
+
+### Bug Fixes
+
+- Fixed a bug where sliders refused the value 0 (0 was treated as falsy and reset to defaults).
+- Removed crossfade transition from video playback to avoid visual glitches during video changes.
+
 # [1.1.5] - 2025-09-03
 
 ### Bug Fixes
