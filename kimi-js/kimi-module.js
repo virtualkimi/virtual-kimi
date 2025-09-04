@@ -1526,7 +1526,9 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     if (voiceRateSlider) {
         const listener = e => {
             const validation = window.KimiValidationUtils?.validateRange(e.target.value, "voiceRate");
-            const value = validation?.value || parseFloat(e.target.value) || 1.1;
+            // Preserve legitimate zero values (avoid using || which treats 0 as falsy)
+            let value = validation && !isNaN(validation.value) ? validation.value : parseFloat(e.target.value);
+            if (isNaN(value)) value = 1.1;
 
             document.getElementById("voice-rate-value").textContent = value;
             e.target.value = value; // Ensure slider shows validated value
@@ -1538,7 +1540,8 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     if (voicePitchSlider) {
         const listener = e => {
             const validation = window.KimiValidationUtils?.validateRange(e.target.value, "voicePitch");
-            const value = validation?.value || parseFloat(e.target.value) || 1.1;
+            let value = validation && !isNaN(validation.value) ? validation.value : parseFloat(e.target.value);
+            if (isNaN(value)) value = 1.1;
 
             document.getElementById("voice-pitch-value").textContent = value;
             e.target.value = value;
@@ -1550,7 +1553,8 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     if (voiceVolumeSlider) {
         const listener = e => {
             const validation = window.KimiValidationUtils?.validateRange(e.target.value, "voiceVolume");
-            const value = validation?.value || parseFloat(e.target.value) || 0.8;
+            let value = validation && !isNaN(validation.value) ? validation.value : parseFloat(e.target.value);
+            if (isNaN(value)) value = 0.8;
 
             document.getElementById("voice-volume-value").textContent = value;
             e.target.value = value;
@@ -1613,7 +1617,8 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     if (llmTemperatureSlider) {
         const listener = e => {
             const validation = window.KimiValidationUtils?.validateRange(e.target.value, "llmTemperature");
-            const value = validation?.value || parseFloat(e.target.value) || 0.9;
+            let value = validation && !isNaN(validation.value) ? validation.value : parseFloat(e.target.value);
+            if (isNaN(value)) value = 0.9;
 
             document.getElementById("llm-temperature-value").textContent = value;
             e.target.value = value;
@@ -1637,7 +1642,8 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     if (llmTopPSlider) {
         const listener = e => {
             const validation = window.KimiValidationUtils?.validateRange(e.target.value, "llmTopP");
-            const value = validation?.value || parseFloat(e.target.value) || 0.9;
+            let value = validation && !isNaN(validation.value) ? validation.value : parseFloat(e.target.value);
+            if (isNaN(value)) value = 0.9;
 
             document.getElementById("llm-top-p-value").textContent = value;
             e.target.value = value;
@@ -1649,7 +1655,8 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     if (llmFrequencyPenaltySlider) {
         const listener = e => {
             const validation = window.KimiValidationUtils?.validateRange(e.target.value, "llmFrequencyPenalty");
-            const value = validation?.value || parseFloat(e.target.value) || 0.9;
+            let value = validation && !isNaN(validation.value) ? validation.value : parseFloat(e.target.value);
+            if (isNaN(value)) value = 0.9;
 
             document.getElementById("llm-frequency-penalty-value").textContent = value;
             e.target.value = value;
@@ -1661,7 +1668,8 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     if (llmPresencePenaltySlider) {
         const listener = e => {
             const validation = window.KimiValidationUtils?.validateRange(e.target.value, "llmPresencePenalty");
-            const value = validation?.value || parseFloat(e.target.value) || 0.8;
+            let value = validation && !isNaN(validation.value) ? validation.value : parseFloat(e.target.value);
+            if (isNaN(value)) value = 0.8;
 
             document.getElementById("llm-presence-penalty-value").textContent = value;
             e.target.value = value;
@@ -1697,7 +1705,8 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     if (interfaceOpacitySlider) {
         const listener = e => {
             const validation = window.KimiValidationUtils?.validateRange(e.target.value, "interfaceOpacity");
-            const value = validation?.value || parseFloat(e.target.value) || 0.8;
+            let value = validation && !isNaN(validation.value) ? validation.value : parseFloat(e.target.value);
+            if (isNaN(value)) value = 0.8;
 
             document.getElementById("interface-opacity-value").textContent = value;
             e.target.value = value;
