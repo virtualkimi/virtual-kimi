@@ -60,6 +60,14 @@ class KimiVideoManager {
         this._consecutiveErrorCount = 0;
         // Track per-video load attempts to adapt timeouts & avoid faux échecs
         this._videoAttempts = new Map();
+        // Neutral seamless pipeline controls
+        this.enableNeutralPipeline = true; // feature flag (can be toggled)
+        this._nextNeutralPlannedAt = 0;
+        this._scheduledNextNeutral = null; // src of next prepared neutral
+        this._scheduledNeutralReady = false;
+        this._neutralGapMetrics = { lastGapMs: null, samples: [] };
+        // Public configurable crossfade duration (ms)
+        this.crossfadeDurationMs = 260; // default value, can be tuned externally
 
         // Ensure the initially active video is visible (remove any stale inline opacity)
         try {
@@ -605,8 +613,17 @@ class KimiVideoManager {
 
         // Neutral: on end, pick another neutral to avoid static last frame
         if (context === "neutral") {
-            this._globalEndedHandler = () => this.returnToNeutral();
+            this._globalEndedHandler = () => this._handleNeutralEnded();
             this.activeVideo.addEventListener("ended", this._globalEndedHandler, { once: true });
+            if (this.enableNeutralPipeline) {
+                // Attach progressive scheduler on timeupdate
+                if (!this._neutralTimeHandler) {
+                    this._neutralTimeHandler = () => this._maybeScheduleNextNeutral();
+                }
+                this.activeVideo.addEventListener("timeupdate", this._neutralTimeHandler);
+                // Immediately attempt schedule (in case duration already known)
+                this._maybeScheduleNextNeutral(true);
+            }
         }
     }
 
@@ -853,6 +870,17 @@ class KimiVideoManager {
         this.isEmotionVideoPlaying = false;
         this.currentEmotionContext = null;
 
+        // If pipeline already prepared a neutral and ready, perform immediate swap
+        if (
+            this.enableNeutralPipeline &&
+            this._scheduledNextNeutral &&
+            this._scheduledNeutralReady &&
+            this.currentContext === "neutral"
+        ) {
+            this._handleNeutralEnded();
+            return;
+        }
+
         // Si la voix est encore en cours, relancer une vidéo neutre en boucle
         const category = "neutral";
         const currentVideoSrc = this.activeVideo.querySelector("source").getAttribute("src");
@@ -871,6 +899,9 @@ class KimiVideoManager {
             this.currentContext = "neutral";
             this.currentEmotion = "neutral";
             this.lastSwitchTime = Date.now();
+            if (this.enableNeutralPipeline) {
+                queueMicrotask(() => this._maybeScheduleNextNeutral(true));
+            }
             // Si la voix est encore en cours, s'assurer qu'on relance une vidéo neutre à la fin
             if (window.voiceManager && window.voiceManager.isSpeaking) {
                 this.activeVideo.addEventListener(
@@ -1410,7 +1441,7 @@ class KimiVideoManager {
         if (!ready) {
             const onReady = () => {
                 toVideo.removeEventListener("canplay", onReady);
-                finalizeSwap();
+                this._crossfadeSwitch(fromVideo, toVideo, finalizeSwap);
             };
             toVideo.addEventListener("canplay", onReady, { once: true });
             // Trigger load if not already
@@ -1422,7 +1453,52 @@ class KimiVideoManager {
         } else {
             // Already ready -> swap immediately
             toVideo.play().catch(() => {});
+            this._crossfadeSwitch(fromVideo, toVideo, finalizeSwap);
+        }
+    }
+
+    _crossfadeSwitch(fromVideo, toVideo, finalizeSwap) {
+        // If already active or same element, just finalize
+        if (fromVideo === toVideo) {
             finalizeSwap();
+            return;
+        }
+        // Ensure starting states
+        fromVideo.classList.add("active");
+        toVideo.classList.add("active"); // temporarily both visible
+        // Force initial opacity values to avoid flash; use inline to override CSS race
+        fromVideo.style.opacity = "1";
+        toVideo.style.opacity = "0";
+        const DURATION = Math.max(60, Math.min(1000, this.crossfadeDurationMs || 260)); // clamp 60-1000ms
+        const start = performance.now();
+        const ease = t => t * (2 - t); // simple ease-out
+        const step = now => {
+            const p = Math.min(1, (now - start) / DURATION);
+            const e = ease(p);
+            toVideo.style.opacity = String(e);
+            fromVideo.style.opacity = String(1 - e);
+            if (p < 1) {
+                requestAnimationFrame(step);
+            } else {
+                // Cleanup before official finalizeSwap (which swaps refs & classes)
+                fromVideo.classList.remove("active");
+                // Remove inline so future transitions rely on class again
+                fromVideo.style.opacity = "";
+                toVideo.style.opacity = "";
+                finalizeSwap();
+            }
+        };
+        // Try to align first frame of new video (avoid black frame) using requestVideoFrameCallback when supported
+        try {
+            if (typeof toVideo.requestVideoFrameCallback === "function") {
+                toVideo.requestVideoFrameCallback(() => {
+                    requestAnimationFrame(step);
+                });
+            } else {
+                requestAnimationFrame(step);
+            }
+        } catch {
+            requestAnimationFrame(step);
         }
     }
 
@@ -1577,6 +1653,98 @@ class KimiVideoManager {
             emotion: this.currentEmotion,
             category: this.determineCategory(this.currentContext, this.currentEmotion)
         };
+    }
+
+    /* ===================== NEUTRAL PIPELINE (Seamless chaining) ===================== */
+    _maybeScheduleNextNeutral(force = false) {
+        if (!this.enableNeutralPipeline) return;
+        if (this.currentContext !== "neutral") return;
+        const v = this.activeVideo;
+        if (!v) return;
+        const dur = v.duration;
+        if (!dur || isNaN(dur) || dur < 2) return; // need valid duration
+        const remaining = dur - v.currentTime;
+        const THRESHOLD = 2.0; // seconds before end to prepare next
+        if (!force && remaining > THRESHOLD) return;
+        // Avoid re-planning if already ready
+        if (!force && this._scheduledNextNeutral && this._scheduledNeutralReady) return;
+        if (this._schedulingNeutralInProgress) return;
+        this._schedulingNeutralInProgress = true;
+        try {
+            const currentSrc = v.querySelector("source").getAttribute("src");
+            const list = (this.videoCategories && this.videoCategories.neutral) || [];
+            if (!list.length) return;
+            const pool = list.filter(s => s !== currentSrc && s !== this._scheduledNextNeutral);
+            const next = pool.length ? pool[Math.floor(Math.random() * pool.length)] : list[0];
+            const inactive = this.inactiveVideo;
+            if (!inactive) return;
+            const pref = this._prefetchCache.get(next);
+            if (pref && pref.readyState >= 2) {
+                inactive.querySelector("source").setAttribute("src", next);
+                try {
+                    inactive.currentTime = 0;
+                } catch {}
+                inactive.load();
+                this._scheduledNextNeutral = next;
+                this._scheduledNeutralReady = true;
+            } else {
+                inactive.querySelector("source").setAttribute("src", next);
+                inactive.load();
+                this._scheduledNextNeutral = next;
+                this._scheduledNeutralReady = false;
+                const onReady = () => {
+                    inactive.removeEventListener("canplay", onReady);
+                    inactive.removeEventListener("loadeddata", onReady);
+                    this._scheduledNeutralReady = true;
+                    if (this._debug) console.log("🎬 Neutral pipeline prepared:", next);
+                };
+                inactive.addEventListener("canplay", onReady, { once: true });
+                inactive.addEventListener("loadeddata", onReady, { once: true });
+            }
+            if (this._debug) console.log("🎬 Planning next neutral in advance", { next, remaining: remaining.toFixed(2) });
+        } finally {
+            this._schedulingNeutralInProgress = false;
+        }
+    }
+
+    _handleNeutralEnded() {
+        if (this.enableNeutralPipeline && this._scheduledNextNeutral && this._scheduledNeutralReady) {
+            const startTs = performance.now();
+            const fromVideo = this.activeVideo;
+            const toVideo = this.inactiveVideo;
+            try {
+                toVideo.currentTime = 0;
+            } catch {}
+            const finalize = () => {
+                fromVideo.classList.remove("active");
+                toVideo.classList.add("active");
+                const prevActive = this.activeVideo;
+                this.activeVideo = toVideo;
+                this.inactiveVideo = prevActive;
+                const p = this.activeVideo.play();
+                if (p && p.then) p.catch(() => {}).finally(() => this._afterNeutralSwap(startTs));
+                else this._afterNeutralSwap(startTs);
+            };
+            finalize();
+        } else {
+            this.returnToNeutral();
+        }
+    }
+
+    _afterNeutralSwap(startTs) {
+        const gap = performance.now() - startTs;
+        this._neutralGapMetrics.lastGapMs = gap;
+        this._neutralGapMetrics.samples.push(gap);
+        if (this._neutralGapMetrics.samples.length > 20) this._neutralGapMetrics.samples.shift();
+        if (this._debug) console.log(`🎬 Neutral seamless swap gap=${gap.toFixed(1)}ms`);
+        this._scheduledNextNeutral = null;
+        this._scheduledNeutralReady = false;
+        this.currentContext = "neutral";
+        this.currentEmotion = "neutral";
+        this.lastSwitchTime = Date.now();
+        this.setupEventListenersForContext("neutral");
+        this._startFreezeWatchdog();
+        queueMicrotask(() => this._maybeScheduleNextNeutral(true));
     }
 
     // METHODS TO ANALYZE EMOTIONS FROM TEXT
