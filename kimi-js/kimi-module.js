@@ -557,7 +557,7 @@ async function loadChatHistory() {
             const recent = await kimiDB.getRecentConversations(10);
 
             if (recent.length === 0) {
-                const greeting = kimiMemory.getGreeting();
+                const greeting = await kimiMemory.getGreeting();
                 addMessageToChat("kimi", greeting);
             } else {
                 recent.forEach(conv => {
@@ -567,11 +567,11 @@ async function loadChatHistory() {
             }
         } catch (error) {
             console.error("Error while loading history:", error);
-            const greeting = kimiMemory.getGreeting();
+            const greeting = await kimiMemory.getGreeting();
             addMessageToChat("kimi", greeting);
         }
     } else {
-        const greeting = kimiMemory.getGreeting();
+        const greeting = await kimiMemory.getGreeting();
         addMessageToChat("kimi", greeting);
     }
 }
@@ -1319,6 +1319,10 @@ async function sendMessage() {
                     finalResponse = window.getLocalizedEmotionalResponse
                         ? window.getLocalizedEmotionalResponse("neutral")
                         : "I'm here for you!";
+                    if (messageObj && messageObj.updateText) {
+                        messageObj.updateText(finalResponse);
+                    }
+                } else {
                     if (messageObj && messageObj.updateText) {
                         messageObj.updateText(finalResponse);
                     }
