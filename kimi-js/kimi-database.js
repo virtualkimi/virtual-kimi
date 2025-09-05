@@ -17,7 +17,7 @@ class KimiDatabase {
                 settings: "category",
                 personality: "[character+trait],character",
                 llmModels: "id",
-                memories: "++id,[character+category],character,timestamp,isActive"
+                memories: "++id,[character+category],character,timestamp,isActive,importance"
             })
             .upgrade(async tx => {
                 try {
@@ -93,6 +93,36 @@ class KimiDatabase {
                     // Non-blocking: continue on error
                 }
             });
+
+        // Version 5: Clean schema with proper memory field defaults
+        this.db
+            .version(5)
+            .stores({
+                conversations: "++id,timestamp,favorability,character",
+                preferences: "key",
+                settings: "category",
+                personality: "[character+trait],character",
+                llmModels: "id",
+                memories: "++id,[character+category],character,timestamp,isActive,importance,accessCount"
+            })
+            .upgrade(async tx => {
+                try {
+                    // Ensure all memories have required fields for compatibility
+                    const memories = tx.table("memories");
+                    const now = new Date().toISOString();
+                    await memories.toCollection().modify(rec => {
+                        if (rec.isActive == null) rec.isActive = true;
+                        if (rec.importance == null) rec.importance = 0.5;
+                        if (rec.accessCount == null) rec.accessCount = 0;
+                        if (!rec.character) rec.character = "kimi";
+                        if (!rec.createdAt) rec.createdAt = rec.timestamp || now;
+                        if (!rec.lastAccess) rec.lastAccess = rec.timestamp || now;
+                    });
+                    console.log("✅ Database upgraded to v5: memory compatibility ensured");
+                } catch (e) {
+                    console.warn("Database upgrade v5 non-critical error:", e);
+                }
+            });
     }
 
     async setConversationsBatch(conversationsArray) {
@@ -104,6 +134,12 @@ class KimiDatabase {
             }
         } catch (error) {
             console.error("Error restoring conversations:", error);
+            // Log to error manager for tracking
+            if (window.kimiErrorManager) {
+                window.kimiErrorManager.logDatabaseError("restoreConversations", error, {
+                    conversationCount: conversationsArray.length
+                });
+            }
         }
     }
 
@@ -116,6 +152,12 @@ class KimiDatabase {
             }
         } catch (error) {
             console.error("Error restoring LLM models:", error);
+            // Log to error manager for tracking
+            if (window.kimiErrorManager) {
+                window.kimiErrorManager.logDatabaseError("setLLMModelsBatch", error, {
+                    modelCount: modelsArray.length
+                });
+            }
         }
     }
 
@@ -124,6 +166,16 @@ class KimiDatabase {
             return await this.db.memories.toArray();
         } catch (error) {
             console.warn("Error getting all memories:", error);
+            // Log to error manager for tracking
+            if (window.kimiErrorManager) {
+                const errorType = error.name === "SchemaError" ? "SchemaError" : "DatabaseError";
+                window.kimiErrorManager.logError(errorType, error, {
+                    operation: "getAllMemories",
+                    suggestion: error.message?.includes("not indexed")
+                        ? "Clear browser data to force schema upgrade"
+                        : "Check database integrity"
+                });
+            }
             return [];
         }
     }
@@ -148,10 +200,16 @@ class KimiDatabase {
     }
 
     getUnifiedTraitDefaults() {
+        // Use centralized API instead of hardcoded values
+        if (window.getTraitDefaults) {
+            return window.getTraitDefaults();
+        }
+        // Fallback: create new instance only if no global API available
         if (window.KimiEmotionSystem) {
             const emotionSystem = new window.KimiEmotionSystem(this);
             return emotionSystem.TRAIT_DEFAULTS;
         }
+        // Ultimate fallback (should never be reached in normal operation)
         return {
             affection: 55,
             playfulness: 55,
@@ -751,24 +809,23 @@ class KimiDatabase {
 
         // Use unified defaults from emotion system
         if (defaultValue === null) {
-            if (window.KimiEmotionSystem) {
+            // Use centralized API for trait defaults
+            if (window.getTraitDefaults) {
+                defaultValue = window.getTraitDefaults()[trait] || 50;
+            } else if (window.KimiEmotionSystem) {
                 const emotionSystem = new window.KimiEmotionSystem(this);
                 defaultValue = emotionSystem.TRAIT_DEFAULTS[trait] || 50;
             } else {
-                // Fallback defaults (must match KimiEmotionSystem.TRAIT_DEFAULTS exactly)
-                if (window.getTraitDefaults) {
-                    defaultValue = window.getTraitDefaults()[trait] || 50;
-                } else {
-                    defaultValue =
-                        {
-                            affection: 55,
-                            playfulness: 55,
-                            intelligence: 70,
-                            empathy: 75,
-                            humor: 60,
-                            romance: 50
-                        }[trait] || 50;
-                }
+                // Ultimate fallback (hardcoded values - should be avoided)
+                defaultValue =
+                    {
+                        affection: 55,
+                        playfulness: 55,
+                        intelligence: 70,
+                        empathy: 75,
+                        humor: 60,
+                        romance: 50
+                    }[trait] || 50;
             }
         }
 
@@ -1011,9 +1068,14 @@ class KimiDatabase {
 
         // Validation stricte : empêcher NaN ou valeurs non numériques
         const getDefault = trait => {
+            // Use centralized API for consistency
+            if (window.getTraitDefaults) {
+                return window.getTraitDefaults()[trait] || 50;
+            }
             if (window.KimiEmotionSystem) {
                 return new window.KimiEmotionSystem(this).TRAIT_DEFAULTS[trait] || 50;
             }
+            // Ultimate fallback (should be avoided)
             const fallback = { affection: 55, playfulness: 55, intelligence: 70, empathy: 75, humor: 60, romance: 50 };
             return fallback[trait] || 50;
         };

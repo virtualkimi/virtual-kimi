@@ -6,6 +6,11 @@ class KimiEmotionSystem {
         this.db = database;
         this.negativeStreaks = {};
 
+        // Debouncing system for personality updates
+        this._personalityUpdateQueue = {};
+        this._personalityUpdateTimer = null;
+        this._personalityUpdateDelay = 300; // ms
+
         // Unified emotion mappings
         this.EMOTIONS = {
             // Base emotions
@@ -26,22 +31,58 @@ class KimiEmotionSystem {
             GOODBYE: "goodbye"
         };
 
-        // Unified video context mapping
+        // Unified video context mapping - CENTRALIZED SOURCE OF TRUTH
         this.emotionToVideoCategory = {
+            // Base emotional states
             positive: "speakingPositive",
             negative: "speakingNegative",
             neutral: "neutral",
+
+            // Special contexts (always take priority)
             dancing: "dancing",
             listening: "listening",
+
+            // Specific emotions mapped to appropriate categories
             romantic: "speakingPositive",
             laughing: "speakingPositive",
             surprise: "speakingPositive",
             confident: "speakingPositive",
-            shy: "neutral",
             flirtatious: "speakingPositive",
             kiss: "speakingPositive",
-            goodbye: "neutral"
+
+            // Neutral/subdued emotions
+            shy: "neutral",
+            goodbye: "neutral",
+
+            // Explicit context mappings (for compatibility)
+            speaking: "speakingPositive", // Generic speaking defaults to positive
+            speakingPositive: "speakingPositive",
+            speakingNegative: "speakingNegative"
         };
+
+        // Emotion priority weights for conflict resolution
+        this.emotionPriorities = {
+            dancing: 10, // Maximum priority - immersive experience
+            kiss: 9, // Very high - intimate moment
+            romantic: 8, // High - emotional connection
+            listening: 7, // High - active interaction
+            flirtatious: 6, // Medium-high - playful interaction
+            laughing: 6, // Medium-high - positive expression
+            surprise: 5, // Medium - reaction
+            confident: 5, // Medium - personality expression
+            speaking: 4, // Medium-low - generic speaking context
+            positive: 4, // Medium-low - general positive
+            negative: 4, // Medium-low - general negative
+            neutral: 3, // Low - default state
+            shy: 3, // Low - subdued state
+            goodbye: 2, // Very low - transitional
+            speakingPositive: 4, // Medium-low - for consistency
+            speakingNegative: 4 // Medium-low - for consistency
+        };
+
+        // Context/emotion validation system for system integrity
+        this.validContexts = ["dancing", "listening", "speaking", "speakingPositive", "speakingNegative", "neutral"];
+        this.validEmotions = Object.values(this.EMOTIONS);
 
         // Unified trait defaults - Balanced for progressive experience
         this.TRAIT_DEFAULTS = {
@@ -81,7 +122,152 @@ class KimiEmotionSystem {
             intelligence: { posFactor: 0.35, negFactor: 0.55, streakPenaltyAfter: 2, maxStep: 1.2 }
         };
     }
-    // (Affection is an independent trait again; previous derived computation removed.)
+
+    // ===== DEBOUNCED PERSONALITY UPDATE SYSTEM =====
+    _debouncedPersonalityUpdate(updates, character) {
+        // Merge with existing queued updates for this character
+        if (!this._personalityUpdateQueue[character]) {
+            this._personalityUpdateQueue[character] = {};
+        }
+        Object.assign(this._personalityUpdateQueue[character], updates);
+
+        // Clear existing timer and set new one
+        if (this._personalityUpdateTimer) {
+            clearTimeout(this._personalityUpdateTimer);
+        }
+
+        this._personalityUpdateTimer = setTimeout(async () => {
+            try {
+                const allUpdates = { ...this._personalityUpdateQueue };
+                this._personalityUpdateQueue = {};
+                this._personalityUpdateTimer = null;
+
+                // Process all queued updates
+                for (const [char, traits] of Object.entries(allUpdates)) {
+                    if (Object.keys(traits).length > 0) {
+                        await this.db.setPersonalityBatch(traits, char);
+
+                        // Emit unified personality update event
+                        if (typeof window !== "undefined" && window.dispatchEvent) {
+                            window.dispatchEvent(
+                                new CustomEvent("personality:updated", {
+                                    detail: { character: char, traits: traits }
+                                })
+                            );
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error("Error in debounced personality update:", error);
+            }
+        }, this._personalityUpdateDelay);
+    }
+
+    // ===== CENTRALIZED VALIDATION SYSTEM =====
+    validateContext(context) {
+        if (!context || typeof context !== "string") return "neutral";
+        const normalized = context.toLowerCase().trim();
+
+        // Check if it's a valid context
+        if (this.validContexts.includes(normalized)) return normalized;
+
+        // Check if it's a valid emotion that can be mapped to context
+        if (this.emotionToVideoCategory[normalized]) return normalized;
+
+        return "neutral"; // Safe fallback
+    }
+
+    validateEmotion(emotion) {
+        if (!emotion || typeof emotion !== "string") return "neutral";
+        const normalized = emotion.toLowerCase().trim();
+
+        // Check if it's a valid emotion
+        if (this.validEmotions.includes(normalized)) return normalized;
+
+        // Check common aliases
+        const aliases = {
+            happy: "positive",
+            sad: "negative",
+            mad: "negative",
+            angry: "negative",
+            excited: "positive",
+            calm: "neutral",
+            romance: "romantic",
+            laugh: "laughing",
+            dance: "dancing",
+            // Speaking contexts as emotion aliases
+            speaking: "positive", // Generic speaking defaults to positive
+            speakingpositive: "positive",
+            speakingnegative: "negative"
+        };
+
+        if (aliases[normalized]) return aliases[normalized];
+
+        return "neutral"; // Safe fallback
+    }
+
+    validateVideoCategory(category) {
+        const validCategories = ["dancing", "listening", "speakingPositive", "speakingNegative", "neutral"];
+        if (!category || typeof category !== "string") return "neutral";
+
+        const normalized = category.toLowerCase().trim();
+        return validCategories.includes(normalized) ? normalized : "neutral";
+    }
+
+    // Enhanced emotion analysis with validation
+    analyzeEmotionValidated(text, lang = "auto") {
+        const rawEmotion = this.analyzeEmotion(text, lang);
+        return this.validateEmotion(rawEmotion);
+    }
+
+    // ===== UTILITY METHODS FOR SYSTEM INTEGRATION =====
+    // Centralized method to get video category for any emotion/context combination
+    getVideoCategory(emotionOrContext, traits = null) {
+        // Handle the case where we get both context and emotion (e.g., from determineCategory calls)
+        // Priority: Specific contexts > Specific emotions > Generic fallbacks
+
+        // Try context validation first for immediate context matches
+        let validated = this.validateContext(emotionOrContext);
+        if (validated !== "neutral" || emotionOrContext === "neutral") {
+            // Valid context found or explicitly neutral
+            const category = this.emotionToVideoCategory[validated] || "neutral";
+            return this.validateVideoCategory(category);
+        }
+
+        // If no valid context, try as emotion
+        validated = this.validateEmotion(emotionOrContext);
+        const category = this.emotionToVideoCategory[validated] || "neutral";
+        return this.validateVideoCategory(category);
+    } // Get priority weight for any emotion/context
+    getPriorityWeight(emotionOrContext) {
+        // Try context validation first, then emotion validation
+        let validated = this.validateContext(emotionOrContext);
+        if (validated === "neutral" && emotionOrContext !== "neutral") {
+            // If context validation gave neutral but input wasn't neutral, try as emotion
+            validated = this.validateEmotion(emotionOrContext);
+        }
+
+        return this.emotionPriorities[validated] || 3; // Default medium-low priority
+    }
+
+    // Check if an emotion/context should override current state
+    shouldOverride(newEmotion, currentEmotion, currentContext = null) {
+        const newPriority = this.getPriorityWeight(newEmotion);
+        const currentPriority = Math.max(this.getPriorityWeight(currentEmotion), this.getPriorityWeight(currentContext));
+
+        return newPriority > currentPriority;
+    }
+
+    // Utility to normalize and validate a complete emotion/context request
+    normalizeEmotionRequest(context, emotion, traits = null) {
+        return {
+            context: this.validateContext(context),
+            emotion: this.validateEmotion(emotion),
+            category: this.getVideoCategory(emotion || context, traits),
+            priority: this.getPriorityWeight(emotion || context)
+        };
+    }
+
     // ===== UNIFIED EMOTION ANALYSIS =====
     analyzeEmotion(text, lang = "auto") {
         if (!text || typeof text !== "string") return this.EMOTIONS.NEUTRAL;
@@ -358,8 +544,10 @@ class KimiEmotionSystem {
             const prep = this._preparePersistTrait(trait, current, candValue, selectedCharacter);
             if (prep.shouldPersist) toPersist[trait] = prep.value;
         }
+
+        // Use debounced update instead of immediate DB write
         if (Object.keys(toPersist).length > 0) {
-            await this.db.setPersonalityBatch(toPersist, selectedCharacter);
+            this._debouncedPersonalityUpdate(toPersist, selectedCharacter);
         }
 
         return updatedTraits;
@@ -467,8 +655,6 @@ class KimiEmotionSystem {
             }
         }
 
-        // Affection stays as independently adjusted by keywords & emotion (no derived override)
-
         // Flush pending updates in a single batch write to avoid overwrites
         if (Object.keys(pendingUpdates).length > 0) {
             // Apply smoothing/threshold per trait (read current values)
@@ -482,21 +668,6 @@ class KimiEmotionSystem {
                 await this.db.setPersonalityBatch(toPersist, character);
             }
         }
-    }
-
-    // ===== UNIFIED VIDEO CONTEXT MAPPING =====
-    mapEmotionToVideoCategory(emotion) {
-        return this.emotionToVideoCategory[emotion] || "neutral";
-    }
-
-    // ===== VALIDATION SYSTEM =====
-    validateEmotion(emotion) {
-        const validEmotions = Object.values(this.EMOTIONS);
-        if (!validEmotions.includes(emotion)) {
-            console.warn(`Invalid emotion detected: ${emotion}, falling back to neutral`);
-            return this.EMOTIONS.NEUTRAL;
-        }
-        return emotion;
     }
 
     validatePersonalityTrait(trait, value) {
@@ -803,36 +974,31 @@ window.refreshPersonalityAverageUI = async function (characterKey = null) {
 export default KimiEmotionSystem;
 
 // ===== BACKWARD COMPATIBILITY LAYER =====
-// Replace the old kimiAnalyzeEmotion function
-window.kimiAnalyzeEmotion = function (text, lang = "auto") {
+// Ensure single instance of KimiEmotionSystem (Singleton pattern)
+function getKimiEmotionSystemInstance() {
     if (!window.kimiEmotionSystem) {
         window.kimiEmotionSystem = new KimiEmotionSystem(window.kimiDB);
     }
-    return window.kimiEmotionSystem.analyzeEmotion(text, lang);
+    return window.kimiEmotionSystem;
+}
+
+// Replace the old kimiAnalyzeEmotion function
+window.kimiAnalyzeEmotion = function (text, lang = "auto") {
+    return getKimiEmotionSystemInstance().analyzeEmotion(text, lang);
 };
 
 // Replace the old updatePersonalityTraitsFromEmotion function
 window.updatePersonalityTraitsFromEmotion = async function (emotion, text) {
-    if (!window.kimiEmotionSystem) {
-        window.kimiEmotionSystem = new KimiEmotionSystem(window.kimiDB);
-    }
-
-    const updatedTraits = await window.kimiEmotionSystem.updatePersonalityFromEmotion(emotion, text);
-
+    const updatedTraits = await getKimiEmotionSystemInstance().updatePersonalityFromEmotion(emotion, text);
     return updatedTraits;
 };
 
 // Replace getPersonalityAverage function
 window.getPersonalityAverage = function (traits) {
-    if (!window.kimiEmotionSystem) {
-        window.kimiEmotionSystem = new KimiEmotionSystem(window.kimiDB);
-    }
-    return window.kimiEmotionSystem.calculatePersonalityAverage(traits);
+    return getKimiEmotionSystemInstance().calculatePersonalityAverage(traits);
 };
 
 // Unified trait defaults accessor
 window.getTraitDefaults = function () {
-    if (window.kimiEmotionSystem) return window.kimiEmotionSystem.TRAIT_DEFAULTS;
-    const temp = new KimiEmotionSystem(window.kimiDB);
-    return temp.TRAIT_DEFAULTS;
+    return getKimiEmotionSystemInstance().TRAIT_DEFAULTS;
 };

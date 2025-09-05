@@ -5,6 +5,7 @@ import KimiLLMManager from "./kimi-llm-manager.js";
 import KimiEmotionSystem from "./kimi-emotion-system.js";
 
 // Expose module imports to legacy code paths that still rely on window
+// Ensure KimiProviderUtils is available (imported from kimi-utils.js)
 window.KimiProviderUtils = window.KimiProviderUtils || KimiProviderUtils;
 window.KimiLLMManager = window.KimiLLMManager || KimiLLMManager;
 window.KimiEmotionSystem = window.KimiEmotionSystem || KimiEmotionSystem;

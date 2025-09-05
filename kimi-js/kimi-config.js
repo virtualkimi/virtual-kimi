@@ -67,6 +67,16 @@ window.KIMI_CONFIG = {
         NETWORK_ERROR: "Network error"
     },
 
+    // Debug configuration (centralized)
+    DEBUG: {
+        ENABLED: false, // Master debug switch
+        VOICE: false, // Voice system debug
+        VIDEO: false, // Video system debug
+        MEMORY: false, // Memory system debug
+        API: false, // API calls debug
+        SYNC: false // Synchronization debug
+    },
+
     // Available themes
     THEMES: {
         dark: "Dark Night",
@@ -107,6 +117,27 @@ window.KIMI_CONFIG.get = function (path, fallback = null) {
         console.error("Config get error:", error);
         return fallback;
     }
+};
+
+// Centralized debug logging utility
+window.KIMI_CONFIG.debugLog = function (category, message, ...args) {
+    if (!this.DEBUG.ENABLED) return;
+
+    const categoryEnabled = category === "GENERAL" ? true : this.DEBUG[category];
+    if (!categoryEnabled) return;
+
+    const prefix =
+        category === "GENERAL"
+            ? "🔧"
+            : {
+                  VOICE: "🎤",
+                  VIDEO: "🎬",
+                  MEMORY: "💾",
+                  API: "📡",
+                  SYNC: "🔄"
+              }[category] || "🔧";
+
+    console.log(`${prefix} [${category}]`, message, ...args);
 };
 
 window.KIMI_CONFIG.validate = function (value, type) {

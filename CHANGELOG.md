@@ -1,5 +1,15 @@
 # Virtual Kimi App Changelog
 
+# [1.1.6.1] - 2025-09-05
+
+### Changed
+
+- Improved text formatting in the chat window.
+
+### Bug Fixes
+
+- Fixed some issues.
+
 # [1.1.5.1] - 2025-09-04
 
 ### Bug Fixes

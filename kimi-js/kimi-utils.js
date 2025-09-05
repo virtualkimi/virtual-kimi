@@ -19,6 +19,41 @@ window.KimiValidationUtils = {
         div.textContent = text;
         return div.innerHTML;
     },
+    /**
+     * Format chat text with simple markdown-like syntax (secure)
+     * Supports: **bold**, *italic*, and preserves line breaks
+     * Security: All text is escaped first, then selective formatting is applied
+     */
+    formatChatText(text) {
+        if (!text || typeof text !== "string") return "";
+
+        // First: Escape all HTML to prevent XSS
+        let escaped = this.escapeHtml(text);
+
+        // Optional: Replace em-dash with regular dash if preferred
+        escaped = escaped.replace(/—/g, "-");
+
+        // Second: Apply simple formatting (only on escaped text)
+        // **bold** -> <strong>bold</strong>
+        escaped = escaped.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+
+        // *italic* -> <em>italic</em> (but not if already inside **)
+        escaped = escaped.replace(/(?<!\*)\*([^*]+?)\*(?!\*)/g, "<em>$1</em>");
+
+        // Smart paragraph handling: only create <p> for double line breaks or real paragraphs
+        // Split by double line breaks (\n\n) to identify real paragraphs
+        const realParagraphs = escaped.split(/\n\s*\n/).filter(para => para.trim().length > 0);
+
+        if (realParagraphs.length > 1) {
+            // Multiple paragraphs found - wrap each in <p>
+            escaped = realParagraphs.map(p => `<p>${p.trim().replace(/\n/g, " ")}</p>`).join("");
+        } else {
+            // Single paragraph - just convert single \n to spaces (natural text flow)
+            escaped = escaped.replace(/\n/g, " ");
+        }
+
+        return escaped;
+    },
     validateRange(value, key) {
         const bounds = {
             voiceRate: { min: 0.5, max: 2, def: 1.1 },

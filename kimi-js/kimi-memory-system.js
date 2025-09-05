@@ -4,6 +4,99 @@ class KimiMemorySystem {
         this.db = database;
         this.memoryEnabled = true;
         this.maxMemoryEntries = 100;
+
+        // Performance optimization: keyword cache with LRU eviction
+        this.keywordCache = new Map(); // keyword_language -> boolean (is common)
+        this.keywordCacheSize = 1000; // Limit memory usage
+        this.keywordCacheHits = 0;
+        this.keywordCacheMisses = 0;
+
+        // Performance monitoring
+        this.queryStats = {
+            extractionTime: [],
+            addMemoryTime: [],
+            retrievalTime: []
+        };
+
+        // Centralized configuration for all thresholds and magic numbers
+        this.config = {
+            // Content validation thresholds
+            minContentLength: 2,
+            longContentThreshold: 24,
+            titleWordCount: {
+                preferred: 3,
+                min: 1,
+                max: 5
+            },
+
+            // Similarity and confidence thresholds
+            similarity: {
+                personal: 0.6, // Names can vary more (Jean vs Jean-Pierre)
+                preferences: 0.7, // Preferences can be expressed differently
+                default: 0.8, // General similarity threshold
+                veryHigh: 0.9, // For boost_confidence strategy
+                update: 0.3 // Lower threshold for memory updates
+            },
+
+            // Confidence scoring
+            confidence: {
+                base: 0.6,
+                explicitRequest: 1.0,
+                naturalExpression: 0.7,
+                bonusForLongContent: 0.1,
+                bonusForExplicitStatement: 0.3,
+                penaltyForUncertainty: 0.2,
+                min: 0.1,
+                max: 1.0
+            },
+
+            // Memory management
+            cleanup: {
+                maxEntries: 100,
+                ttlDays: 365,
+                batchSize: 100,
+                touchMinutes: 60
+            },
+
+            // Performance settings
+            cache: {
+                keywordCacheSize: 1000,
+                statHistorySize: 100
+            },
+
+            // Scoring weights for importance calculation
+            importance: {
+                categoryWeights: {
+                    important: 1.0,
+                    personal: 0.9,
+                    relationships: 0.85,
+                    goals: 0.75,
+                    experiences: 0.65,
+                    preferences: 0.6,
+                    activities: 0.5
+                },
+                bonuses: {
+                    relationshipMilestone: 0.15,
+                    boundaries: 0.15,
+                    strongEmotion: 0.05,
+                    futureReference: 0.05,
+                    longContent: 0.05,
+                    highConfidence: 0.05
+                }
+            },
+
+            // Relevance calculation weights
+            relevance: {
+                contentSimilarity: 0.35,
+                keywordOverlap: 0.25,
+                categoryRelevance: 0.1,
+                recencyBonus: 0.1,
+                confidenceBonus: 0.05,
+                importanceBonus: 0.05,
+                recentDaysThreshold: 30
+            }
+        };
+
         this.memoryCategories = {
             personal: "Personal Information",
             preferences: "Likes & Dislikes",
@@ -200,6 +293,45 @@ class KimiMemorySystem {
                 /请记住(.+)/i
             ]
         };
+
+        // Performance optimization: pre-compile regex patterns
+        this.compiledPatterns = {};
+        this.initializeCompiledPatterns();
+    }
+
+    // Pre-compile all regex patterns for better performance
+    initializeCompiledPatterns() {
+        try {
+            for (const [category, patterns] of Object.entries(this.extractionPatterns)) {
+                this.compiledPatterns[category] = patterns.map(pattern => {
+                    if (pattern instanceof RegExp) {
+                        return pattern; // Already compiled
+                    }
+                    return new RegExp(pattern.source, pattern.flags);
+                });
+            }
+
+            if (window.KIMI_CONFIG?.DEBUG?.MEMORY) {
+                const totalPatterns = Object.values(this.compiledPatterns).reduce((sum, arr) => sum + arr.length, 0);
+                console.log(`🚀 Pre-compiled ${totalPatterns} regex patterns for memory extraction`);
+            }
+        } catch (error) {
+            console.error("Error pre-compiling regex patterns:", error);
+            // Fallback: use original patterns
+            this.compiledPatterns = this.extractionPatterns;
+        }
+    }
+
+    // Utility method to get consistent creation timestamp
+    getCreationTimestamp(memory) {
+        // Prefer createdAt, fallback to timestamp for backward compatibility
+        return memory.createdAt || memory.timestamp || new Date();
+    }
+
+    // Utility method to calculate days since creation
+    getDaysSinceCreation(memory) {
+        const created = new Date(this.getCreationTimestamp(memory)).getTime();
+        return (Date.now() - created) / (1000 * 60 * 60 * 24);
     }
 
     async init() {
@@ -216,11 +348,9 @@ class KimiMemorySystem {
             this.selectedCharacter = await this.db.getSelectedCharacter();
             await this.createMemoryTables();
 
-            // Migrer les IDs incompatibles si nécessaire
-            await this.migrateIncompatibleIDs();
-
-            // Start background migration to populate keywords for existing memories (non-blocking)
-            this.populateKeywordsForAllMemories().catch(e => console.warn("Keyword population failed", e));
+            // Legacy migrations disabled - uncomment if needed for old databases
+            // await this.migrateIncompatibleIDs();
+            // this.populateKeywordsForAllMemories().catch(e => console.warn("Keyword population failed", e));
         } catch (error) {
             console.error("Memory system initialization error:", error);
         }
@@ -238,10 +368,15 @@ class KimiMemorySystem {
     async extractMemoryFromText(userText, kimiResponse = null) {
         if (!this.memoryEnabled || !userText) return [];
 
+        // Ensure selectedCharacter is initialized
+        if (!this.selectedCharacter) {
+            this.selectedCharacter = this.db ? await this.db.getSelectedCharacter() : "kimi";
+        }
+
         const extractedMemories = [];
         const text = userText.toLowerCase();
 
-        console.log("🔍 Memory extraction - Processing text:", userText);
+        // Memory extraction processing (debug info reduced for performance)
 
         // Enhanced extraction with context awareness
         const existingMemories = await this.getAllMemories();
@@ -249,19 +384,20 @@ class KimiMemorySystem {
         // First, check for explicit memory requests
         const explicitRequests = this.detectExplicitMemoryRequests(userText);
         if (explicitRequests.length > 0) {
-            console.log("🎯 Explicit memory requests detected:", explicitRequests);
+            // Explicit memory requests detected
             extractedMemories.push(...explicitRequests);
         }
 
-        // Extract using patterns
-        for (const [category, patterns] of Object.entries(this.extractionPatterns)) {
+        // Extract using pre-compiled patterns for better performance
+        const patternsToUse = this.compiledPatterns || this.extractionPatterns;
+        for (const [category, patterns] of Object.entries(patternsToUse)) {
             for (const pattern of patterns) {
                 const match = text.match(pattern);
                 if (match && match[1]) {
                     const content = match[1].trim();
 
                     // Skip very short or generic content
-                    if (content.length < 2 || this.isGenericContent(content)) {
+                    if (content.length < this.config.minContentLength || this.isGenericContent(content)) {
                         continue;
                     }
 
@@ -274,12 +410,12 @@ class KimiMemorySystem {
                         content: content,
                         sourceText: userText,
                         confidence: this.calculateExtractionConfidence(match, userText),
-                        timestamp: new Date(),
-                        character: this.selectedCharacter,
+                        createdAt: new Date(), // Use createdAt consistently
+                        character: this.selectedCharacter || "kimi", // Fallback protection
                         isUpdate: isUpdate
                     };
 
-                    console.log(`💡 Pattern match for ${category}:`, content);
+                    // Pattern match detected
                     extractedMemories.push(memory);
                 }
             }
@@ -292,14 +428,29 @@ class KimiMemorySystem {
         // Save extracted memories with intelligent deduplication
         const savedMemories = [];
         for (const memory of extractedMemories) {
-            console.log("💾 Saving memory:", memory.content);
-            const saved = await this.addMemory(memory);
-            if (saved) savedMemories.push(saved);
+            try {
+                console.log("💾 Saving memory:", memory.content);
+                const saved = await this.addMemory(memory);
+                if (saved) {
+                    savedMemories.push(saved);
+                } else {
+                    console.warn("⚠️ Memory was not saved (possibly filtered or merged):", memory.content);
+                }
+            } catch (error) {
+                console.error("❌ Failed to save memory:", {
+                    content: memory.content,
+                    category: memory.category,
+                    error: error.message
+                });
+                // Continue processing other memories even if one fails
+            }
         }
 
         if (savedMemories.length > 0) {
-            console.log(`✅ Successfully extracted and saved ${savedMemories.length} memories`);
-        } else {
+            if (window.KIMI_CONFIG?.DEBUG?.MEMORY) {
+                console.log(`✅ Successfully extracted and saved ${savedMemories.length} memories`);
+            }
+        } else if (window.KIMI_CONFIG?.DEBUG?.MEMORY) {
             console.log("📝 No memories extracted from this text");
         }
 
@@ -469,12 +620,12 @@ class KimiMemorySystem {
     // Check if content is too generic to be useful
     isGenericContent(content) {
         const genericWords = ["yes", "no", "ok", "okay", "sure", "thanks", "hello", "hi", "bye"];
-        return genericWords.includes(content.toLowerCase()) || content.length < 2;
+        return genericWords.includes(content.toLowerCase()) || content.length < this.config.minContentLength;
     }
 
     // Calculate confidence based on context and pattern strength
     calculateExtractionConfidence(match, fullText) {
-        let confidence = 0.6; // Base confidence
+        let confidence = this.config.confidence.base; // Base confidence from config
 
         // Boost confidence for explicit statements
         const lower = fullText.toLowerCase();
@@ -496,20 +647,20 @@ class KimiMemorySystem {
             lower.includes("我叫") ||
             lower.includes("我的名字是")
         ) {
-            confidence += 0.3;
+            confidence += this.config.confidence.bonusForExplicitStatement;
         }
 
         // Boost for longer, more specific content
-        if (match[1] && match[1].trim().length > 10) {
-            confidence += 0.1;
+        if (match[1] && match[1].trim().length > this.config.longContentThreshold) {
+            confidence += this.config.confidence.bonusForLongContent;
         }
 
         // Reduce confidence for uncertain language
         if (fullText.includes("maybe") || fullText.includes("perhaps") || fullText.includes("might")) {
-            confidence -= 0.2;
+            confidence -= this.config.confidence.penaltyForUncertainty;
         }
 
-        return Math.min(1.0, Math.max(0.1, confidence));
+        return Math.min(this.config.confidence.max, Math.max(this.config.confidence.min, confidence));
     }
 
     // Generate a short title (2-5 words max) from content for auto-extracted memories
@@ -525,9 +676,9 @@ class KimiMemorySystem {
         if (words.length === 0) return "";
         // Prefer 3 words when available, minimum 2 when possible, maximum 5
         let take;
-        if (words.length >= 3) take = 3;
+        if (words.length >= this.config.titleWordCount.preferred) take = this.config.titleWordCount.preferred;
         else take = words.length; // 1 or 2
-        take = Math.min(5, Math.max(1, take));
+        take = Math.min(this.config.titleWordCount.max, Math.max(this.config.titleWordCount.min, take));
 
         const slice = words.slice(0, take);
         // Capitalize first word for nicer title
@@ -541,7 +692,7 @@ class KimiMemorySystem {
 
         for (const memory of categoryMemories) {
             const similarity = this.calculateSimilarity(memory.content, content);
-            if (similarity > 0.3) {
+            if (similarity > this.config.similarity.update) {
                 // Lower threshold for updates
                 return true;
             }
@@ -598,8 +749,8 @@ class KimiMemorySystem {
                         content: name,
                         sourceText: text,
                         confidence: 0.7,
-                        timestamp: new Date(),
-                        character: this.selectedCharacter
+                        createdAt: new Date(), // Use createdAt consistently
+                        character: this.selectedCharacter || "kimi" // Fallback protection
                     });
                 }
             }
@@ -688,12 +839,11 @@ class KimiMemorySystem {
                           : "",
                 sourceText: memoryData.sourceText || "",
                 confidence: memoryData.confidence || 1.0,
-                timestamp: memoryData.timestamp || now,
-                character: memoryData.character || this.selectedCharacter,
+                createdAt: memoryData.createdAt || memoryData.timestamp || now, // Unified timestamp handling
+                character: memoryData.character || this.selectedCharacter || "kimi", // Fallback protection
                 isActive: true,
                 tags: [...new Set([...(memoryData.tags || []), ...this.deriveMemoryTags(memoryData)])],
                 lastModified: now,
-                createdAt: now,
                 lastAccess: now,
                 accessCount: 0,
                 importance: this.calculateImportance(memoryData)
@@ -702,7 +852,9 @@ class KimiMemorySystem {
             if (this.db.db.memories) {
                 const id = await this.db.db.memories.add(memory);
                 memory.id = id; // Store the auto-generated ID
-                console.log(`Memory added with ID: ${id}`);
+                if (window.KIMI_CONFIG?.DEBUG?.MEMORY) {
+                    console.log(`Memory added with ID: ${id}`);
+                }
             }
 
             // Cleanup old memories if we exceed limit
@@ -714,6 +866,7 @@ class KimiMemorySystem {
             return memory;
         } catch (error) {
             console.error("Error adding memory:", error);
+            return null; // Return null instead of undefined for clearer error handling
         }
     }
 
@@ -782,31 +935,33 @@ class KimiMemorySystem {
         }
     }
 
-    // Determine how to merge two related memories
+    // Simplified memory merge strategy determination
     determineMergeStrategy(existing, newData) {
         const similarity = this.calculateSimilarity(existing.content, newData.content);
-        const newConfidence = newData.confidence || 0.8;
+        const newConfidence = newData.confidence || this.config.confidence.base;
+        const existingConfidence = existing.confidence || this.config.confidence.base;
 
-        // If very similar content but new has higher confidence
-        if (similarity > 0.9 && newConfidence > existing.confidence) {
-            return "boost_confidence";
+        // Very high similarity (>90%) - boost confidence if new is more confident
+        if (similarity > this.config.similarity.veryHigh) {
+            return newConfidence > existingConfidence ? "boost_confidence" : "merge_content";
         }
 
-        // If moderately similar, decide based on specificity and recency
-        if (similarity > 0.7) {
+        // High similarity (>70%) - decide based on content length and specificity
+        if (similarity > this.config.similarity.preferences) {
+            // If new content is significantly longer (50% more), it's likely more detailed
             if (newData.content.length > existing.content.length * 1.5) {
-                return "update_content"; // New is more detailed
-            } else {
-                return "merge_content";
+                return "update_content";
             }
+            // If existing is longer, merge to preserve information
+            return "merge_content";
         }
 
-        // For names, handle as variants
+        // For personal names, handle as variants if they're related
         if (existing.category === "personal" && this.areRelatedNames(existing.content, newData.content)) {
             return "add_variant";
         }
 
-        // Default to merging
+        // Default strategy for moderate similarity
         return "merge_content";
     }
 
@@ -875,8 +1030,9 @@ class KimiMemorySystem {
         }
 
         // Longer details and high confidence
-        if (memoryData.content && memoryData.content.length > 24) importance += 0.05;
-        if (memoryData.confidence && memoryData.confidence > 0.9) importance += 0.05;
+        if (memoryData.content && memoryData.content.length > this.config.longContentThreshold)
+            importance += this.config.importance.bonuses.longContent;
+        if (memoryData.confidence && memoryData.confidence > 0.9) importance += this.config.importance.bonuses.highConfidence;
 
         // Round to two decimals to avoid floating point artifacts
         return Math.min(1.0, Math.round(importance * 100) / 100);
@@ -1010,7 +1166,7 @@ class KimiMemorySystem {
         if (!this.db) return [];
 
         try {
-            character = character || this.selectedCharacter;
+            character = character || this.selectedCharacter || "kimi"; // Unified fallback
 
             if (this.db.db.memories) {
                 const memories = await this.db.db.memories
@@ -1034,13 +1190,14 @@ class KimiMemorySystem {
         if (!this.db) return [];
 
         try {
-            character = character || this.selectedCharacter;
+            character = character || this.selectedCharacter || "kimi";
 
             if (this.db.db.memories) {
+                // Use simple character filter - compatible with all data
                 const memories = await this.db.db.memories
                     .where("character")
                     .equals(character)
-                    .and(m => m.isActive)
+                    .filter(memory => memory.isActive !== false) // Include records without isActive field
                     .reverse()
                     .sortBy("timestamp");
 
@@ -1077,12 +1234,7 @@ class KimiMemorySystem {
                 const contentSimilarity = this.calculateSimilarity(memory.content, memoryData.content);
 
                 // Different thresholds based on category
-                let threshold = 0.8;
-                if (memoryData.category === "personal") {
-                    threshold = 0.6; // Names and personal info can vary more
-                } else if (memoryData.category === "preferences") {
-                    threshold = 0.7; // Preferences can be expressed differently
-                }
+                const threshold = this.config.similarity[memoryData.category] || this.config.similarity.default;
 
                 if (contentSimilarity > threshold) {
                     return memory;
@@ -1171,9 +1323,128 @@ class KimiMemorySystem {
                     .toLowerCase()
                     .replace(/[\p{P}\p{S}]/gu, " ")
                     .split(/\s+/)
-                    .filter(w => w.length > 2 && !(this.isCommonWord && this.isCommonWord(w)))
+                    .filter(w => w.length > 2 && !this.isCommonWordSafe(w))
             )
         ];
+    }
+
+    // Safe wrapper for isCommonWord to avoid undefined function errors
+    isCommonWordSafe(word, language = "en") {
+        const cacheKey = `${word.toLowerCase()}_${language}`;
+
+        // Check cache first
+        if (this.keywordCache.has(cacheKey)) {
+            this.keywordCacheHits++;
+            return this.keywordCache.get(cacheKey);
+        }
+
+        // Cache miss - compute the result
+        this.keywordCacheMisses++;
+        let isCommon = false;
+
+        try {
+            isCommon = typeof this.isCommonWord === "function" ? this.isCommonWord(word, language) : false;
+        } catch (error) {
+            console.warn("Error checking common word:", error);
+            isCommon = false;
+        }
+
+        // Add to cache with LRU eviction
+        if (this.keywordCache.size >= this.keywordCacheSize) {
+            // Simple LRU: remove oldest entry (first in Map)
+            const firstKey = this.keywordCache.keys().next().value;
+            this.keywordCache.delete(firstKey);
+        }
+
+        this.keywordCache.set(cacheKey, isCommon);
+        return isCommon;
+    }
+
+    // Get cache statistics for debugging
+    getKeywordCacheStats() {
+        const total = this.keywordCacheHits + this.keywordCacheMisses;
+        return {
+            size: this.keywordCache.size,
+            hits: this.keywordCacheHits,
+            misses: this.keywordCacheMisses,
+            hitRate: total > 0 ? ((this.keywordCacheHits / total) * 100).toFixed(2) + "%" : "0%"
+        };
+    }
+
+    // Get performance statistics for debugging and optimization
+    getPerformanceStats() {
+        const calculateStats = times => {
+            if (times.length === 0) return { avg: 0, max: 0, min: 0, count: 0 };
+            return {
+                avg: Math.round((times.reduce((sum, t) => sum + t, 0) / times.length) * 100) / 100,
+                max: Math.round(Math.max(...times) * 100) / 100,
+                min: Math.round(Math.min(...times) * 100) / 100,
+                count: times.length
+            };
+        };
+
+        return {
+            keywordCache: this.getKeywordCacheStats(),
+            extraction: calculateStats(this.queryStats.extractionTime),
+            addMemory: calculateStats(this.queryStats.addMemoryTime),
+            retrieval: calculateStats(this.queryStats.retrievalTime)
+        };
+    }
+
+    // Performance wrapper for memory extraction
+    async extractMemoryFromTextTimed(userText, kimiResponse = null) {
+        const start = performance.now();
+        const result = await this.extractMemoryFromText(userText, kimiResponse);
+        const duration = performance.now() - start;
+
+        this.queryStats.extractionTime.push(duration);
+        if (this.queryStats.extractionTime.length > 100) {
+            this.queryStats.extractionTime.shift(); // Keep only last 100 measurements
+        }
+
+        if (duration > 100 && window.KIMI_CONFIG?.DEBUG?.MEMORY) {
+            console.warn(`🐌 Slow memory extraction: ${duration.toFixed(2)}ms for text length ${userText?.length || 0}`);
+        }
+
+        return result;
+    }
+
+    // Get current configuration for debugging and monitoring
+    getConfiguration() {
+        return {
+            ...this.config,
+            memoryCategories: this.memoryCategories,
+            runtime: {
+                memoryEnabled: this.memoryEnabled,
+                maxMemoryEntries: this.maxMemoryEntries,
+                selectedCharacter: this.selectedCharacter,
+                keywordCacheSize: this.keywordCache.size,
+                compiledPatternsCount: Object.values(this.compiledPatterns || {}).reduce((sum, arr) => sum + arr.length, 0)
+            }
+        };
+    }
+
+    // Update configuration at runtime (for advanced users)
+    updateConfiguration(configPath, value) {
+        const keys = configPath.split(".");
+        let current = this.config;
+
+        // Navigate to the parent object
+        for (let i = 0; i < keys.length - 1; i++) {
+            if (!current[keys[i]]) current[keys[i]] = {};
+            current = current[keys[i]];
+        }
+
+        // Set the value
+        const lastKey = keys[keys.length - 1];
+        const oldValue = current[lastKey];
+        current[lastKey] = value;
+
+        if (window.KIMI_CONFIG?.DEBUG?.MEMORY) {
+            console.log(`🔧 Configuration updated: ${configPath} = ${value} (was: ${oldValue})`);
+        }
+
+        return { oldValue, newValue: value };
     }
 
     async cleanupOldMemories() {
@@ -1189,15 +1460,28 @@ class KimiMemorySystem {
             // Soft-expire memories older than TTL by marking isActive=false
             const now = Date.now();
             const ttlMs = ttlDays * 24 * 60 * 60 * 1000;
+            const expiredMemories = [];
+
             for (const mem of memories) {
-                const created = new Date(mem.timestamp).getTime();
+                const created = new Date(this.getCreationTimestamp(mem)).getTime();
                 if (now - created > ttlMs) {
                     try {
                         await this.updateMemory(mem.id, { isActive: false });
+                        expiredMemories.push(mem.id);
                     } catch (e) {
-                        console.warn("Failed to soft-expire memory", mem.id, e);
+                        console.error(`Memory expiration failed for ID ${mem.id}:`, {
+                            error: e.message,
+                            memoryId: mem.id,
+                            createdAt: this.getCreationTimestamp(mem),
+                            character: mem.character
+                        });
+                        // Continue with other memories even if one fails
                     }
                 }
+            }
+
+            if (window.KIMI_CONFIG?.DEBUG?.MEMORY && expiredMemories.length > 0) {
+                console.log(`Successfully expired ${expiredMemories.length} memories:`, expiredMemories);
             }
 
             // Refresh active memories after TTL purge
@@ -1210,21 +1494,37 @@ class KimiMemorySystem {
                     const scoreA =
                         (a.importance || 0.5) * -1 +
                         (a.accessCount || 0) * 0.01 +
-                        new Date(a.timestamp).getTime() / (1000 * 60 * 60 * 24);
+                        new Date(this.getCreationTimestamp(a)).getTime() / (1000 * 60 * 60 * 24);
                     const scoreB =
                         (b.importance || 0.5) * -1 +
                         (b.accessCount || 0) * 0.01 +
-                        new Date(b.timestamp).getTime() / (1000 * 60 * 60 * 24);
+                        new Date(this.getCreationTimestamp(b)).getTime() / (1000 * 60 * 60 * 24);
                     return scoreB - scoreA;
                 });
 
                 const toDeactivate = activeMemories.slice(maxEntries);
+                const deactivatedMemories = [];
+                const failedDeactivations = [];
+
                 for (const mem of toDeactivate) {
                     try {
                         await this.updateMemory(mem.id, { isActive: false });
+                        deactivatedMemories.push(mem.id);
                     } catch (e) {
-                        console.warn("Failed to deactivate memory", mem.id, e);
+                        console.error(`Memory deactivation failed for ID ${mem.id}:`, {
+                            error: e.message,
+                            memoryId: mem.id,
+                            importance: mem.importance,
+                            character: mem.character
+                        });
+                        failedDeactivations.push(mem.id);
                     }
+                }
+
+                if (window.KIMI_CONFIG?.DEBUG?.MEMORY) {
+                    console.log(
+                        `Memory cleanup: ${deactivatedMemories.length} deactivated, ${failedDeactivations.length} failed`
+                    );
                 }
             }
         } catch (error) {
@@ -1281,7 +1581,7 @@ class KimiMemorySystem {
             let score = memory.importance || 0.5;
 
             // Boost recent memories
-            const daysSinceCreation = (Date.now() - new Date(memory.timestamp)) / (1000 * 60 * 60 * 24);
+            const daysSinceCreation = this.getDaysSinceCreation(memory);
             score += Math.max(0, (7 - daysSinceCreation) / 7) * 0.2; // Recent boost
 
             // Boost frequently accessed memories
@@ -1311,7 +1611,7 @@ class KimiMemorySystem {
         let score = 0;
 
         // Enhanced content similarity with keyword matching
-        score += this.calculateSimilarity(memory.content, context) * 0.35;
+        score += this.calculateSimilarity(memory.content, context) * this.config.relevance.contentSimilarity;
 
         // Keyword overlap boost (derived keywords)
         try {
@@ -1319,7 +1619,7 @@ class KimiMemorySystem {
             const ctxKeys = this.deriveKeywords(context || "");
             const keyOverlap = ctxKeys.filter(k => memKeys.includes(k)).length;
             if (ctxKeys.length > 0) {
-                score += (keyOverlap / ctxKeys.length) * 0.25; // significant boost for keyword overlap
+                score += (keyOverlap / ctxKeys.length) * this.config.relevance.keywordOverlap;
             }
         } catch (e) {
             // fallback to original keyword matching
@@ -1330,22 +1630,24 @@ class KimiMemorySystem {
                 }
             }
             if (contextWords.length > 0) {
-                score += (keywordMatches / contextWords.length) * 0.3;
+                score += (keywordMatches / contextWords.length) * this.config.relevance.keywordOverlap;
             }
         }
 
-        // (legacy keyword matching handled above)
-
         // Category relevance bonus based on context
-        score += this.getCategoryRelevance(memory.category, context) * 0.1;
+        score += this.getCategoryRelevance(memory.category, context) * this.config.relevance.categoryRelevance;
 
         // Recent memories get bonus for current conversation
-        const daysSinceCreation = (Date.now() - new Date(memory.timestamp)) / (1000 * 60 * 60 * 24);
-        score += Math.max(0, (30 - daysSinceCreation) / 30) * 0.1;
+        const daysSinceCreation = this.getDaysSinceCreation(memory);
+        score +=
+            Math.max(
+                0,
+                (this.config.relevance.recentDaysThreshold - daysSinceCreation) / this.config.relevance.recentDaysThreshold
+            ) * this.config.relevance.recencyBonus;
 
         // Confidence and importance boost
-        score += (memory.confidence || 0.5) * 0.05;
-        score += (memory.importance || 0.5) * 0.05;
+        score += (memory.confidence || 0.5) * this.config.relevance.confidenceBonus;
+        score += (memory.importance || 0.5) * this.config.relevance.importanceBonus;
 
         return Math.min(1.0, score);
     }
@@ -1538,30 +1840,56 @@ class KimiMemorySystem {
     // Touch multiple memories to update lastAccess and accessCount
     async _touchMemories(memories, limit = 5) {
         if (!this.db || !Array.isArray(memories) || memories.length === 0) return;
+
         try {
             const top = memories.slice(0, limit);
-            const ops = [];
+            const now = new Date();
+            const minMinutes = window.KIMI_MEMORY_TOUCH_MINUTES || 60;
+            const minTouchInterval = minMinutes * 60 * 1000;
+
+            // Batch collection: gather all updates before executing
+            const batchUpdates = [];
+
             for (const m of top) {
                 try {
                     const id = m.id;
                     const existing = await this.db.db.memories.get(id);
                     if (existing) {
                         const lastAccess = existing.lastAccess ? new Date(existing.lastAccess).getTime() : 0;
-                        const minMinutes = window.KIMI_MEMORY_TOUCH_MINUTES || 60;
-                        const now = Date.now();
-                        if (now - lastAccess > minMinutes * 60 * 1000) {
-                            existing.accessCount = (existing.accessCount || 0) + 1;
-                            existing.lastAccess = new Date();
-                            ops.push(this.db.db.memories.put(existing));
+
+                        // Only touch if enough time has passed
+                        if (now.getTime() - lastAccess > minTouchInterval) {
+                            batchUpdates.push({
+                                key: id,
+                                changes: {
+                                    accessCount: (existing.accessCount || 0) + 1,
+                                    lastAccess: now
+                                }
+                            });
                         }
                     }
                 } catch (e) {
-                    console.warn("Error touching memory", m && m.id, e);
+                    console.warn("Error preparing memory touch batch for", m && m.id, e);
                 }
             }
-            await Promise.all(ops);
+
+            // Execute all updates in a single batch operation
+            if (batchUpdates.length > 0) {
+                if (this.db.db.memories.bulkUpdate) {
+                    // Use bulkUpdate if available (Dexie 3.x+)
+                    await this.db.db.memories.bulkUpdate(batchUpdates);
+                } else {
+                    // Fallback: parallel individual updates (still better than sequential)
+                    const updatePromises = batchUpdates.map(update => this.db.db.memories.update(update.key, update.changes));
+                    await Promise.all(updatePromises);
+                }
+
+                if (window.KIMI_CONFIG?.DEBUG?.MEMORY) {
+                    console.log(`📊 Batch touched ${batchUpdates.length} memories`);
+                }
+            }
         } catch (e) {
-            console.warn("Error in _touchMemories", e);
+            console.warn("Error in _touchMemories batch processing", e);
         }
     }
 
@@ -1654,7 +1982,7 @@ class KimiMemorySystem {
             // Exclude existing summaries to avoid summarizing summaries repeatedly
             const recent = all.filter(
                 m =>
-                    new Date(m.timestamp).getTime() >= cutoff &&
+                    new Date(this.getCreationTimestamp(m)).getTime() >= cutoff &&
                     m.isActive &&
                     m.type !== "summary" &&
                     !(m.tags && m.tags.includes("summary"))
@@ -1688,7 +2016,7 @@ class KimiMemorySystem {
                 sourceText: summaryContent,
                 summaryJson: JSON.stringify(summaryJson),
                 confidence: 0.9,
-                timestamp: new Date(),
+                createdAt: new Date(), // Use createdAt consistently
                 character: this.selectedCharacter,
                 isActive: true,
                 tags: ["summary"]
@@ -1723,7 +2051,7 @@ class KimiMemorySystem {
             // Exclude existing summaries to avoid recursive summarization
             const recent = all.filter(
                 m =>
-                    new Date(m.timestamp).getTime() >= cutoff &&
+                    new Date(this.getCreationTimestamp(m)).getTime() >= cutoff &&
                     m.isActive &&
                     m.type !== "summary" &&
                     !(m.tags && m.tags.includes("summary"))
@@ -1731,7 +2059,7 @@ class KimiMemorySystem {
             if (!recent.length) return null;
 
             // Build aggregate content from readable fields in chronological order
-            recent.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            recent.sort((a, b) => new Date(this.getCreationTimestamp(a)) - new Date(this.getCreationTimestamp(b)));
             const texts = recent
                 .map(r => {
                     const raw =
@@ -1962,5 +2290,3 @@ class KimiMemorySystem {
 
 window.KimiMemorySystem = KimiMemorySystem;
 export default KimiMemorySystem;
-
-window.KimiMemorySystem = KimiMemorySystem;

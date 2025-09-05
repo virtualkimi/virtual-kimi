@@ -60,6 +60,115 @@ class KimiVideoManager {
         this._consecutiveErrorCount = 0;
         // Track per-video load attempts to adapt timeouts & avoid faux échecs
         this._videoAttempts = new Map();
+
+        // Error handling and recovery system
+        this._errorRecoveryAttempts = 0;
+        this._maxRecoveryAttempts = 3;
+        this._lastErrorTime = 0;
+        this._errorThreshold = 5000; // 5 seconds between error recovery attempts
+    }
+
+    // ===== ERROR HANDLING AND RECOVERY SYSTEM =====
+    _handleVideoError(error, videoSrc = null, context = "unknown") {
+        this._consecutiveErrorCount++;
+        this._lastErrorTime = Date.now();
+
+        const errorInfo = {
+            error: error.message || "Unknown video error",
+            videoSrc: videoSrc || "unknown",
+            context,
+            timestamp: Date.now(),
+            consecutiveCount: this._consecutiveErrorCount
+        };
+
+        if (window.KIMI_CONFIG?.DEBUG?.VIDEO) {
+            console.warn("🎬 Video error occurred:", errorInfo);
+        }
+
+        // Track failures for this specific video
+        if (videoSrc) {
+            this._recentFailures.set(videoSrc, Date.now());
+        }
+
+        // Attempt recovery if not too many consecutive errors
+        if (this._consecutiveErrorCount <= this._maxRecoveryAttempts) {
+            this._attemptErrorRecovery(context);
+        } else {
+            console.error("🎬 Too many consecutive video errors, disabling auto-recovery");
+            this._fallbackToSafeState();
+        }
+    }
+
+    _attemptErrorRecovery(context) {
+        console.log("🎬 Attempting video error recovery...");
+
+        // Try to switch to a safe neutral video
+        setTimeout(() => {
+            try {
+                // Choose a different neutral video that hasn't failed recently
+                const neutralVideos = this.videoCategories.neutral || [];
+                const safeVideos = neutralVideos.filter(
+                    video =>
+                        !this._recentFailures.has(video) || Date.now() - this._recentFailures.get(video) > this._failureCooldown
+                );
+
+                if (safeVideos.length > 0) {
+                    const safeVideo = safeVideos[0];
+                    this._resetErrorState();
+                    this.loadAndSwitchVideo(safeVideo, "recovery");
+                    console.log("🎬 Video error recovery successful");
+                } else {
+                    this._fallbackToSafeState();
+                }
+            } catch (recoveryError) {
+                console.error("🎬 Video recovery failed:", recoveryError);
+                this._fallbackToSafeState();
+            }
+        }, 1000); // Small delay before recovery attempt
+    }
+
+    _fallbackToSafeState() {
+        console.log("🎬 Falling back to safe state - pausing video system");
+
+        // Pause both videos to avoid further errors
+        try {
+            this.activeVideo?.pause();
+            this.inactiveVideo?.pause();
+        } catch (e) {
+            // Silent fallback
+        }
+
+        // Clear all pending operations
+        this._pendingSwitches.length = 0;
+        this._stickyContext = null;
+        this._stickyUntil = 0;
+        this.isEmotionVideoPlaying = false;
+
+        // Reset state with long cooldown
+        setTimeout(() => {
+            this._resetErrorState();
+            console.log("🎬 Video system ready for retry");
+        }, 10000);
+    }
+
+    _resetErrorState() {
+        this._consecutiveErrorCount = 0;
+        this._errorRecoveryAttempts = 0;
+
+        // Clean old failure records
+        const now = Date.now();
+        for (const [video, timestamp] of this._recentFailures.entries()) {
+            if (now - timestamp > this._failureCooldown) {
+                this._recentFailures.delete(video);
+            }
+        }
+    }
+
+    _isVideoSafe(videoSrc) {
+        if (!this._recentFailures.has(videoSrc)) return true;
+
+        const lastFailure = this._recentFailures.get(videoSrc);
+        return Date.now() - lastFailure > this._failureCooldown;
     }
 
     //Centralized crossfade transition between two videos.
@@ -177,18 +286,55 @@ class KimiVideoManager {
         console.log("🎬 VideoManager: history summary", summary);
     }
 
-    _priorityWeight(context) {
-        if (context === "speaking" || context === "speakingPositive" || context === "speakingNegative") return 3;
-        if (context === "dancing" || context === "listening") return 2;
-        return 1;
+    _priorityWeight(context, emotion = "neutral") {
+        // Use centralized priority system from emotion system if available
+        if (window.kimiEmotionSystem?.getPriorityWeight) {
+            // Try emotion first (more specific), then context
+            const emotionPriority = window.kimiEmotionSystem.getPriorityWeight(emotion);
+            const contextPriority = window.kimiEmotionSystem.getPriorityWeight(context);
+            return Math.max(emotionPriority, contextPriority);
+        }
+
+        // Legacy fallback priorities if emotion system not available
+        if (context === "dancing") return 10;
+        if (context === "listening") return 7;
+        if (context === "speaking" || context === "speakingPositive" || context === "speakingNegative") return 4;
+        return 3; // Default priority for neutral and other contexts
     }
 
     _enqueuePendingSwitch(req) {
-        // Keep small bounded list; prefer newest higher-priority
-        const maxSize = 5;
-        this._pendingSwitches.push(req);
-        if (this._pendingSwitches.length > maxSize) {
-            this._pendingSwitches = this._pendingSwitches.slice(-maxSize);
+        // Intelligent queue management - limit to 3 for better responsiveness
+        const maxSize = 3;
+
+        // Check if we already have a similar request (same context + emotion)
+        const existingIndex = this._pendingSwitches.findIndex(
+            pending => pending.context === req.context && pending.emotion === req.emotion
+        );
+
+        if (existingIndex !== -1) {
+            // Replace existing similar request with newer one
+            this._pendingSwitches[existingIndex] = req;
+            this._logDebug("Replaced similar pending switch", { context: req.context, emotion: req.emotion });
+        } else {
+            // Add new request
+            this._pendingSwitches.push(req);
+
+            // If exceeded max size, remove oldest lower-priority request
+            if (this._pendingSwitches.length > maxSize) {
+                // Sort by priority weight (lower = remove first) then by age (older = remove first)
+                this._pendingSwitches.sort((a, b) => {
+                    const priorityDiff = (b.priorityWeight || 1) - (a.priorityWeight || 1);
+                    if (priorityDiff !== 0) return priorityDiff;
+                    return a.requestedAt - b.requestedAt; // Older first
+                });
+
+                // Remove the lowest priority, oldest request
+                const removed = this._pendingSwitches.shift();
+                this._logDebug("Removed low-priority pending switch", {
+                    removed: removed.context,
+                    queueSize: this._pendingSwitches.length
+                });
+            }
         }
     }
 
@@ -380,9 +526,7 @@ class KimiVideoManager {
         // Respect sticky context (avoid overrides while dancing is requested/playing)
         if (this._stickyContext === "dancing" && context !== "dancing") {
             const categoryForPriority = this.determineCategory(context, emotion, traits);
-            const priorityWeight = this._priorityWeight(
-                categoryForPriority === "speakingPositive" || categoryForPriority === "speakingNegative" ? "speaking" : context
-            );
+            const priorityWeight = this._priorityWeight(context, emotion);
             if (Date.now() < (this._stickyUntil || 0)) {
                 this._enqueuePendingSwitch({
                     context,
@@ -410,9 +554,7 @@ class KimiVideoManager {
         ) {
             // Queue the request with appropriate priority to be processed after current clip
             const categoryForPriority = this.determineCategory(context, emotion, traits);
-            const priorityWeight = this._priorityWeight(
-                categoryForPriority === "speakingPositive" || categoryForPriority === "speakingNegative" ? "speaking" : context
-            );
+            const priorityWeight = this._priorityWeight(context, emotion);
             this._enqueuePendingSwitch({
                 context,
                 emotion,
@@ -436,7 +578,7 @@ class KimiVideoManager {
             this.currentEmotionContext &&
             this.currentEmotionContext !== emotion
         ) {
-            const priorityWeight = this._priorityWeight("speaking");
+            const priorityWeight = this._priorityWeight(context, emotion);
             this._enqueuePendingSwitch({
                 context,
                 emotion,
@@ -507,6 +649,17 @@ class KimiVideoManager {
                 this.loadAndSwitchVideo(speakingPath, priority);
             }
             // IMPORTANT: normalize to the resolved category (e.g., speakingPositive/Negative)
+            this.currentContext = category;
+            this.currentEmotion = emotion;
+            this.lastSwitchTime = Date.now();
+            return;
+        }
+
+        // ALSO handle speaking contexts even when TTS is not yet flagged as speaking
+        // This ensures immediate response to speaking context requests
+        if (context === "speaking" || context === "speakingPositive" || context === "speakingNegative") {
+            const speakingPath = this.selectOptimalVideo(category, specificVideo, traits, affection, emotion);
+            this.loadAndSwitchVideo(speakingPath, priority);
             this.currentContext = category;
             this.currentEmotion = emotion;
             this.lastSwitchTime = Date.now();
@@ -652,11 +805,11 @@ class KimiVideoManager {
         }
     }
 
-    // keep only the augmented determineCategory above (with traits)
+    // Enhanced selectOptimalVideo with safety checks
     selectOptimalVideo(category, specificVideo = null, traits = null, affection = null, emotion = null) {
         const availableVideos = this.videoCategories[category] || this.videoCategories.neutral;
 
-        if (specificVideo && availableVideos.includes(specificVideo)) {
+        if (specificVideo && availableVideos.includes(specificVideo) && this._isVideoSafe(specificVideo)) {
             if (typeof this.updatePlayHistory === "function") this.updatePlayHistory(category, specificVideo);
             this._logSelection(category, specificVideo, availableVideos);
             return specificVideo;
@@ -664,23 +817,34 @@ class KimiVideoManager {
 
         const currentVideoSrc = this.activeVideo.querySelector("source").getAttribute("src");
 
-        // Filter out recently played videos using adaptive history
+        // Filter out recently played videos using adaptive history AND safety checks
         const recentlyPlayed = this.playHistory[category] || [];
-        let candidateVideos = availableVideos.filter(video => video !== currentVideoSrc && !recentlyPlayed.includes(video));
+        let candidateVideos = availableVideos.filter(
+            video => video !== currentVideoSrc && !recentlyPlayed.includes(video) && this._isVideoSafe(video)
+        );
 
-        // If no fresh videos, allow recently played but not current
+        // If no safe fresh videos, allow recently played but safe videos (not current)
+        if (candidateVideos.length === 0) {
+            candidateVideos = availableVideos.filter(video => video !== currentVideoSrc && this._isVideoSafe(video));
+        }
+
+        // If still no safe videos, use any available (excluding current)
         if (candidateVideos.length === 0) {
             candidateVideos = availableVideos.filter(video => video !== currentVideoSrc);
         }
 
-        // Ultimate fallback
+        // Ultimate fallback - use all available
         if (candidateVideos.length === 0) {
             candidateVideos = availableVideos;
         }
 
-        // Ensure we're not falling back to wrong category
+        // Final fallback to neutral category if current category is empty
         if (candidateVideos.length === 0) {
-            candidateVideos = this.videoCategories.neutral;
+            const neutralVideos = this.videoCategories.neutral || [];
+            candidateVideos = neutralVideos.filter(video => this._isVideoSafe(video));
+            if (candidateVideos.length === 0) {
+                candidateVideos = neutralVideos; // Last resort
+            }
         }
 
         // If traits and affection are provided, weight the selection more subtly
@@ -775,46 +939,17 @@ class KimiVideoManager {
         }
     }
 
-    // Ensure determineCategory exists as a class method (used at line ~494 and ~537)
+    // Simplified determineCategory - pure delegation to centralized system
     determineCategory(context, emotion = "neutral", traits = null) {
-        // Get emotion mapping from centralized emotion system
-        const emotionToCategory = window.kimiEmotionSystem?.emotionToVideoCategory || {
-            listening: "listening",
-            positive: "speakingPositive",
-            negative: "speakingNegative",
-            neutral: "neutral",
-            surprise: "speakingPositive",
-            laughing: "speakingPositive",
-            shy: "neutral",
-            confident: "speakingPositive",
-            romantic: "speakingPositive",
-            flirtatious: "speakingPositive",
-            goodbye: "neutral",
-            kiss: "speakingPositive",
-            dancing: "dancing",
-            speaking: "speakingPositive",
-            speakingPositive: "speakingPositive",
-            speakingNegative: "speakingNegative"
-        };
+        // Use centralized emotion system exclusively for consistency
+        if (window.kimiEmotionSystem?.getVideoCategory) {
+            return window.kimiEmotionSystem.getVideoCategory(context || emotion, traits);
+        }
 
-        // Prefer explicit context mapping if provided (e.g., 'listening','dancing')
-        if (emotionToCategory[context]) {
-            return emotionToCategory[context];
-        }
-        // Normalize generic 'speaking' by emotion polarity
-        if (context === "speaking") {
-            if (emotion === "positive") return "speakingPositive";
-            if (emotion === "negative") return "speakingNegative";
-            return "neutral";
-        }
-        // Map by emotion label when possible
-        if (emotionToCategory[emotion]) {
-            return emotionToCategory[emotion];
-        }
+        // Minimal fallback only if emotion system completely unavailable
+        console.warn("KimiEmotionSystem not available - using minimal fallback");
         return "neutral";
-    }
-
-    // SPECIALIZED METHODS FOR EACH CONTEXT
+    } // SPECIALIZED METHODS FOR EACH CONTEXT
     async startListening(traits = null, affection = null) {
         // If already listening and playing, avoid redundant switch
         if (this.currentContext === "listening" && !this.activeVideo.paused && !this.activeVideo.ended) {
@@ -1073,7 +1208,10 @@ class KimiVideoManager {
             }
         }
 
-        console.log(`Auto-transition scheduled in ${duration / 1000}s (${this.currentContext} → neutral)`);
+        // Auto-transition timing
+        if (window.KIMI_CONFIG?.DEBUG?.VIDEO) {
+            console.log(`Auto-transition scheduled in ${duration / 1000}s (${this.currentContext} → neutral)`);
+        }
         this.autoTransitionTimer = setTimeout(() => {
             if (this.currentContext !== "neutral" && this.currentContext !== "listening") {
                 if (!this._processPendingSwitches()) {
@@ -1139,7 +1277,10 @@ class KimiVideoManager {
         }
         // Only log high priority or error cases to reduce noise
         if (priority === "speaking" || priority === "high") {
-            console.log(`🎬 Loading video: ${videoSrc} (priority: ${priority})`);
+            // Video loading with priority
+            if (window.KIMI_CONFIG?.DEBUG?.VIDEO) {
+                console.log(`🎬 Loading video: ${videoSrc} (priority: ${priority})`);
+            }
         }
 
         // Si une vidéo haute priorité arrive, on peut interrompre le chargement en cours
@@ -1396,7 +1537,9 @@ class KimiVideoManager {
                         try {
                             const src = this.activeVideo?.querySelector("source")?.getAttribute("src");
                             const info = { context: this.currentContext, emotion: this.currentEmotion };
-                            console.log("🎬 VideoManager: Now playing:", src, info);
+                            if (this._debug) {
+                                console.log("🎬 VideoManager: Now playing:", src, info);
+                            }
                             // Recompute autoTransitionDuration from actual duration if available (C)
                             try {
                                 const d = this.activeVideo.duration;
@@ -1549,25 +1692,72 @@ class KimiVideoManager {
     }
 
     // METHODS TO ANALYZE EMOTIONS FROM TEXT
-    // CLEANUP
+    // CLEANUP - Enhanced memory management
     destroy() {
+        // Clear all timers
         clearTimeout(this.autoTransitionTimer);
+        clearTimeout(this._warmupTimer);
+        clearTimeout(this._listeningGraceTimer);
+        clearTimeout(this._pendingSpeakSwitch);
+
         this.autoTransitionTimer = null;
+        this._warmupTimer = null;
+        this._listeningGraceTimer = null;
+        this._pendingSpeakSwitch = null;
+
+        // Remove all event listeners
         if (this._visibilityHandler) {
             document.removeEventListener("visibilitychange", this._visibilityHandler);
             this._visibilityHandler = null;
         }
+
+        if (this._firstInteractionHandler) {
+            window.removeEventListener("click", this._firstInteractionHandler);
+            window.removeEventListener("keydown", this._firstInteractionHandler);
+            this._firstInteractionHandler = null;
+        }
+
+        // Clean up video loading handlers
+        this._cleanupLoadingHandlers();
+
+        // Clear global ended handler
+        if (this._globalEndedHandler) {
+            this.activeVideo?.removeEventListener("ended", this._globalEndedHandler);
+            this.inactiveVideo?.removeEventListener("ended", this._globalEndedHandler);
+            this._globalEndedHandler = null;
+        }
+
+        // Clear caches and queues
+        this._prefetchCache.clear();
+        this._prefetchInFlight.clear();
+        this._pendingSwitches.length = 0;
+        this._videoAttempts.clear();
+        this._recentFailures.clear();
+
+        // Reset history to prevent memory accumulation
+        this.playHistory = {};
+        this.emotionHistory.length = 0;
+
+        // Reset state flags
+        this._stickyContext = null;
+        this._stickyUntil = 0;
+        this.isEmotionVideoPlaying = false;
+        this.currentEmotionContext = null;
+        this._neutralLock = false;
     }
 
-    // Utilitaire pour déterminer la catégorie vidéo selon la moyenne des traits
+    // Simplified mood setting using centralized emotion system
     setMoodByPersonality(traits) {
         if (this._stickyContext === "dancing" || this.currentContext === "dancing") return;
-        const category = window.getMoodCategoryFromPersonality ? window.getMoodCategoryFromPersonality(traits) : "neutral";
-        // Normalize emotion so validation uses base emotion labels
+
+        // Use centralized mood calculation from emotion system
+        const category = window.kimiEmotionSystem?.getMoodCategoryFromPersonality(traits) || "neutral";
+
+        // Normalize emotion for consistent validation
         let emotion = category;
         if (category === "speakingPositive") emotion = "positive";
         else if (category === "speakingNegative") emotion = "negative";
-        // For other categories (neutral, listening, dancing) emotion can equal category
+
         this.switchToContext(category, emotion, null, traits, traits.affection);
     }
 

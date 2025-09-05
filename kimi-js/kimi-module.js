@@ -22,23 +22,9 @@ function updateFavorabilityLabel(characterKey) {
     }
 }
 
-// Delegated personality average computation (single source of truth in KimiEmotionSystem)
+// Simplified personality average computation using centralized system
 function computePersonalityAverage(traits) {
-    if (window.kimiEmotionSystem && typeof window.kimiEmotionSystem.calculatePersonalityAverage === "function") {
-        return Number(window.kimiEmotionSystem.calculatePersonalityAverage(traits).toFixed(2));
-    }
-    // Fallback minimal (should rarely occur before emotion system init)
-    const keys = ["affection", "playfulness", "intelligence", "empathy", "humor", "romance"];
-    let sum = 0,
-        count = 0;
-    for (const k of keys) {
-        const v = traits && traits[k];
-        if (typeof v === "number" && isFinite(v)) {
-            sum += Math.max(0, Math.min(100, v));
-            count++;
-        }
-    }
-    return count ? Number((sum / count).toFixed(2)) : 0;
+    return window.getPersonalityAverage ? window.getPersonalityAverage(traits) : 50;
 }
 
 // Update UI elements (bar + percentage text + label) based on overall personality average
@@ -293,10 +279,8 @@ async function analyzeAndReact(text, useAdvancedLLM = true, onStreamToken = null
         const affection = typeof traits.affection === "number" ? traits.affection : 55;
         const characterTraits = window.KIMI_CHARACTERS[selectedCharacter]?.traits || "";
 
-        // Always reflect user's input phase with a listening video (voice or chat)
-        if (kimiVideo && typeof kimiVideo.startListening === "function") {
-            kimiVideo.startListening();
-        }
+        // Only trigger listening videos for voice input, NOT for text chat
+        // Text chat should keep neutral videos until LLM response processing begins
 
         if (typeof window.updatePersonalityTraitsFromEmotion === "function") {
             await window.updatePersonalityTraitsFromEmotion(reaction, sanitizedText);
@@ -341,13 +325,9 @@ async function analyzeAndReact(text, useAdvancedLLM = true, onStreamToken = null
                     if (userAskedDance) {
                         kimiVideo.switchToContext("dancing", "dancing", null, updatedTraits, updatedTraits.affection);
                     } else {
-                        kimiVideo.analyzeAndSelectVideo(
-                            sanitizedText,
-                            response,
-                            { reaction: reaction, intensity: emotionIntensity },
-                            updatedTraits,
-                            updatedTraits.affection
-                        );
+                        // Use emotion analysis from the LLM RESPONSE, not user input
+                        const responseEmotion = window.kimiEmotionSystem?.analyzeEmotionValidated(response) || "positive";
+                        kimiVideo.respondWithEmotion(responseEmotion, updatedTraits, updatedTraits.affection);
                     }
 
                     if (kimiLLM.updatePersonalityFromResponse) {
@@ -528,7 +508,12 @@ function addMessageToChat(sender, text, conversationId = null) {
     messageTimeDiv.appendChild(deleteBtn);
 
     const textDiv = document.createElement("div");
-    textDiv.textContent = text || ""; // Handle empty strings properly
+    // Use formatted text with HTML support (secure formatting)
+    if (text && window.KimiValidationUtils && window.KimiValidationUtils.formatChatText) {
+        textDiv.innerHTML = window.KimiValidationUtils.formatChatText(text);
+    } else {
+        textDiv.textContent = text || ""; // Fallback to plain text
+    }
 
     messageDiv.appendChild(textDiv);
     messageDiv.appendChild(messageTimeDiv);
@@ -539,7 +524,12 @@ function addMessageToChat(sender, text, conversationId = null) {
     // Return an object that allows updating the message content for streaming
     return {
         updateText: newText => {
-            textDiv.textContent = newText;
+            // Use formatted text for streaming updates too
+            if (newText && window.KimiValidationUtils && window.KimiValidationUtils.formatChatText) {
+                textDiv.innerHTML = window.KimiValidationUtils.formatChatText(newText);
+            } else {
+                textDiv.textContent = newText;
+            }
             // Throttle scrolling to prevent visual stuttering during streaming
             if (!textDiv._scrollTimeout) {
                 textDiv._scrollTimeout = setTimeout(() => {
@@ -973,7 +963,9 @@ async function loadAvailableModels() {
 
         // Only log once when models are loaded, not repeated calls
         if (!loadAvailableModels._lastLoadTime || Date.now() - loadAvailableModels._lastLoadTime > 5000) {
-            console.log(`✅ Loaded ${Object.keys(stats.available).length} LLM models`);
+            if (window.KIMI_CONFIG?.DEBUG?.ENABLED) {
+                console.log(`✅ Loaded ${Object.keys(stats.available).length} LLM models`);
+            }
             loadAvailableModels._lastLoadTime = Date.now();
         }
         const createCard = (id, model) => {
@@ -1243,25 +1235,7 @@ async function loadAvailableModels() {
     }
 }
 
-// Debug function for testing models loading
-window.debugLoadModels = async function () {
-    console.log("🔧 Manual debug of loadAvailableModels");
-    console.log("🔧 window.kimiLLM:", window.kimiLLM);
-    console.log("🔧 Models container:", document.getElementById("models-container"));
-
-    if (window.kimiLLM) {
-        try {
-            const stats = await window.kimiLLM.getModelStats();
-            console.log("🔧 Model stats:", stats);
-        } catch (error) {
-            console.error("🔧 Error getting model stats:", error);
-        }
-    }
-
-    if (window.loadAvailableModels) {
-        await window.loadAvailableModels();
-    }
-};
+// Debug utilities removed for production optimization
 
 async function sendMessage() {
     const chatInput = document.getElementById("chat-input");
@@ -1320,7 +1294,10 @@ async function sendMessage() {
             }
 
             try {
-                console.log("🔄 Starting streaming response...");
+                // Start streaming response processing
+                if (window.KIMI_CONFIG?.DEBUG?.ENABLED) {
+                    console.log("🔄 Starting streaming response...");
+                }
                 let emotionDetected = false;
 
                 const response = await analyzeAndReact(message, true, token => {
@@ -1331,7 +1308,10 @@ async function sendMessage() {
                     // Progressive analysis disabled to prevent UI flickering during streaming
                     // All analysis will be done after streaming completes
                 });
-                console.log("✅ Streaming completed, final response length:", streamingResponse.length);
+                // Streaming completed
+                if (window.KIMI_CONFIG?.DEBUG?.ENABLED) {
+                    console.log("✅ Streaming completed, final response length:", streamingResponse.length);
+                }
 
                 // Final processing after streaming completes
                 let finalResponse = streamingResponse || response;
@@ -1968,54 +1948,19 @@ async function syncPersonalityTraits(characterName = null) {
     return updatedTraits;
 }
 
-// Function to validate emotion and context consistency
+// Simplified validation using centralized emotion system
 function validateEmotionContext(emotion) {
-    // Normalize video categories to base emotions before validation
-    const normalized = emotion === "speakingPositive" ? "positive" : emotion === "speakingNegative" ? "negative" : emotion;
-    // Use unified emotion system for validation
-    if (window.kimiEmotionSystem) {
-        return window.kimiEmotionSystem.validateEmotion(normalized);
-    }
-
-    // Fallback validation
-    const validEmotions = [
-        "positive",
-        "negative",
-        "neutral",
-        "dancing",
-        "listening",
-        "romantic",
-        "laughing",
-        "surprise",
-        "confident",
-        "shy",
-        "flirtatious",
-        "kiss",
-        "goodbye",
-        "speakingPositive",
-        "speakingNegative",
-        "speaking"
-    ];
-
-    if (!validEmotions.includes(normalized)) {
-        console.warn(`Invalid emotion detected: ${normalized}, falling back to neutral`);
-        return "neutral";
-    }
-
-    return normalized;
+    return window.kimiEmotionSystem?.validateEmotion(emotion) || "neutral";
 }
 
-// Function to ensure video context consistency
+// Simplified video context consistency check using centralized system
 async function ensureVideoContextConsistency() {
-    if (!window.kimiVideo) return;
+    if (!window.kimiVideo || !window.kimiDB) return;
 
-    const kimiDB = window.kimiDB;
-    if (!kimiDB) return;
+    const selectedCharacter = await window.kimiDB.getSelectedCharacter();
+    const traits = await window.kimiDB.getAllPersonalityTraits(selectedCharacter);
 
-    const selectedCharacter = await kimiDB.getSelectedCharacter();
-    const traits = await kimiDB.getAllPersonalityTraits(selectedCharacter);
-
-    // Validate current video context
+    // Validate current video context using centralized validation
     const currentInfo = window.kimiVideo.getCurrentVideoInfo();
     const validatedEmotion = validateEmotionContext(currentInfo.emotion);
 

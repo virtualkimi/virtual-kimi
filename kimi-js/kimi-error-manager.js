@@ -169,6 +169,44 @@ class KimiErrorManager {
             throw error;
         }
     }
+
+    // Debug helpers for development
+    getErrorSummary() {
+        const summary = {
+            totalErrors: this.errorLog.length,
+            critical: this.errorLog.filter(e => e.severity === "critical").length,
+            warning: this.errorLog.filter(e => e.severity === "warning").length,
+            recent: this.errorLog.filter(e => {
+                const errorTime = new Date(e.timestamp);
+                const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+                return errorTime > fiveMinutesAgo;
+            }).length,
+            types: [...new Set(this.errorLog.map(e => e.type))]
+        };
+        return summary;
+    }
+
+    printErrorSummary() {
+        const summary = this.getErrorSummary();
+        console.group("🔍 Kimi Error Manager Summary");
+        console.log(`📊 Total Errors: ${summary.totalErrors}`);
+        console.log(`🚨 Critical: ${summary.critical}`);
+        console.log(`⚠️ Warnings: ${summary.warning}`);
+        console.log(`⏰ Recent (5min): ${summary.recent}`);
+        console.log(`📋 Error Types:`, summary.types);
+        if (summary.totalErrors > 0) {
+            console.log(`💡 Use kimiErrorManager.getErrorLog() to see details`);
+        }
+        console.groupEnd();
+        return summary;
+    }
+
+    clearAndSummarize() {
+        const summary = this.getErrorSummary();
+        this.clearErrorLog();
+        console.log("🧹 Error log cleared. Previous summary:", summary);
+        return summary;
+    }
 }
 
 // Create global instance
@@ -176,3 +214,6 @@ window.kimiErrorManager = new KimiErrorManager();
 
 // Export class for manual instantiation if needed
 window.KimiErrorManager = KimiErrorManager;
+
+// Global debugging helper
+window.kimiDebugErrors = () => window.kimiErrorManager.printErrorSummary();

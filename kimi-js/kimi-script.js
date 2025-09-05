@@ -83,6 +83,13 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
     } catch (error) {
         console.error("Initialization error:", error);
+        // Log initialization error to error manager
+        if (window.kimiErrorManager) {
+            window.kimiErrorManager.logInitError("KimiApp", error, {
+                selectedCharacter: selectedCharacter,
+                stage: "main_initialization"
+            });
+        }
     }
     // Centralized helpers for API config UI
     const ApiUi = {
@@ -196,6 +203,12 @@ document.addEventListener("DOMContentLoaded", async function () {
             }
         } catch (e) {
             console.warn("Failed to initialize API config UI:", e);
+            // Log UI initialization error
+            if (window.kimiErrorManager) {
+                window.kimiErrorManager.logUIError("ApiConfigUI", e, {
+                    stage: "api_config_initialization"
+                });
+            }
         }
     }
     // Hydrate API config UI from DB after ApiUi is defined and function declared
@@ -520,7 +533,7 @@ document.addEventListener("DOMContentLoaded", async function () {
                 console.error("sendMessage function not available");
             }
         });
-        console.log("Send button event listener attached");
+        console.log("✅ Send button event listener attached");
     } else {
         console.error("Send button not found");
     }
@@ -551,7 +564,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             el.addEventListener("focus", a);
             setTimeout(a, 0);
         })(chatInput);
-        console.log("Chat input event listener attached");
+        console.log("✅ Chat input event listener attached");
     } else {
         console.error("Chat input not found");
     }
@@ -998,7 +1011,7 @@ document.addEventListener("DOMContentLoaded", async function () {
                 safeTraits[key] = v;
             }
             if (window.KIMI_DEBUG_SYNC) {
-                console.log(`🧠 (Batched) Personality updated for ${character}:`, safeTraits);
+                window.KIMI_CONFIG?.debugLog("SYNC", `Personality updated for ${character}:`, safeTraits);
             }
             // Centralize side-effects elsewhere; aggregator remains a coalesced logger only.
         }

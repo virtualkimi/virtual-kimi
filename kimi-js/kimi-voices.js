@@ -70,16 +70,22 @@ class KimiVoiceManager {
             this.transcriptText = document.getElementById("transcript");
 
             if (!this.micButton) {
-                console.warn("Microphone button not found in DOM!");
+                if (window.KIMI_CONFIG?.DEBUG?.VOICE) {
+                    console.warn("Microphone button not found in DOM!");
+                }
                 return false;
             }
 
             // Check transcript elements (non-critical, just warn)
             if (!this.transcriptContainer) {
-                console.warn("Transcript container not found in DOM - transcript feature will be disabled");
+                if (window.KIMI_CONFIG?.DEBUG?.VOICE) {
+                    console.warn("Transcript container not found in DOM - transcript feature will be disabled");
+                }
             }
             if (!this.transcriptText) {
-                console.warn("Transcript text element not found in DOM - transcript feature will be disabled");
+                if (window.KIMI_CONFIG?.DEBUG?.VOICE) {
+                    console.warn("Transcript text element not found in DOM - transcript feature will be disabled");
+                }
             }
 
             // Initialize voice synthesis
@@ -167,13 +173,17 @@ class KimiVoiceManager {
         try {
             // Check if running on file:// protocol
             if (window.location.protocol === "file:") {
-                console.log("🎤 Running on file:// protocol - microphone permissions will be requested each time");
+                if (window.KIMI_CONFIG?.DEBUG?.VOICE) {
+                    console.log("🎤 Running on file:// protocol - microphone permissions will be requested each time");
+                }
                 this.micPermissionGranted = false;
                 return;
             }
 
             if (!navigator.permissions) {
-                console.log("🎤 Permissions API not available");
+                if (window.KIMI_CONFIG?.DEBUG?.VOICE) {
+                    console.log("🎤 Permissions API not available");
+                }
                 this.micPermissionGranted = false; // Set default state
                 return;
             }
@@ -316,10 +326,10 @@ class KimiVoiceManager {
             );
         });
 
-        // Debug: Check what we actually found
-        if (femaleVoice) {
+        // Debug: Voice analysis (debug mode only)
+        if (window.KIMI_DEBUG_VOICE) {
             console.log(`🎤 Female voice found: "${femaleVoice.name}" (${femaleVoice.lang})`);
-        } else {
+        } else if (window.KIMI_DEBUG_VOICE) {
             console.log(
                 `🎤 No female voice found, using first available: "${filteredVoices[0]?.name}" (${filteredVoices[0]?.lang})`
             );
@@ -542,23 +552,23 @@ class KimiVoiceManager {
 
     // ===== CHAT MESSAGE UTILITIES =====
     handleChatMessage(userMessage, kimiResponse) {
-        const chatContainer = document.getElementById("chat-container");
-        const chatMessages = document.getElementById("chat-messages");
-
-        if (!chatContainer || !chatContainer.classList.contains("visible") || !chatMessages) {
-            return;
-        }
-
+        // Always save to chat history, regardless of chat visibility
         const addMessageToChat = window.addMessageToChat || (typeof addMessageToChat !== "undefined" ? addMessageToChat : null);
 
         if (addMessageToChat) {
+            // Save messages to history
             addMessageToChat("user", userMessage);
             addMessageToChat(this.selectedCharacter.toLowerCase(), kimiResponse);
         } else {
-            // Fallback manual message creation
-            this.createChatMessage(chatMessages, "user", userMessage);
-            this.createChatMessage(chatMessages, this.selectedCharacter.toLowerCase(), kimiResponse);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            // Fallback: only add to visible chat if available
+            const chatContainer = document.getElementById("chat-container");
+            const chatMessages = document.getElementById("chat-messages");
+
+            if (chatContainer && chatContainer.classList.contains("visible") && chatMessages) {
+                this.createChatMessage(chatMessages, "user", userMessage);
+                this.createChatMessage(chatMessages, this.selectedCharacter.toLowerCase(), kimiResponse);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
         }
     }
 
@@ -644,12 +654,38 @@ class KimiVoiceManager {
 
         // Get volume using centralized utility
         utterance.volume = this.getVoicePreference("volume", options);
-        const emotionFromText = this.analyzeTextEmotion(text);
-        if (window.kimiVideo && emotionFromText !== "neutral") {
-            requestAnimationFrame(() => {
-                window.kimiVideo.respondWithEmotion(emotionFromText);
+
+        // Use centralized emotion system for consistency
+        const emotionFromText = window.kimiEmotionSystem?.analyzeEmotionValidated(text) || "neutral";
+
+        // PRE-PREPARE speaking animation before TTS starts
+        if (window.kimiVideo) {
+            // Always prepare a speaking context based on detected emotion
+            requestAnimationFrame(async () => {
+                try {
+                    const traits = await this.db?.getAllPersonalityTraits(
+                        window.kimiMemory?.selectedCharacter || (await this.db.getSelectedCharacter())
+                    );
+                    const affection = traits ? traits.affection : 50;
+
+                    // Choose the appropriate speaking context
+                    if (emotionFromText === "negative") {
+                        window.kimiVideo.switchToContext("speakingNegative", "negative", null, traits || {}, affection);
+                    } else if (emotionFromText === "neutral") {
+                        // Even neutral text should use speaking context during TTS
+                        window.kimiVideo.switchToContext("speakingPositive", "neutral", null, traits || {}, affection);
+                    } else {
+                        // For positive and specific emotions
+                        const videoCategory =
+                            window.kimiEmotionSystem?.getVideoCategory(emotionFromText, traits) || "speakingPositive";
+                        window.kimiVideo.switchToContext(videoCategory, emotionFromText, null, traits || {}, affection);
+                    }
+                } catch (e) {
+                    console.warn("Failed to prepare speaking animation:", e);
+                }
             });
         }
+
         if (typeof window.updatePersonalityTraitsFromEmotion === "function") {
             window.updatePersonalityTraitsFromEmotion(emotionFromText, text);
         }
@@ -657,24 +693,30 @@ class KimiVoiceManager {
 
         utterance.onstart = async () => {
             this.isSpeaking = true;
-            // Note: transcript visibility is already handled by showResponseWithPerfectTiming
-            // This ensures the transcript stays visible while AI is speaking
 
-            // Ensure a speaking animation plays (avoid frozen neutral frame during TTS)
+            // IMMEDIATELY switch to appropriate speaking animation when TTS starts
             try {
-                if (window.kimiVideo && window.kimiVideo.getCurrentVideoInfo) {
-                    const info = window.kimiVideo.getCurrentVideoInfo();
-                    if (info && !(info.context && info.context.startsWith("speaking"))) {
-                        // Use positive speaking as neutral fallback
-                        const traits = await this.db?.getAllPersonalityTraits(
-                            window.kimiMemory?.selectedCharacter || (await this.db.getSelectedCharacter())
-                        );
-                        const affection = traits ? traits.affection : 50;
-                        window.kimiVideo.switchToContext("speakingPositive", "positive", null, traits || {}, affection);
+                if (window.kimiVideo) {
+                    const traits = await this.db?.getAllPersonalityTraits(
+                        window.kimiMemory?.selectedCharacter || (await this.db.getSelectedCharacter())
+                    );
+                    const affection = traits ? traits.affection : 50;
+
+                    // Choose speaking context based on the detected emotion using centralized logic
+                    if (emotionFromText === "negative") {
+                        window.kimiVideo.switchToContext("speakingNegative", "negative", null, traits || {}, affection);
+                    } else if (emotionFromText === "neutral") {
+                        // Even for neutral speech, use speaking context during TTS
+                        window.kimiVideo.switchToContext("speakingPositive", "neutral", null, traits || {}, affection);
+                    } else {
+                        // For positive and specific emotions, use appropriate speaking context
+                        const videoCategory =
+                            window.kimiEmotionSystem?.getVideoCategory(emotionFromText, traits) || "speakingPositive";
+                        window.kimiVideo.switchToContext(videoCategory, emotionFromText, null, traits || {}, affection);
                     }
                 }
             } catch (e) {
-                // Silent fallback
+                console.warn("Failed to switch to speaking context:", e);
             }
         };
 
@@ -684,24 +726,35 @@ class KimiVoiceManager {
             this.updateTranscriptVisibility(false);
             // Clear any pending hide timeout
             this.clearTranscriptTimeout();
+
+            // IMMEDIATELY return to neutral when TTS ends
             if (window.kimiVideo) {
-                // Do not force neutral if an emotion clip is still playing (speaking/dancing)
                 try {
                     const info = window.kimiVideo.getCurrentVideoInfo ? window.kimiVideo.getCurrentVideoInfo() : null;
-                    const isEmotionClip =
-                        info &&
-                        (info.context === "speakingPositive" ||
-                            info.context === "speakingNegative" ||
-                            info.context === "dancing");
-                    if (!isEmotionClip) {
-                        requestAnimationFrame(() => {
-                            window.kimiVideo.returnToNeutral();
-                        });
+
+                    // Only return to neutral if currently in a speaking context
+                    if (info && (info.context === "speakingPositive" || info.context === "speakingNegative")) {
+                        // Use async pattern to get traits for neutral transition
+                        (async () => {
+                            try {
+                                const traits = await this.db?.getAllPersonalityTraits(
+                                    window.kimiMemory?.selectedCharacter || (await this.db.getSelectedCharacter())
+                                );
+                                window.kimiVideo.switchToContext(
+                                    "neutral",
+                                    "neutral",
+                                    null,
+                                    traits || {},
+                                    traits?.affection || 50
+                                );
+                            } catch (e) {
+                                // Fallback without traits
+                                window.kimiVideo.switchToContext("neutral", "neutral", null, {}, 50);
+                            }
+                        })();
                     }
-                } catch (_) {
-                    requestAnimationFrame(() => {
-                        window.kimiVideo.returnToNeutral();
-                    });
+                } catch (e) {
+                    console.warn("Failed to return to neutral after TTS:", e);
                 }
             }
         };
@@ -909,6 +962,9 @@ class KimiVoiceManager {
             }
             if (final_transcript && this.onSpeechAnalysis) {
                 try {
+                    // Show final user message in transcript before processing
+                    await this.showUserMessage(`You: ${final_transcript}`, 2000);
+
                     // Auto-stop after silence timeout following final transcript
                     setTimeout(() => {
                         this.stopListening();
@@ -1214,46 +1270,6 @@ class KimiVoiceManager {
 
     setOnSpeechAnalysis(callback) {
         this.onSpeechAnalysis = callback;
-    }
-
-    analyzeTextEmotion(text) {
-        // Use unified emotion system
-        if (window.kimiAnalyzeEmotion) {
-            const emotion = window.kimiAnalyzeEmotion(text, "auto");
-            return this._modulateEmotionByPersonality(emotion);
-        }
-        return "neutral";
-    } // Helper to modulate emotion based on personality traits
-    _modulateEmotionByPersonality(emotion) {
-        try {
-            // Obtain full traits if possible for a more robust modulation
-            let avg = 50;
-            if (window.kimiEmotionSystem && window.kimiEmotionSystem.db) {
-                // Attempt synchronous-like cache via memory first
-                const traits = {
-                    affection: this.memory?.affectionTrait,
-                    playfulness: this.memory?.playfulnessTrait,
-                    intelligence: this.memory?.intelligenceTrait,
-                    empathy: this.memory?.empathyTrait,
-                    humor: this.memory?.humorTrait,
-                    romance: this.memory?.romanceTrait
-                };
-                // If at least affection present, compute average using emotion system helper
-                if (typeof traits.affection === "number") {
-                    avg = window.kimiEmotionSystem.calculatePersonalityAverage(traits);
-                }
-            } else if (this.memory && typeof this.memory.affectionTrait === "number") {
-                avg = this.memory.affectionTrait; // fallback
-            }
-
-            // Weighted interpretation: very low affection still softens positive expression
-            // If overall avg low, dampen by shifting to 'shy'.
-            if (avg <= 20 && emotion !== "neutral") return "shy";
-            if (avg <= 40 && emotion === "positive") return "shy";
-            return emotion;
-        } catch (e) {
-            return emotion;
-        }
     }
 
     async testVoice() {

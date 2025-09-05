@@ -262,7 +262,10 @@ window.KIMI_CONTEXT_NEGATIVE = {
         "idiote",
         "stupide",
         "con",
+        "conne",
+        "connasse",
         "connard",
+        "pute",
         "salope"
     ],
     es: [
@@ -1018,26 +1021,56 @@ window.KIMI_TRAIT_ADJUSTMENT = {
     }
 };
 
-// Helper function to get emotion keywords with fallback
+// Cached keyword lookups for performance
+const _keywordCache = new Map();
+
+// Helper function to get emotion keywords with fallback and caching
 window.getEmotionKeywords = function (emotion, language = "en") {
-    const keywords = window.KIMI_CONTEXT_KEYWORDS?.[language] || window.KIMI_CONTEXT_KEYWORDS?.en || {};
-    return keywords[emotion] || [];
-};
+    const cacheKey = `${emotion}-${language}`;
 
-// Helper function to get personality keywords with fallback
-window.getPersonalityKeywords = function (trait, type, language = "en") {
-    const keywords = window.KIMI_PERSONALITY_KEYWORDS?.[language] || window.KIMI_PERSONALITY_KEYWORDS?.en || {};
-    return keywords[trait]?.[type] || [];
-};
-
-// Helper function to get positive/negative context words
-window.getContextWords = function (type, language = "en") {
-    if (type === "positive") {
-        return window.KIMI_CONTEXT_POSITIVE?.[language] || window.KIMI_CONTEXT_POSITIVE?.en || [];
-    } else if (type === "negative") {
-        return window.KIMI_CONTEXT_NEGATIVE?.[language] || window.KIMI_CONTEXT_NEGATIVE?.en || [];
+    if (_keywordCache.has(cacheKey)) {
+        return _keywordCache.get(cacheKey);
     }
-    return [];
+
+    const keywords = window.KIMI_CONTEXT_KEYWORDS?.[language] || window.KIMI_CONTEXT_KEYWORDS?.en || {};
+    const result = keywords[emotion] || [];
+
+    _keywordCache.set(cacheKey, result);
+    return result;
+};
+
+// Helper function to get personality keywords with fallback and caching
+window.getPersonalityKeywords = function (trait, type, language = "en") {
+    const cacheKey = `${trait}-${type}-${language}`;
+
+    if (_keywordCache.has(cacheKey)) {
+        return _keywordCache.get(cacheKey);
+    }
+
+    const keywords = window.KIMI_PERSONALITY_KEYWORDS?.[language] || window.KIMI_PERSONALITY_KEYWORDS?.en || {};
+    const result = keywords[trait]?.[type] || [];
+
+    _keywordCache.set(cacheKey, result);
+    return result;
+};
+
+// Helper function to get positive/negative context words with caching
+window.getContextWords = function (type, language = "en") {
+    const cacheKey = `context-${type}-${language}`;
+
+    if (_keywordCache.has(cacheKey)) {
+        return _keywordCache.get(cacheKey);
+    }
+
+    let result = [];
+    if (type === "positive") {
+        result = window.KIMI_CONTEXT_POSITIVE?.[language] || window.KIMI_CONTEXT_POSITIVE?.en || [];
+    } else if (type === "negative") {
+        result = window.KIMI_CONTEXT_NEGATIVE?.[language] || window.KIMI_CONTEXT_NEGATIVE?.en || [];
+    }
+
+    _keywordCache.set(cacheKey, result);
+    return result;
 };
 
 // Helper function to validate character traits
@@ -1045,18 +1078,30 @@ window.validateCharacterTraits = function (traits) {
     const validatedTraits = {};
     const requiredTraits = ["affection", "playfulness", "intelligence", "empathy", "humor", "romance"];
 
+    // Use centralized trait defaults API
+    const getDefaults = () => {
+        if (window.getTraitDefaults) {
+            return window.getTraitDefaults();
+        }
+        // Fallback defaults that match KimiEmotionSystem.TRAIT_DEFAULTS
+        return {
+            affection: 55,
+            playfulness: 55,
+            intelligence: 70,
+            empathy: 75,
+            humor: 60,
+            romance: 50
+        };
+    };
+
+    const defaults = getDefaults();
+
     for (const trait of requiredTraits) {
         const value = traits[trait];
         if (typeof value === "number" && value >= 0 && value <= 100) {
             validatedTraits[trait] = value;
         } else {
-            // Use unified defaults from emotion system
-            if (window.KimiEmotionSystem) {
-                const emotionSystem = new window.KimiEmotionSystem();
-                validatedTraits[trait] = emotionSystem.TRAIT_DEFAULTS[trait] || 50;
-            } else {
-                validatedTraits[trait] = 50;
-            }
+            validatedTraits[trait] = defaults[trait] || 50;
         }
     }
 
@@ -1079,13 +1124,14 @@ window.KIMI_CHARACTERS = {
         name: "Kimi",
         summary: "Dreamy, intuitive, captivated by cosmic metaphors",
         traits: {
-            // Baseline balanced profile
-            affection: 55, // Starts neutral, grows with interaction
-            playfulness: 55,
-            intelligence: 75, // Higher intelligence - she's an astrophysicist
-            empathy: 75,
-            humor: 60,
-            romance: 50 // Romance develops slowly with cosmic connection
+            // Default character profile - MUST match KimiEmotionSystem.TRAIT_DEFAULTS exactly
+            // Kimi is the default character, so her traits serve as the system's fallback values
+            affection: 55, // Baseline neutral affection
+            playfulness: 55, // Moderately playful baseline
+            intelligence: 70, // Competent baseline intellect
+            empathy: 75, // Warm & caring baseline
+            humor: 60, // Mild sense of humor baseline
+            romance: 50 // Neutral romance baseline (earned over time)
         },
         age: 23,
         birthplace: "Tokyo, Japan",
@@ -1196,22 +1242,38 @@ window.KIMI_EMOTIONAL_RESPONSES = {
     cold: ["Hello.", "Yes?", "What do you want?", "I am here.", "How can I help you?"]
 };
 
-// Function to get localized emotional responses from translation files
+// Function to get localized emotional responses from translation files (with better error handling)
 window.getLocalizedEmotionalResponse = function (type, index = null) {
-    if (!window.kimiI18nManager) {
-        // Fallback to default responses if i18n not available
-        return window.KIMI_EMOTIONAL_RESPONSES[type]
-            ? window.KIMI_EMOTIONAL_RESPONSES[type][Math.floor(Math.random() * window.KIMI_EMOTIONAL_RESPONSES[type].length)]
-            : "";
+    // Validate input
+    if (!type || typeof type !== "string") {
+        console.warn("getLocalizedEmotionalResponse: invalid type provided");
+        return "";
     }
 
-    const count = window.KIMI_EMOTIONAL_RESPONSES[type]?.length || 1;
-    const randomIndex = index !== null ? index : Math.floor(Math.random() * count) + 1;
+    if (!window.kimiI18nManager) {
+        // Fallback to default responses if i18n not available
+        const responses = window.KIMI_EMOTIONAL_RESPONSES[type];
+        if (!responses || !Array.isArray(responses) || responses.length === 0) {
+            return "";
+        }
+        return responses[Math.floor(Math.random() * responses.length)];
+    }
 
-    return (
-        window.kimiI18nManager.t(`emotional_response_${type}_${randomIndex}`) ||
-        (window.KIMI_EMOTIONAL_RESPONSES[type]
-            ? window.KIMI_EMOTIONAL_RESPONSES[type][Math.floor(Math.random() * window.KIMI_EMOTIONAL_RESPONSES[type].length)]
-            : "")
-    );
+    const responses = window.KIMI_EMOTIONAL_RESPONSES[type];
+    if (!responses || !Array.isArray(responses)) {
+        return "";
+    }
+
+    const count = responses.length;
+    const randomIndex = index !== null ? Math.max(1, Math.min(count, index)) : Math.floor(Math.random() * count) + 1;
+
+    const translatedResponse = window.kimiI18nManager.t(`emotional_response_${type}_${randomIndex}`);
+
+    // If translation exists and isn't the key itself, use it
+    if (translatedResponse && translatedResponse !== `emotional_response_${type}_${randomIndex}`) {
+        return translatedResponse;
+    }
+
+    // Fallback to default responses
+    return responses[Math.floor(Math.random() * count)];
 };

@@ -22,14 +22,12 @@ class KimiMemory {
         }
         try {
             this.selectedCharacter = await this.db.getSelectedCharacter();
-            // Start with lower favorability level - relationships must be built over time
-            this.favorabilityLevel = await this.db.getPreference(`favorabilityLevel_${this.selectedCharacter}`, 50);
 
-            // Load affection trait from personality database with coherent defaults
+            // Load affection trait from personality database with unified defaults
             const charDefAff =
                 (window.KIMI_CHARACTERS && window.KIMI_CHARACTERS[this.selectedCharacter]?.traits?.affection) || null;
-            const genericAff = (window.getTraitDefaults && window.getTraitDefaults().affection) || 55;
-            const defaultAff = typeof charDefAff === "number" ? charDefAff : genericAff;
+            const unifiedDefaults = window.kimiEmotionSystem?.TRAIT_DEFAULTS || { affection: 55 };
+            const defaultAff = typeof charDefAff === "number" ? charDefAff : unifiedDefaults.affection;
             this.affectionTrait = await this.db.getPersonalityTrait("affection", defaultAff, this.selectedCharacter);
 
             this.preferences = {
@@ -53,7 +51,17 @@ class KimiMemory {
 
         try {
             const character = await this.db.getSelectedCharacter();
-            await this.db.saveConversation(userText, kimiResponse, this.favorabilityLevel, new Date(), character);
+
+            // Use global personality average for conversation favorability score
+            let relationshipLevel = 50; // fallback
+            try {
+                const traits = await this.db.getAllPersonalityTraits(character);
+                relationshipLevel = window.getPersonalityAverage ? window.getPersonalityAverage(traits) : 50;
+            } catch (error) {
+                console.warn("Error calculating relationship level for conversation:", error);
+            }
+
+            await this.db.saveConversation(userText, kimiResponse, relationshipLevel, new Date(), character);
 
             // Legacy interactions counter kept for backward compatibility (not shown in UI now)
             let total = await this.db.getPreference(`totalInteractions_${character}`, 0);
@@ -100,7 +108,12 @@ class KimiMemory {
         try {
             this.selectedCharacter = await this.db.getSelectedCharacter();
             // Use unified default that matches KimiEmotionSystem
-            this.affectionTrait = await this.db.getPersonalityTrait("affection", 50, this.selectedCharacter);
+            const unifiedDefaults = window.kimiEmotionSystem?.TRAIT_DEFAULTS || { affection: 55 };
+            this.affectionTrait = await this.db.getPersonalityTrait(
+                "affection",
+                unifiedDefaults.affection,
+                this.selectedCharacter
+            );
             this.updateFavorabilityBar();
         } catch (error) {
             console.error("Error updating affection trait:", error);
@@ -117,13 +130,24 @@ class KimiMemory {
         }
     }
 
-    getGreeting() {
+    async getGreeting() {
         const i18n = window.kimiI18nManager;
 
-        if (this.affectionTrait <= 10) {
+        // Use global personality average instead of just affection trait
+        let relationshipLevel = 50; // fallback
+        try {
+            if (this.db) {
+                const traits = await this.db.getAllPersonalityTraits(this.selectedCharacter);
+                relationshipLevel = window.getPersonalityAverage ? window.getPersonalityAverage(traits) : 50;
+            }
+        } catch (error) {
+            console.warn("Error calculating greeting level:", error);
+        }
+
+        if (relationshipLevel <= 10) {
             return i18n?.t("greeting_low") || "Hello.";
         }
-        if (this.affectionTrait < 40) {
+        if (relationshipLevel < 40) {
             return i18n?.t("greeting_mid") || "Hi. How can I help you?";
         }
         return i18n?.t("greeting_high") || "Hello my love! 💕";

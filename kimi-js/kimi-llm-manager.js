@@ -95,7 +95,9 @@ class KimiLLMManager {
         try {
             await this.refreshRemoteModels();
         } catch (e) {
-            console.warn("Unable to refresh remote models list:", e?.message || e);
+            if (window.KIMI_CONFIG?.DEBUG?.API) {
+                console.warn("Unable to refresh remote models list:", e?.message || e);
+            }
         }
 
         // Migration: prefer llmModelId; if legacy defaultLLMModel exists and llmModelId missing, migrate
@@ -282,19 +284,25 @@ class KimiLLMManager {
                         "\nUse these memories naturally in conversation to show you remember the user. Don't just repeat them verbatim.\n";
                 }
             } catch (error) {
-                console.warn("Error loading memories for personality:", error);
+                if (window.KIMI_CONFIG?.DEBUG?.MEMORY) {
+                    console.warn("Error loading memories for personality:", error);
+                }
             }
         }
         // Read per-character preference metrics so displayed counters reflect actual stored values
-        // Prefer the personality trait 'affection' where available (authoritative source)
         const totalInteractions = Number(await this.db.getPreference(`totalInteractions_${character}`, 0)) || 0;
-        // Favorability should reflect the authoritative personality trait (affection).
-        let favorabilityLevel = await this.db.getPersonalityTrait("affection", null, character);
-        if (typeof favorabilityLevel !== "number" || !isFinite(favorabilityLevel)) {
-            // Fallback to legacy preference if DB helper didn't return a proper number
-            favorabilityLevel = Number(await this.db.getPreference(`favorabilityLevel_${character}`, 50)) || 50;
-        }
-        favorabilityLevel = Math.max(0, Math.min(100, Number(favorabilityLevel)));
+
+        // Get current personality average for relationship context (replacing old favorabilityLevel)
+        const currentPersonality = await this.db.getAllPersonalityTraits(character);
+        const relationshipLevel = window.getPersonalityAverage
+            ? window.getPersonalityAverage(currentPersonality)
+            : (currentPersonality.affection +
+                  currentPersonality.romance +
+                  currentPersonality.empathy +
+                  currentPersonality.playfulness +
+                  currentPersonality.humor +
+                  currentPersonality.intelligence) /
+              6;
         const lastInteraction = await this.db.getPreference(`lastInteraction_${character}`, "First time");
         // Days together is computed and displayed in the UI (see `updateStats()` in `kimi-module.js`).
         let daysTogether = 0;
@@ -407,7 +415,7 @@ class KimiLLMManager {
             "",
             "LEARNED PREFERENCES:",
             `- Total interactions: ${totalInteractions}`,
-            `- Current affection level: ${favorabilityLevel}%`,
+            `- Current relationship level: ${relationshipLevel.toFixed(1)}%`,
             `- Last interaction: ${lastInteraction}`,
             `- Days together: ${daysTogether}`,
             "",
@@ -442,6 +450,12 @@ class KimiLLMManager {
             this.personalityPrompt = await this.assemblePrompt("");
         } catch (error) {
             console.warn("Error refreshing memory context:", error);
+            // Log to error manager for tracking memory context issues
+            if (window.kimiErrorManager) {
+                window.kimiErrorManager.logError("MemoryContextError", error, {
+                    operation: "refreshMemoryContext"
+                });
+            }
         }
     }
 
@@ -459,7 +473,53 @@ class KimiLLMManager {
     }
 
     async chat(userMessage, options = {}) {
-        // Get LLM settings from individual preferences (FIXED: was using grouped settings)
+        // Use error manager wrapper for robust error handling
+        return (
+            window.kimiErrorManager?.wrapAsync(
+                async () => {
+                    // Get LLM settings from individual preferences (FIXED: was using grouped settings)
+                    const llmSettings = {
+                        temperature: await this.db.getPreference("llmTemperature", 0.9),
+                        maxTokens: await this.db.getPreference("llmMaxTokens", 400),
+                        top_p: await this.db.getPreference("llmTopP", 0.9),
+                        frequency_penalty: await this.db.getPreference("llmFrequencyPenalty", 0.9),
+                        presence_penalty: await this.db.getPreference("llmPresencePenalty", 0.8)
+                    };
+                    const temperature = typeof options.temperature === "number" ? options.temperature : llmSettings.temperature;
+                    const maxTokens = typeof options.maxTokens === "number" ? options.maxTokens : llmSettings.maxTokens;
+                    const opts = { ...options, temperature, maxTokens };
+                    try {
+                        const provider = await this.db.getPreference("llmProvider", "openrouter");
+                        if (provider === "openrouter") {
+                            return await this.chatWithOpenRouter(userMessage, opts);
+                        }
+                        if (provider === "ollama") {
+                            return await this.chatWithLocal(userMessage, opts);
+                        }
+                        return await this.chatWithOpenAICompatible(userMessage, opts);
+                    } catch (error) {
+                        console.error("Error during chat:", error);
+                        if (error.message && error.message.includes("API")) {
+                            return this.getFallbackResponse(userMessage, "api");
+                        }
+                        if ((error.message && error.message.includes("model")) || error.message.includes("model")) {
+                            return this.getFallbackResponse(userMessage, "model");
+                        }
+                        if ((error.message && error.message.includes("connection")) || error.message.includes("network")) {
+                            return this.getFallbackResponse(userMessage, "network");
+                        }
+                        return this.getFallbackResponse(userMessage);
+                    }
+                },
+                { operation: "chat", userMessageLength: userMessage?.length || 0 }
+            ) ||
+            // Fallback if error manager not available
+            this.chatDirectly(userMessage, options)
+        );
+    }
+
+    // Fallback method without error manager wrapper
+    async chatDirectly(userMessage, options = {}) {
         const llmSettings = {
             temperature: await this.db.getPreference("llmTemperature", 0.9),
             maxTokens: await this.db.getPreference("llmMaxTokens", 400),
@@ -518,6 +578,14 @@ class KimiLLMManager {
             return await this.chatWithOpenAICompatibleStreaming(userMessage, onToken, opts);
         } catch (error) {
             console.error("Error during streaming chat:", error);
+            // Log API error for tracking
+            if (window.kimiErrorManager) {
+                window.kimiErrorManager.logAPIError("streamingChat", error, {
+                    provider: await this.db.getPreference("llmProvider", "openrouter").catch(() => "unknown"),
+                    messageLength: userMessage?.length || 0,
+                    options: opts
+                });
+            }
             // Fallback to non-streaming if streaming fails
             return await this.chat(userMessage, options);
         }
