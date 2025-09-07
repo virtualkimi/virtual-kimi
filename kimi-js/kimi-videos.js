@@ -250,13 +250,13 @@ class KimiVideoManager {
     }
 
     _logDebug(message, payload = null) {
-        if (!this._debug) return;
+        if (!this._debug && !window.KIMI_CONFIG?.DEBUG?.VIDEO) return;
         if (payload) console.log("🎬 VideoManager:", message, payload);
         else console.log("🎬 VideoManager:", message);
     }
 
     _logSelection(category, selectedSrc, candidates = []) {
-        if (!this._debug) return;
+        if (!this._debug && !window.KIMI_CONFIG?.DEBUG?.VIDEO) return;
         const recent = (this.playHistory && this.playHistory[category]) || [];
         const adaptive = typeof this.getAdaptiveHistorySize === "function" ? this.getAdaptiveHistorySize(category) : null;
         console.log("🎬 VideoManager: selection", {
@@ -269,7 +269,7 @@ class KimiVideoManager {
     }
 
     debugPrintHistory(category = null) {
-        if (!this._debug) return;
+        if (!this._debug && !window.KIMI_CONFIG?.DEBUG?.VIDEO) return;
         if (!this.playHistory) {
             console.log("🎬 VideoManager: no play history yet");
             return;
@@ -800,7 +800,17 @@ class KimiVideoManager {
 
         // Neutral: on end, pick another neutral to avoid static last frame
         if (context === "neutral") {
-            this._globalEndedHandler = () => this.returnToNeutral();
+            this._globalEndedHandler = () => {
+                // Additional safety: ensure we're still in neutral context before looping
+                if (this.currentContext === "neutral") {
+                    this.returnToNeutral();
+                } else {
+                    // Context changed, don't loop back to neutral
+                    if (window.KIMI_CONFIG?.DEBUG?.VIDEO) {
+                        console.log("🎬 Context changed from neutral, skipping auto-loop");
+                    }
+                }
+            };
             this.activeVideo.addEventListener("ended", this._globalEndedHandler, { once: true });
         }
     }
@@ -828,27 +838,46 @@ class KimiVideoManager {
             candidateVideos = availableVideos.filter(video => video !== currentVideoSrc && this._isVideoSafe(video));
         }
 
-        // If still no safe videos, use any available (excluding current)
+        // If still no safe videos, use any available (excluding current) - ignore safety temporarily
         if (candidateVideos.length === 0) {
             candidateVideos = availableVideos.filter(video => video !== currentVideoSrc);
+            // Reset safety flags for this category since we're desperate
+            if (candidateVideos.length > 0) {
+                console.warn(`🎬 All videos in category '${category}' marked unsafe, resetting safety flags`);
+                candidateVideos.forEach(video => this._recentFailures.delete(video));
+            }
         }
 
         // Ultimate fallback - use all available
         if (candidateVideos.length === 0) {
             candidateVideos = availableVideos;
+            // Reset all safety flags for this category
+            availableVideos.forEach(video => this._recentFailures.delete(video));
         }
 
-        // Final fallback to neutral category if current category is empty
-        if (candidateVideos.length === 0) {
+        // Final fallback to neutral category if current category is empty or exhausted
+        if (candidateVideos.length === 0 && category !== "neutral") {
+            console.warn(`🎬 Category '${category}' exhausted, falling back to neutral`);
             const neutralVideos = this.videoCategories.neutral || [];
             candidateVideos = neutralVideos.filter(video => this._isVideoSafe(video));
             if (candidateVideos.length === 0) {
                 candidateVideos = neutralVideos; // Last resort
+                // Reset safety flags for neutral videos too
+                neutralVideos.forEach(video => this._recentFailures.delete(video));
             }
         }
 
+        // Critical error protection: if we still have no candidates, force emergency state
+        if (candidateVideos.length === 0) {
+            console.error(`🎬 CRITICAL: No videos available for category '${category}' or neutral fallback!`);
+            // Clear ALL safety flags as emergency measure
+            this._recentFailures.clear();
+            // Try to use any video from the original category
+            candidateVideos = availableVideos.length > 0 ? availableVideos : this.videoCategories.neutral || [];
+        }
+
         // If traits and affection are provided, weight the selection more subtly
-        if (traits && typeof affection === "number") {
+        if (traits && typeof affection === "number" && candidateVideos.length > 1) {
             let weights = candidateVideos.map(video => {
                 if (category === "speakingPositive") {
                     // Positive videos favored by affection, romance, and humor
@@ -1019,7 +1048,7 @@ class KimiVideoManager {
     }
 
     returnToNeutral() {
-        // Always ensure we resume playback with a fresh neutral video to avoid freeze
+        // Always ensure we resume playbook with a fresh neutral video to avoid freeze
         if (this._neutralLock) return;
         this._neutralLock = true;
         setTimeout(() => {
@@ -1030,39 +1059,79 @@ class KimiVideoManager {
         this.isEmotionVideoPlaying = false;
         this.currentEmotionContext = null;
 
+        // Clean up any existing ended handlers before proceeding
+        if (this._globalEndedHandler) {
+            this.activeVideo.removeEventListener("ended", this._globalEndedHandler);
+            this.inactiveVideo.removeEventListener("ended", this._globalEndedHandler);
+            this._globalEndedHandler = null;
+        }
+
         // Si la voix est encore en cours, relancer une vidéo neutre en boucle
         const category = "neutral";
         const currentVideoSrc = this.activeVideo.querySelector("source").getAttribute("src");
         const available = this.videoCategories[category] || [];
         let nextSrc = null;
+
         if (available.length > 0) {
-            const candidates = available.filter(v => v !== currentVideoSrc);
-            nextSrc =
-                candidates.length > 0
-                    ? candidates[Math.floor(Math.random() * candidates.length)]
-                    : available[Math.floor(Math.random() * available.length)];
+            // First try: non-current videos that are safe
+            let candidates = available.filter(v => v !== currentVideoSrc && this._isVideoSafe(v));
+
+            // Second try: any non-current video (ignore safety temporarily)
+            if (candidates.length === 0) {
+                candidates = available.filter(v => v !== currentVideoSrc);
+                // Reset safety flags for neutral videos if all marked as unsafe
+                if (candidates.length > 0) {
+                    candidates.forEach(video => this._recentFailures.delete(video));
+                }
+            }
+
+            // Third try: any video including current (ultimate fallback)
+            if (candidates.length === 0) {
+                candidates = [...available];
+                // Reset all safety flags as emergency measure
+                this._recentFailures.clear();
+            }
+
+            nextSrc = candidates[Math.floor(Math.random() * candidates.length)];
         }
+
         if (nextSrc) {
             this.loadAndSwitchVideo(nextSrc, "normal");
             if (typeof this.updatePlayHistory === "function") this.updatePlayHistory(category, nextSrc);
             this.currentContext = "neutral";
             this.currentEmotion = "neutral";
             this.lastSwitchTime = Date.now();
-            // Si la voix est encore en cours, s'assurer qu'on relance une vidéo neutre à la fin
-            if (window.voiceManager && window.voiceManager.isSpeaking) {
-                this.activeVideo.addEventListener(
-                    "ended",
-                    () => {
-                        if (window.voiceManager && window.voiceManager.isSpeaking) {
-                            this.returnToNeutral();
-                        }
-                    },
-                    { once: true }
-                );
-            }
+
+            // Set up proper ended handler for continuous neutral playback
+            this._globalEndedHandler = () => {
+                // Double check we're still in neutral before looping
+                if (this.currentContext === "neutral") {
+                    this.returnToNeutral();
+                }
+            };
+            this.activeVideo.addEventListener("ended", this._globalEndedHandler, { once: true });
+
+            // Additional fallback: if video doesn't start playing in 5 seconds, retry
+            setTimeout(() => {
+                if (this.activeVideo.paused && this.currentContext === "neutral") {
+                    console.warn("🎬 Neutral video seems stuck, attempting recovery");
+                    this.returnToNeutral();
+                }
+            }, 5000);
         } else {
-            // Fallback to existing path if list empty
-            this.switchToContext("neutral");
+            // Emergency fallback: force reload the first available neutral video
+            console.error("🎬 No neutral videos available, forcing emergency reload");
+            if (available.length > 0) {
+                this._recentFailures.clear(); // Clear all safety blocks
+                this.loadAndSwitchVideo(available[0], "high");
+                this.currentContext = "neutral";
+                this.currentEmotion = "neutral";
+                this.lastSwitchTime = Date.now();
+            } else {
+                // Critical error: try existing path as absolute last resort
+                console.error("🎬 CRITICAL: No neutral videos defined!");
+                this.switchToContext("neutral");
+            }
         }
     }
 
@@ -1778,10 +1847,87 @@ class KimiVideoManager {
         this._loadingInProgress = false;
         this._switchInProgress = false;
     }
+
+    // Diagnostic method to check video system health
+    _diagnoseVideoState() {
+        const activeVideo = this.activeVideo;
+        const inactiveVideo = this.inactiveVideo;
+
+        const diagnostics = {
+            timestamp: new Date().toISOString(),
+            currentContext: this.currentContext,
+            currentEmotion: this.currentEmotion,
+            activeVideo: {
+                src: activeVideo?.querySelector("source")?.getAttribute("src") || "none",
+                readyState: activeVideo?.readyState || "undefined",
+                networkState: activeVideo?.networkState || "undefined",
+                paused: activeVideo?.paused,
+                ended: activeVideo?.ended,
+                duration: activeVideo?.duration || "unknown"
+            },
+            inactiveVideo: {
+                src: inactiveVideo?.querySelector("source")?.getAttribute("src") || "none",
+                readyState: inactiveVideo?.readyState || "undefined",
+                networkState: inactiveVideo?.networkState || "undefined"
+            },
+            systemState: {
+                switchInProgress: this._switchInProgress,
+                loadingInProgress: this._loadingInProgress,
+                neutralLock: this._neutralLock,
+                stickyContext: this._stickyContext,
+                recentFailuresCount: this._recentFailures.size,
+                consecutiveErrors: this._consecutiveErrorCount
+            }
+        };
+
+        return diagnostics;
+    }
+
+    // Method to force video recovery when stuck
+    _forceVideoRecovery() {
+        if (window.KIMI_CONFIG?.DEBUG?.VIDEO) {
+            console.warn("🎬 Forcing video recovery due to detected stall");
+        }
+
+        // Log current state for debugging only if debug enabled
+        const diagnostics = this._diagnoseVideoState();
+        if (window.KIMI_CONFIG?.DEBUG?.VIDEO) {
+            console.log("🎬 Video diagnostics:", diagnostics);
+        }
+
+        // Clear any problematic state
+        this._switchInProgress = false;
+        this._loadingInProgress = false;
+        this._neutralLock = false;
+
+        // Clear safety flags to allow all videos
+        this._recentFailures.clear();
+
+        // Force return to neutral with high priority
+        this.currentContext = "neutral";
+        this.returnToNeutral();
+
+        return diagnostics;
+    }
 }
 
 // Expose globally for code that expects a window-level KimiVideoManager
 window.KimiVideoManager = KimiVideoManager;
+
+// Expose diagnostic utilities globally for debugging
+window.kimiVideoDiagnostics = function () {
+    if (window.videoManager && typeof window.videoManager._diagnoseVideoState === "function") {
+        return window.videoManager._diagnoseVideoState();
+    }
+    return { error: "Video manager not available" };
+};
+
+window.kimiVideoRecovery = function () {
+    if (window.videoManager && typeof window.videoManager._forceVideoRecovery === "function") {
+        return window.videoManager._forceVideoRecovery();
+    }
+    return { error: "Video manager not available" };
+};
 
 // Also provide ES module exports for modern imports
 export { KimiVideoManager };

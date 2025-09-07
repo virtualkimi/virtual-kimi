@@ -1518,6 +1518,49 @@ class KimiVoiceManager {
             autoStopDuration: this.autoStopDuration
         };
     }
+
+    // Cleanup method to prevent memory leaks
+    cleanup() {
+        // Clean up permission listener if it exists
+        if (this.permissionStatus && this.permissionChangeHandler) {
+            try {
+                this.permissionStatus.removeEventListener("change", this.permissionChangeHandler);
+            } catch (e) {
+                // Silent cleanup - permission API may not support removal
+            }
+        }
+
+        // Clean up timeouts
+        if (this.listeningTimeout) {
+            clearTimeout(this.listeningTimeout);
+            this.listeningTimeout = null;
+        }
+
+        if (this.transcriptHideTimeout) {
+            clearTimeout(this.transcriptHideTimeout);
+            this.transcriptHideTimeout = null;
+        }
+
+        // Clean up recognition
+        if (this.recognition) {
+            try {
+                this.recognition.abort();
+            } catch (e) {
+                // Silent cleanup
+            }
+        }
+
+        // Clean up mic button listener
+        if (this.micButton && this.handleMicClick) {
+            this.micButton.removeEventListener("click", this.handleMicClick);
+        }
+
+        // Clean up voice select listener
+        const voiceSelect = document.getElementById("voice-select");
+        if (voiceSelect && this.voiceChangeHandler) {
+            voiceSelect.removeEventListener("change", this.voiceChangeHandler);
+        }
+    }
 }
 
 // Export for usage

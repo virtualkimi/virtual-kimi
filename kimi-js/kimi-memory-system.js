@@ -1162,6 +1162,26 @@ class KimiMemorySystem {
         }, 500);
     }
 
+    // Add cleanup method for memory system
+    cleanup() {
+        if (this.contextUpdateTimeout) {
+            clearTimeout(this.contextUpdateTimeout);
+            this.contextUpdateTimeout = null;
+        }
+
+        // Clear caches to prevent memory leaks
+        if (this.keywordCache) {
+            this.keywordCache.clear();
+        }
+
+        // Reset stats arrays to prevent accumulation
+        if (this.queryStats) {
+            this.queryStats.extractionTime.length = 0;
+            this.queryStats.addMemoryTime.length = 0;
+            this.queryStats.retrievalTime.length = 0;
+        }
+    }
+
     async getMemoriesByCategory(category, character = null) {
         if (!this.db) return [];
 
