@@ -25,7 +25,7 @@ Built with vanilla JavaScript and modern web APIs, it offers a rich, responsive 
 
 ## 🌐 Support & Links
 
-- **Website**: [virtualkimi.com](https://virtualkimi.com)
+- **Website**: [virtual-kimi.com](https://virtual-kimi.com)
 - **Email**: [ijohn@virtualkimi.com](ijohn@virtualkimi.com)
 - **X (Twitter)**: [x.com/virtualkimi](https://x.com/virtualkimi)
 - **GitHub**: [github.com/virtualkimi](https://github.com/virtualkimi)
@@ -426,4 +426,5 @@ See the [LICENSE](LICENSE.md) file for details.
 > _"Love is the most powerful code"_ 💕
 >
 > — 2025 Virtual Kimi - Created with 💜 by Jean & Kimi
+
 
