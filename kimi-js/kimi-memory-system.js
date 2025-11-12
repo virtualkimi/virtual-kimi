@@ -341,10 +341,7 @@ class KimiMemorySystem {
         }
 
         try {
-            this.memoryEnabled = await this.db.getPreference(
-                "memorySystemEnabled",
-                window.KIMI_CONFIG?.DEFAULTS?.MEMORY_SYSTEM_ENABLED ?? true
-            );
+            this.memoryEnabled = await this.db.getPreference("memorySystemEnabled", window.KIMI_CONFIG?.DEFAULTS?.MEMORY_SYSTEM_ENABLED ?? true);
             this.selectedCharacter = await this.db.getSelectedCharacter();
             await this.createMemoryTables();
 
@@ -498,17 +495,10 @@ class KimiMemorySystem {
         ];
 
         // Japanese explicit memory requests
-        const japanesePatterns = [
-            /記憶に(?:追加|保存|覚えて)(?:して)?(?:ほしい|ください)?(?:、)?(.+)/i,
-            /(?:覚えて|記憶して)(?:ほしい|ください)?(?:、)?(.+)/i
-        ];
+        const japanesePatterns = [/記憶に(?:追加|保存|覚えて)(?:して)?(?:ほしい|ください)?(?:、)?(.+)/i, /(?:覚えて|記憶して)(?:ほしい|ください)?(?:、)?(.+)/i];
 
         // Chinese explicit memory requests
-        const chinesePatterns = [
-            /把(.+)记在(?:记忆|内存|记忆库)里/i,
-            /(?:请)?记住(?:这件事|这个|以下)?(.+)/i,
-            /保存到记忆(?:里|中)(?:的是)?(.+)/i
-        ];
+        const chinesePatterns = [/把(.+)记在(?:记忆|内存|记忆库)里/i, /(?:请)?记住(?:这件事|这个|以下)?(.+)/i, /保存到记忆(?:里|中)(?:的是)?(.+)/i];
 
         const allPatterns = [
             ...frenchPatterns,
@@ -889,18 +879,12 @@ class KimiMemorySystem {
 
                 case "merge_content":
                     // Combine information intelligently
-                    if (
-                        existingMemory.category === "personal" &&
-                        this.areRelatedNames(existingMemory.content, newMemoryData.content)
-                    ) {
+                    if (existingMemory.category === "personal" && this.areRelatedNames(existingMemory.content, newMemoryData.content)) {
                         // Handle name variants
                         mergedContent = this.mergeNames(existingMemory.content, newMemoryData.content);
                     } else {
                         // General merge - keep most specific
-                        mergedContent =
-                            newMemoryData.content.length > existingMemory.content.length
-                                ? newMemoryData.content
-                                : existingMemory.content;
+                        mergedContent = newMemoryData.content.length > existingMemory.content.length ? newMemoryData.content : existingMemory.content;
                     }
                     mergedConfidence = (existingMemory.confidence + (newMemoryData.confidence || 0.8)) / 2;
                     break;
@@ -1015,12 +999,7 @@ class KimiMemorySystem {
         if ([...tags].some(t => t.startsWith("boundary:"))) importance += 0.15;
 
         // Preferences tied to strong like/dislike
-        if (
-            content.includes("i love") ||
-            content.includes("j'adore") ||
-            content.includes("i hate") ||
-            content.includes("je déteste")
-        ) {
+        if (content.includes("i love") || content.includes("j'adore") || content.includes("i hate") || content.includes("je déteste")) {
             importance += 0.05;
         }
 
@@ -1030,8 +1009,7 @@ class KimiMemorySystem {
         }
 
         // Longer details and high confidence
-        if (memoryData.content && memoryData.content.length > this.config.longContentThreshold)
-            importance += this.config.importance.bonuses.longContent;
+        if (memoryData.content && memoryData.content.length > this.config.longContentThreshold) importance += this.config.importance.bonuses.longContent;
         if (memoryData.confidence && memoryData.confidence > 0.9) importance += this.config.importance.bonuses.highConfidence;
 
         // Round to two decimals to avoid floating point artifacts
@@ -1046,21 +1024,18 @@ class KimiMemorySystem {
 
         // Relationship status and milestones
         if (/(single|célibataire|soltero|single|ledig)/i.test(text)) tags.push("relationship:status_single");
-        if (/(in a relationship|en couple|together|ensemble|pareja|coppia|beziehung)/i.test(text))
-            tags.push("relationship:status_in_relationship");
+        if (/(in a relationship|en couple|together|ensemble|pareja|coppia|beziehung)/i.test(text)) tags.push("relationship:status_in_relationship");
         if (/(engaged|fiancé|fiancée|promis|promised|verlobt)/i.test(text)) tags.push("relationship:status_engaged");
         if (/(married|marié|mariée|casado|sposato|verheiratet)/i.test(text)) tags.push("relationship:status_married");
         if (/(broke up|rupture|separated|separado|separati|getrennt)/i.test(text)) tags.push("relationship:breakup");
         if (/(first date|premier rendez-vous|primera cita|primo appuntamento)/i.test(text)) tags.push("relationship:first_date");
         if (/(first kiss|premier baiser|primer beso|primo bacio)/i.test(text)) tags.push("relationship:first_kiss");
         if (/(anniversary|anniversaire|aniversario|anniversario|jahrestag)/i.test(text)) tags.push("relationship:anniversary");
-        if (/(moved in together|emménagé ensemble|mudamos juntos|trasferiti insieme|zusammen eingezogen)/i.test(text))
-            tags.push("relationship:moved_in");
+        if (/(moved in together|emménagé ensemble|mudamos juntos|trasferiti insieme|zusammen eingezogen)/i.test(text)) tags.push("relationship:moved_in");
         if (/(met at|rencontré à|conocimos en|conosciuti a|kennengelernt)/i.test(text)) tags.push("relationship:first_meet");
 
         // Boundaries and consent (keep generic and non-graphic)
-        if (/(i don't like|je n'aime pas|no me gusta|non mi piace|ich mag nicht)\s+[^,.!?]+/i.test(text))
-            tags.push("boundary:dislike");
+        if (/(i don't like|je n'aime pas|no me gusta|non mi piace|ich mag nicht)\s+[^,.!?]+/i.test(text)) tags.push("boundary:dislike");
         if (/(i prefer|je préfère|prefiero|preferisco|ich bevorzuge)\s+[^,.!?]+/i.test(text)) tags.push("boundary:preference");
         if (/(no|pas)\s+(?:kissing|baiser|beso|bacio|küssen)/i.test(text)) tags.push("boundary:limit");
         if (/(consent|consentement|consentimiento|consenso|einwilligung)/i.test(text)) tags.push("boundary:consent");
@@ -1068,8 +1043,7 @@ class KimiMemorySystem {
         // Time-related tags
         if (/(today|ce jour|hoy|oggi|heute|今日)/i.test(text)) tags.push("time:today");
         if (/(tomorrow|demain|mañana|domani|morgen|明日)/i.test(text)) tags.push("time:tomorrow");
-        if (/(next week|semaine prochaine|la próxima semana|la prossima settimana|nächste woche)/i.test(text))
-            tags.push("time:next_week");
+        if (/(next week|semaine prochaine|la próxima semana|la prossima settimana|nächste woche)/i.test(text)) tags.push("time:next_week");
 
         // Category-specific hints
         if (category === "preferences") tags.push("type:preference");
@@ -1213,13 +1187,25 @@ class KimiMemorySystem {
             character = character || this.selectedCharacter || "kimi";
 
             if (this.db.db.memories) {
-                // Use simple character filter - compatible with all data
+                // Primary IndexedDB (Dexie) sort still leverages the existing 'timestamp' index for performance.
+                // Then we apply a stable in-memory reorder using canonical creation time (createdAt fallback timestamp)
+                // to unify ordering semantics without breaking older databases lacking createdAt originally.
                 const memories = await this.db.db.memories
                     .where("character")
                     .equals(character)
-                    .filter(memory => memory.isActive !== false) // Include records without isActive field
+                    .filter(memory => memory.isActive !== false) // Include records without isActive field (legacy)
                     .reverse()
                     .sortBy("timestamp");
+
+                // Backward-compatible canonical ordering: most recent first by getCreationTimestamp
+                // (Only if >1 entry to avoid needless array ops.)
+                if (memories.length > 1) {
+                    memories.sort((a, b) => {
+                        const ca = new Date(this.getCreationTimestamp(a)).getTime();
+                        const cb = new Date(this.getCreationTimestamp(b)).getTime();
+                        return cb - ca; // descending (newest first)
+                    });
+                }
 
                 if (window.KIMI_DEBUG_MEMORIES) {
                     console.log(`Retrieved ${memories.length} memories for character: ${character}`);
@@ -1512,13 +1498,9 @@ class KimiMemorySystem {
                 // Sort by a combined score: low importance + old timestamp + low access
                 activeMemories.sort((a, b) => {
                     const scoreA =
-                        (a.importance || 0.5) * -1 +
-                        (a.accessCount || 0) * 0.01 +
-                        new Date(this.getCreationTimestamp(a)).getTime() / (1000 * 60 * 60 * 24);
+                        (a.importance || 0.5) * -1 + (a.accessCount || 0) * 0.01 + new Date(this.getCreationTimestamp(a)).getTime() / (1000 * 60 * 60 * 24);
                     const scoreB =
-                        (b.importance || 0.5) * -1 +
-                        (b.accessCount || 0) * 0.01 +
-                        new Date(this.getCreationTimestamp(b)).getTime() / (1000 * 60 * 60 * 24);
+                        (b.importance || 0.5) * -1 + (b.accessCount || 0) * 0.01 + new Date(this.getCreationTimestamp(b)).getTime() / (1000 * 60 * 60 * 24);
                     return scoreB - scoreA;
                 });
 
@@ -1542,9 +1524,7 @@ class KimiMemorySystem {
                 }
 
                 if (window.KIMI_CONFIG?.DEBUG?.MEMORY) {
-                    console.log(
-                        `Memory cleanup: ${deactivatedMemories.length} deactivated, ${failedDeactivations.length} failed`
-                    );
+                    console.log(`Memory cleanup: ${deactivatedMemories.length} deactivated, ${failedDeactivations.length} failed`);
                 }
             }
         } catch (error) {
@@ -1660,10 +1640,8 @@ class KimiMemorySystem {
         // Recent memories get bonus for current conversation
         const daysSinceCreation = this.getDaysSinceCreation(memory);
         score +=
-            Math.max(
-                0,
-                (this.config.relevance.recentDaysThreshold - daysSinceCreation) / this.config.relevance.recentDaysThreshold
-            ) * this.config.relevance.recencyBonus;
+            Math.max(0, (this.config.relevance.recentDaysThreshold - daysSinceCreation) / this.config.relevance.recentDaysThreshold) *
+            this.config.relevance.recencyBonus;
 
         // Confidence and importance boost
         score += (memory.confidence || 0.5) * this.config.relevance.confidenceBonus;
@@ -1677,23 +1655,7 @@ class KimiMemorySystem {
         const contextLower = context.toLowerCase();
 
         const categoryKeywords = {
-            personal: [
-                "name",
-                "age",
-                "live",
-                "work",
-                "job",
-                "who",
-                "am",
-                "myself",
-                "appelle",
-                "nombre",
-                "chiamo",
-                "heiße",
-                "名前",
-                "名字",
-                "我叫"
-            ],
+            personal: ["name", "age", "live", "work", "job", "who", "am", "myself", "appelle", "nombre", "chiamo", "heiße", "名前", "名字", "我叫"],
             preferences: [
                 "like",
                 "love",
@@ -1917,11 +1879,7 @@ class KimiMemorySystem {
     scoreMemory(memory) {
         // Factors: importance (0-1), recency, frequency, confidence
         const now = Date.now();
-        const created = memory.createdAt
-            ? new Date(memory.createdAt).getTime()
-            : memory.timestamp
-              ? new Date(memory.timestamp).getTime()
-              : now;
+        const created = memory.createdAt ? new Date(memory.createdAt).getTime() : memory.timestamp ? new Date(memory.timestamp).getTime() : now;
         const lastAccess = memory.lastAccess ? new Date(memory.lastAccess).getTime() : created;
         const ageMs = Math.max(1, now - created);
         const sinceLastAccessMs = Math.max(1, now - lastAccess);
@@ -1938,8 +1896,7 @@ class KimiMemorySystem {
         const wConfidence = window.KIMI_WEIGHT_CONFIDENCE || 0.2;
         const wFreshness = window.KIMI_WEIGHT_FRESHNESS || 0.1;
 
-        const score =
-            importance * wImportance + recency * wRecency + freq * wFrequency + confidence * wConfidence + freshness * wFreshness;
+        const score = importance * wImportance + recency * wRecency + freq * wFrequency + confidence * wConfidence + freshness * wFreshness;
         return Number(score.toFixed(6));
     }
 
@@ -2001,11 +1958,7 @@ class KimiMemorySystem {
             const all = await this.getAllMemories();
             // Exclude existing summaries to avoid summarizing summaries repeatedly
             const recent = all.filter(
-                m =>
-                    new Date(this.getCreationTimestamp(m)).getTime() >= cutoff &&
-                    m.isActive &&
-                    m.type !== "summary" &&
-                    !(m.tags && m.tags.includes("summary"))
+                m => new Date(this.getCreationTimestamp(m)).getTime() >= cutoff && m.isActive && m.type !== "summary" && !(m.tags && m.tags.includes("summary"))
             );
             if (!recent.length) return null;
 
@@ -2070,11 +2023,7 @@ class KimiMemorySystem {
             const all = await this.getAllMemories();
             // Exclude existing summaries to avoid recursive summarization
             const recent = all.filter(
-                m =>
-                    new Date(this.getCreationTimestamp(m)).getTime() >= cutoff &&
-                    m.isActive &&
-                    m.type !== "summary" &&
-                    !(m.tags && m.tags.includes("summary"))
+                m => new Date(this.getCreationTimestamp(m)).getTime() >= cutoff && m.isActive && m.type !== "summary" && !(m.tags && m.tags.includes("summary"))
             );
             if (!recent.length) return null;
 
@@ -2082,11 +2031,7 @@ class KimiMemorySystem {
             recent.sort((a, b) => new Date(this.getCreationTimestamp(a)) - new Date(this.getCreationTimestamp(b)));
             const texts = recent
                 .map(r => {
-                    const raw =
-                        (r.title && r.title.trim()) ||
-                        (r.sourceText && r.sourceText.trim()) ||
-                        (r.content && r.content.trim()) ||
-                        "";
+                    const raw = (r.title && r.title.trim()) || (r.sourceText && r.sourceText.trim()) || (r.content && r.content.trim()) || "";
                     if (!raw) return "";
                     // Normalize whitespace and remove stray leading punctuation
                     let t = raw.replace(/\s+/g, " ").replace(/^[^\p{L}\p{N}]+/u, "");

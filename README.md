@@ -15,7 +15,7 @@ Web-based AI girlfriend and companion featuring adaptive personalities, intellig
 
 Virtual Kimi is an advanced virtual companion application that combines modern web technologies with state-of-the-art AI models to create meaningful, evolving relationships between users and AI girlfriend personalities.
 
-- **Lightweight:** ~600 KB of pure JavaScript, HTML, and CSS (no frameworks)
+- **Lightweight:** ~800 KB of pure JavaScript, HTML, and CSS (no frameworks)
 - **Local-first:** All data is stored in your browser's IndexedDB (managed by Dexie.js)
 - **No tracking:** The only external calls are to FontAwesome (for icons) and the OpenRouter API (for AI)
 
@@ -25,7 +25,7 @@ Built with vanilla JavaScript and modern web APIs, it offers a rich, responsive 
 
 ## 🌐 Support & Links
 
-- **Website**: [virtual-kimi.com](https://virtual-kimi.com)
+- **Website**: [virtualkimi.com](https://virtual-kimi.com)
 - **Email**: [ijohn@virtualkimi.com](ijohn@virtualkimi.com)
 - **X (Twitter)**: [x.com/virtualkimi](https://x.com/virtualkimi)
 - **GitHub**: [github.com/virtualkimi](https://github.com/virtualkimi)
@@ -62,6 +62,8 @@ Notes: model IDs in the app are authoritative; pricing/context values are indica
 - **Bella**: Nurturing botanist who sees people as plants needing care
 - **Rosa**: Chaotic prankster thriving on controlled chaos
 - **Stella**: Digital artist transforming reality through pixelated vision
+- **2Blanche**: Stoic android combat unit hiding deep emotional vulnerability
+- **Jasmine**: Goddess of Love versed in the traditions of the Kamasutra
 
 ### Personality Trait Ranges
 
@@ -95,7 +97,7 @@ All personality traits operate on a 0-100 scale:
 
 - Real-time video responses matching detected emotions
 - Smooth transitions between emotional states
-- Character-specific visual libraries with ~240 video clips (approx. 60 per main character)
+- Character-specific visual libraries with ~360 video clips (approx. 60 per main character)
 - Context-aware video selection system
 
 ### 🎨 **Customizable Interface**
@@ -142,11 +144,13 @@ All personality traits operate on a 0-100 scale:
 This project was originally inspired by the [JackyWine GitHub repository](https://github.com/Jackywine).
 @Jackywine on X (Twitter)
 
-The four main characters are visually based on images from four creators on X (Twitter):
+The six main characters are visually based on images from creators on X (Twitter):
 
 - @JulyFox33 (Kimi)
 - @BelisariaNew (Bella)
 - @JuliAIkiko (Rosa and Stella)
+- @Icey2026 (Jasmine)
+- Custom designs inspired by NieR:Automata (2Blanche)
 
 All character videos were generated using the image-to-video AI from Kling.ai, specifically with the Kling v2.1 model.
 
@@ -426,5 +430,3 @@ See the [LICENSE](LICENSE.md) file for details.
 > _"Love is the most powerful code"_ 💕
 >
 > — 2025 Virtual Kimi - Created with 💜 by Jean & Kimi
-
-

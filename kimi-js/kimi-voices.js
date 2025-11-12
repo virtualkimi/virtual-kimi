@@ -4,6 +4,14 @@ class KimiVoiceManager {
         this.db = database;
         this.memory = memory;
         this.isInitialized = false;
+        // Removed cross-language reuse: voices must match selected language strictly
+        this.showAllVoices = false; // user toggle to display every system voice
+        this.ttsEnabled = true; // global TTS enable/disable toggle
+        // Refactor 2025-09: Simplified voice/language handling (removed 'auto' gendered selection)
+
+        // Capability flags (added 2025-09)
+        this.hasSR = false; // Speech Recognition available
+        this.hasTTS = typeof window.speechSynthesis !== "undefined";
 
         // Voice properties
         this.speechSynthesis = window.speechSynthesis;
@@ -55,6 +63,16 @@ class KimiVoiceManager {
         this.browser = this._detectBrowser();
     }
 
+    // Detect capabilities cross-browser (minimal, no UA heuristics except Safari SR absence)
+    _detectCapabilities() {
+        // Speech Recognition API
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+        this.hasSR = !!SR;
+        // TTS already inferred by constructor (speechSynthesis)
+        this.hasTTS = typeof window.speechSynthesis !== "undefined";
+        return { hasSR: this.hasSR, hasTTS: this.hasTTS };
+    }
+
     // ===== INITIALIZATION =====
     async init() {
         // Avoid double initialization
@@ -88,8 +106,20 @@ class KimiVoiceManager {
                 }
             }
 
-            // Initialize voice synthesis
-            await this.initVoices();
+            // Capability detection early
+            this._detectCapabilities();
+
+            // Initialize voice synthesis only if TTS exists
+            if (this.hasTTS) {
+                // Load saved preference for showAllVoices before building selectors
+                try {
+                    const prefShowAll = await this.db?.getPreference("showAllVoices", null);
+                    if (prefShowAll === "true" || prefShowAll === true) {
+                        this.showAllVoices = true;
+                    }
+                } catch {}
+                await this.initVoices();
+            }
 
             // Only setup listener once during initialization
             if (!this._voicesListenerSetup) {
@@ -98,10 +128,14 @@ class KimiVoiceManager {
             }
 
             this.setupLanguageSelector();
+            this.setupShowAllVoicesToggle();
+            this.setupTtsToggle();
 
-            // Initialize speech recognition
-            this.setupSpeechRecognition();
-            this.setupMicrophoneButton();
+            // Initialize speech recognition only if available
+            if (this.hasSR) {
+                this.setupSpeechRecognition();
+            }
+            this.setupMicrophoneButton(); // UI always prepared; will disable if no SR
 
             // Check current microphone permission status
             await this.checkMicrophonePermission();
@@ -126,6 +160,87 @@ class KimiVoiceManager {
         }
     }
 
+    setupShowAllVoicesToggle() {
+        const toggleSwitch = document.getElementById("show-all-voices-toggle");
+        if (!toggleSwitch) return;
+
+        // Set initial state
+        if (this.showAllVoices) {
+            toggleSwitch.classList.add("active");
+            toggleSwitch.setAttribute("aria-checked", "true");
+        } else {
+            toggleSwitch.classList.remove("active");
+            toggleSwitch.setAttribute("aria-checked", "false");
+        }
+
+        // Handle click event
+        toggleSwitch.addEventListener("click", () => {
+            this.showAllVoices = !this.showAllVoices;
+
+            // Update UI
+            if (this.showAllVoices) {
+                toggleSwitch.classList.add("active");
+                toggleSwitch.setAttribute("aria-checked", "true");
+            } else {
+                toggleSwitch.classList.remove("active");
+                toggleSwitch.setAttribute("aria-checked", "false");
+            }
+
+            // Persist preference
+            this.db?.setPreference("showAllVoices", String(this.showAllVoices));
+            this.updateVoiceSelector();
+        });
+    }
+
+    setupTtsToggle() {
+        const toggleSwitch = document.getElementById("tts-toggle");
+        if (!toggleSwitch) return;
+
+        // Set initial state
+        if (this.ttsEnabled) {
+            toggleSwitch.classList.add("active");
+            toggleSwitch.setAttribute("aria-checked", "true");
+        } else {
+            toggleSwitch.classList.remove("active");
+            toggleSwitch.setAttribute("aria-checked", "false");
+        }
+
+        // Handle click event
+        toggleSwitch.addEventListener("click", () => {
+            this.ttsEnabled = !this.ttsEnabled;
+
+            // Update UI
+            if (this.ttsEnabled) {
+                toggleSwitch.classList.add("active");
+                toggleSwitch.setAttribute("aria-checked", "true");
+            } else {
+                toggleSwitch.classList.remove("active");
+                toggleSwitch.setAttribute("aria-checked", "false");
+                // Cancel any ongoing speech
+                if (this.speechSynthesis && this.speechSynthesis.speaking) {
+                    this.speechSynthesis.cancel();
+                }
+            }
+
+            // Persist preference
+            this.db?.setPreference("ttsEnabled", String(this.ttsEnabled));
+        });
+    }
+
+    _applySpeechRecognitionCapabilityUI() {
+        if (!this.micButton) return;
+        if (!this.hasSR) {
+            this.micButton.classList.add("disabled");
+            this.micButton.setAttribute("aria-disabled", "true");
+            const msg = this._getUnsupportedSRMessage();
+            this.micButton.title = msg;
+        } else {
+            this.micButton.classList.remove("disabled");
+            this.micButton.removeAttribute("aria-disabled");
+            this.micButton.removeAttribute("title");
+        }
+    }
+
     _detectBrowser() {
         const ua = navigator.userAgent || "";
         const isOpera = (!!window.opr && !!opr.addons) || ua.includes(" OPR/");
@@ -133,8 +248,7 @@ class KimiVoiceManager {
         const isSafari = /Safari\//.test(ua) && !/Chrom(e|ium)\//.test(ua) && !/Edg\//.test(ua);
         const isEdge = /Edg\//.test(ua);
         // Detect Brave explicitly: navigator.brave exists in many Brave builds, UA may also include 'Brave'
-        const isBrave =
-            (!!navigator.brave && typeof navigator.brave.isBrave === "function") || ua.toLowerCase().includes("brave");
+        const isBrave = (!!navigator.brave && typeof navigator.brave.isBrave === "function") || ua.toLowerCase().includes("brave");
         const isChrome = /Chrome\//.test(ua) && !isEdge && !isOpera && !isBrave;
         if (isFirefox) return "firefox";
         if (isOpera) return "opera";
@@ -203,173 +317,62 @@ class KimiVoiceManager {
 
     // ===== VOICE SYNTHESIS =====
     async initVoices() {
-        // Prevent multiple simultaneous calls
-        if (this._initializingVoices) {
-            return;
-        }
+        // Guard against re-entrancy
+        if (this._initializingVoices) return;
         this._initializingVoices = true;
-        this.availableVoices = this.speechSynthesis.getVoices();
-        // Resolve selectedLanguage before any early return so SR uses correct language
+
+        // One-time inventory log when DEBUG.VOICE enabled
+        if (!this._voiceInventoryLogged && window.KIMI_CONFIG?.DEBUG?.VOICE) {
+            const raw = (window.speechSynthesis && window.speechSynthesis.getVoices()) || [];
+            const inventory = raw.map(v => ({ name: v.name, lang: v.lang }));
+            console.log("🎤 Voice inventory:", inventory);
+            this._voiceInventoryLogged = true;
+        }
+
+        // Ensure selectedLanguage
         if (!this.selectedLanguage) {
             try {
-                const selectedLanguage = await this.db?.getPreference("selectedLanguage", "en");
-                this.selectedLanguage = window.KimiLanguageUtils.normalizeLanguageCode(selectedLanguage || "en") || "en";
-            } catch (_) {
+                const storedLang = await this.db?.getPreference("selectedLanguage", "en");
+                this.selectedLanguage = window.KimiLanguageUtils.normalizeLanguageCode(storedLang || "en") || "en";
+            } catch {
                 this.selectedLanguage = "en";
             }
         }
-        if (this.availableVoices.length === 0) {
-            this._initializingVoices = false;
-            return; // onvoiceschanged will retry later
-        }
-        const effectiveLang = await this.getEffectiveLanguage(this.selectedLanguage);
-        const savedVoice = await this.db?.getPreference("selectedVoice", "auto");
-        const filteredVoices = this.getVoicesForLanguage(effectiveLang);
-        if (savedVoice && savedVoice !== "auto") {
-            const foundVoice = filteredVoices.find(voice => voice.name === savedVoice);
-            if (foundVoice) {
-                this.currentVoice = foundVoice;
-                console.log(
-                    `🎤 Voice restored from cache: "${foundVoice.name}" (${foundVoice.lang}) for language "${effectiveLang}"`
-                );
-                this.updateVoiceSelector();
-                this._initializingVoices = false;
-                return;
+
+        // Wait for voices to actually load (multi-browser, esp. Android / Safari)
+        this.availableVoices = await this._waitForVoices(1200);
+        if (!Array.isArray(this.availableVoices)) this.availableVoices = [];
+
+        const primary = await this.getEffectiveLanguage(this.selectedLanguage);
+        const filtered = this.getVoicesForLanguage(primary);
+
+        // Backward compatibility: if old preference was "auto" treat as none
+        let savedVoice = await this.db?.getPreference("selectedVoice", null);
+        if (savedVoice === "auto") savedVoice = null;
+
+        if (savedVoice) {
+            const found = filtered.find(v => v.name === savedVoice);
+            if (found) {
+                this.currentVoice = found;
+                if (window.KIMI_CONFIG?.DEBUG?.VOICE) {
+                    console.log(`🎤 Restored saved voice: ${found.name} (${found.lang})`);
+                }
             } else {
-                console.log(
-                    `🎤 Saved voice "${savedVoice}" not compatible with language "${effectiveLang}", using auto-selection`
-                );
-                await this.db?.setPreference("selectedVoice", "auto");
-            }
-        }
-        // Prefer female voices if available in the language-compatible voices
-        // Use real voice names since voice.gender is rarely provided by browsers
-        const femaleVoice = filteredVoices.find(voice => {
-            const name = voice.name.toLowerCase();
-
-            // Common female voice names across different platforms
-            const femaleNames = [
-                // Microsoft voices
-                "aria",
-                "emma",
-                "jenny",
-                "michelle",
-                "karen",
-                "heather",
-                "susan",
-                "joanna",
-                "salli",
-                "kimberly",
-                "kendra",
-                "ivy",
-                "rebecca",
-                "zira",
-                "eva",
-                "linda",
-                "denise",
-                "elsa",
-                "nathalie",
-                "julie",
-                "hortense",
-                "marie",
-                "pauline",
-                "claudia",
-                "lucia",
-                "paola",
-                "bianca",
-                "cosima",
-                "katja",
-                "hedda",
-                "helena",
-                "naayf",
-                "sabina",
-                "naja",
-                "sara",
-                "amelie",
-                "lea",
-                "manon",
-
-                // Google voices
-                "wavenet-a",
-                "wavenet-c",
-                "wavenet-e",
-                "wavenet-f",
-                "wavenet-g",
-                "standard-a",
-                "standard-c",
-                "standard-e",
-
-                // Apple voices
-                "allison",
-                "ava",
-                "samantha",
-                "susan",
-                "vicki",
-                "victoria",
-                "audrey",
-                "aurelie",
-                "marie",
-                "thomas",
-                "amelie",
-
-                // General keywords
-                "female",
-                "woman",
-                "girl",
-                "lady"
-            ];
-
-            // Check if voice name contains any female name
-            return (
-                femaleNames.some(femaleName => name.includes(femaleName)) ||
-                (voice.gender && voice.gender.toLowerCase() === "female")
-            );
-        });
-
-        // Debug: Voice analysis (debug mode only)
-        if (window.KIMI_DEBUG_VOICE) {
-            console.log(`🎤 Female voice found: "${femaleVoice.name}" (${femaleVoice.lang})`);
-        } else if (window.KIMI_DEBUG_VOICE) {
-            console.log(
-                `🎤 No female voice found, using first available: "${filteredVoices[0]?.name}" (${filteredVoices[0]?.lang})`
-            );
-            // Debug: Show what voices are available and why they don't match
-            if (filteredVoices.length > 0 && filteredVoices.length <= 5) {
-                console.log(
-                    `🎤 Available voices for ${effectiveLang}:`,
-                    filteredVoices.map(v => ({
-                        name: v.name,
-                        lang: v.lang,
-                        gender: v.gender || "undefined"
-                    }))
-                );
+                await this.db?.setPreference("selectedVoice", null);
+                this.currentVoice = null;
             }
         }
 
-        // Use female voice if found, otherwise first compatible voice, with proper fallback
-        // KEEP legacy auto-selection behavior only for Chrome/Edge where it was reliable.
-        // For other browsers (Firefox/Brave/Opera), avoid auto-selecting to prevent wrong default (e.g., Hortense).
-        const browser = this.browser || this._detectBrowser();
-        if (browser === "chrome" || browser === "edge") {
-            this.currentVoice = femaleVoice || filteredVoices[0] || null;
-        } else {
-            // Do not auto-select on less predictable browsers
-            this.currentVoice = femaleVoice && filteredVoices.length > 1 ? femaleVoice : null;
+        // If still no voice and we have filtered matches, choose first
+        if (!this.currentVoice && filtered.length > 0) {
+            this.currentVoice = this._chooseCompatibleVoice(primary, filtered);
+            if (this.currentVoice && window.KIMI_CONFIG?.DEBUG?.VOICE) {
+                console.log(`🎤 Auto-selected voice: ${this.currentVoice.name} (${this.currentVoice.lang})`);
+            }
         }
 
-        if (!this.currentVoice) {
-            console.warn("🎤 No voices available for speech synthesis - this may resolve automatically when voices load");
-            this._initializingVoices = false;
-            // Don't return here - let the system continue, voices may load later via onvoiceschanged
-            // The updateVoiceSelector will handle the empty state gracefully
-        } else {
-            // Log successful voice selection with language info
-            console.log(
-                `🎤 Voice loaded: "${this.currentVoice.name}" (${this.currentVoice.lang}) for language "${effectiveLang}"`
-            );
-        }
-
-        // Do not overwrite "auto" preference here; only update if user selects a specific voice
+        // If still no voice we leave currentVoice null so UI shows 'no compatible voices'
+        // No cross-language fallback: if none found, currentVoice stays null
 
         this.updateVoiceSelector();
         this._initializingVoices = false;
@@ -379,66 +382,73 @@ class KimiVoiceManager {
         const voiceSelect = document.getElementById("voice-selection");
         if (!voiceSelect) return;
 
-        // Clear existing options
-        while (voiceSelect.firstChild) {
-            voiceSelect.removeChild(voiceSelect.firstChild);
+        // Legacy cleanup: remove any lingering 'auto' option injected by cached HTML or extensions
+        const legacyAuto = Array.from(voiceSelect.querySelectorAll('option[value="auto"], option[data-i18n="automatic"]'));
+        if (legacyAuto.length) {
+            legacyAuto.forEach(o => o.remove());
         }
 
-        // Add auto option
-        const autoOption = document.createElement("option");
-        autoOption.value = "auto";
-        autoOption.textContent = "Automatic (Best voice for selected language)";
-        voiceSelect.appendChild(autoOption);
+        // Clear existing (after legacy cleanup)
+        while (voiceSelect.firstChild) voiceSelect.removeChild(voiceSelect.firstChild);
 
-        const filteredVoices = this.getVoicesForLanguage(this.selectedLanguage);
-
-        // If browser is not Chrome or Edge, do NOT expose voice options even when voices exist.
-        // This avoids misleading users on Brave/Firefox/Opera/Safari who might think TTS is supported when it's not.
-        const browser = this.browser || this._detectBrowser();
-        if ((browser !== "chrome" && browser !== "edge") || filteredVoices.length === 0) {
-            const noVoicesOption = document.createElement("option");
-            noVoicesOption.value = "none";
-            noVoicesOption.textContent = "No voices available for this browser";
-            noVoicesOption.disabled = true;
-            voiceSelect.appendChild(noVoicesOption);
+        const primary = this.selectedLanguage || "en";
+        const filtered = this.getVoicesForLanguage(primary);
+        const allVoices = this.availableVoices || [];
+        if (!this.showAllVoices) {
+            if (filtered.length === 0) {
+                const opt = document.createElement("option");
+                opt.value = "";
+                const txt = window.kimiI18nManager?.t("no_compatible_voices") || "No compatible voices for this language";
+                opt.textContent = txt;
+                opt.disabled = true;
+                voiceSelect.appendChild(opt);
+            } else {
+                filtered.forEach(v => {
+                    const opt = document.createElement("option");
+                    opt.value = v.name;
+                    opt.textContent = `${v.name} (${v.lang})`;
+                    if (this.currentVoice && v.name === this.currentVoice.name) opt.selected = true;
+                    voiceSelect.appendChild(opt);
+                });
+            }
         } else {
-            filteredVoices.forEach(voice => {
-                const option = document.createElement("option");
-                option.value = voice.name;
-                option.textContent = `${voice.name} (${voice.lang})`;
-                if (this.currentVoice && voice.name === this.currentVoice.name) {
-                    option.selected = true;
-                }
-                voiceSelect.appendChild(option);
-            });
+            // Show all voices; mark non-matching ones with *
+            if (allVoices.length === 0) {
+                const opt = document.createElement("option");
+                opt.value = "";
+                const txt = window.kimiI18nManager?.t("no_compatible_voices") || "No compatible voices for this language";
+                opt.textContent = txt;
+                opt.disabled = true;
+                voiceSelect.appendChild(opt);
+            } else {
+                allVoices.forEach(v => {
+                    const opt = document.createElement("option");
+                    opt.value = v.name;
+                    const isMatch = filtered.some(f => f.name === v.name);
+                    opt.textContent = isMatch ? `${v.name} (${v.lang})` : `${v.name} (${v.lang}) *`;
+                    if (this.currentVoice && v.name === this.currentVoice.name) opt.selected = true;
+                    voiceSelect.appendChild(opt);
+                });
+            }
         }
 
-        // Remove existing handler before adding new one
-        if (this.voiceChangeHandler) {
-            voiceSelect.removeEventListener("change", this.voiceChangeHandler);
-        }
-
-        // Create and store the handler
+        if (this.voiceChangeHandler) voiceSelect.removeEventListener("change", this.voiceChangeHandler);
         this.voiceChangeHandler = this.handleVoiceChange.bind(this);
         voiceSelect.addEventListener("change", this.voiceChangeHandler);
     }
 
     async handleVoiceChange(e) {
-        if (e.target.value === "auto") {
-            console.log(`🎤 Voice set to automatic selection for language "${this.selectedLanguage}"`);
-            await this.db?.setPreference("selectedVoice", "auto");
-            this.currentVoice = null; // clear immediate in-memory voice
-            // Re-initialize voices synchronously so currentVoice is set before other code reacts
-            try {
-                await this.initVoices();
-            } catch (err) {
-                // If init fails, leave currentVoice null but don't throw
-                console.warn("🎤 initVoices failed after setting auto:", err);
-            }
-        } else {
-            this.currentVoice = this.availableVoices.find(voice => voice.name === e.target.value);
-            console.log(`🎤 Voice manually selected: "${this.currentVoice?.name}" (${this.currentVoice?.lang})`);
-            await this.db?.setPreference("selectedVoice", e.target.value);
+        const name = e.target.value;
+        if (name === "auto") {
+            // legacy safeguard
+            await this.db?.setPreference("selectedVoice", "");
+            return;
+        }
+        const found = this.availableVoices.find(v => v.name === name);
+        if (found) {
+            this.currentVoice = found;
+            await this.db?.setPreference("selectedVoice", name);
+            console.log(`🎤 Voice selected: ${found.name} (${found.lang})`);
         }
     }
 
@@ -449,6 +459,7 @@ class KimiVoiceManager {
             this.speechSynthesis.onvoiceschanged = async () => {
                 // Only reinitialize if voices are actually available now
                 if (this.speechSynthesis.getVoices().length > 0) {
+                    if (window.KIMI_CONFIG?.DEBUG?.VOICE) console.log("🎤 voiceschanged event -> re-init voices");
                     await this.initVoices();
                 }
             };
@@ -471,7 +482,8 @@ class KimiVoiceManager {
             de: "de-DE",
             it: "it-IT",
             ja: "ja-JP",
-            zh: "zh-CN"
+            zh: "zh-CN",
+            pt: "pt-BR"
         };
         return languageMap[langShort] || langShort;
     }
@@ -479,29 +491,75 @@ class KimiVoiceManager {
     // language normalization handled by window.KimiLanguageUtils.normalizeLanguageCode
 
     getVoicesForLanguage(language) {
-        const norm = window.KimiLanguageUtils.normalizeLanguageCode(language || "");
-        // First pass: voices whose lang primary subtag starts with normalized code
-        let filteredVoices = this.availableVoices.filter(voice => {
-            try {
-                const vlang = String(voice.lang || "").toLowerCase();
-                return vlang.startsWith(norm);
-            } catch (e) {
-                return false;
-            }
+        const primary = window.KimiLanguageUtils.normalizeLanguageCode(language || "");
+        if (!primary) return [];
+        const normVoice = v =>
+            String(v.lang || "")
+                .replace(/_/g, "-")
+                .toLowerCase();
+        const primaryOf = v => normVoice(v).split("-")[0];
+
+        const voices = this.availableVoices || [];
+        // 1. Exact primary- prefixed (en- / fr-)
+        let exact = voices.filter(v => normVoice(v).startsWith(primary + "-"));
+        if (exact.length) return exact;
+        // 2. Same primary subtag
+        let samePrimary = voices.filter(v => primaryOf(v) === primary);
+        if (samePrimary.length) return samePrimary;
+        // 3. Locale synonyms mapping (e.g., British / Canadian variants)
+        const synonymMap = {
+            en: ["en", "en-gb", "en-us", "en-au", "en-ca"],
+            fr: ["fr", "fr-fr", "fr-ca", "fr-be"],
+            es: ["es", "es-es", "es-mx", "es-ar"],
+            de: ["de", "de-de", "de-at", "de-ch"],
+            it: ["it", "it-it"],
+            pt: ["pt", "pt-br", "pt-pt"],
+            ja: ["ja", "ja-jp"],
+            zh: ["zh", "zh-cn", "zh-hk", "zh-tw"]
+        };
+        const synList = synonymMap[primary] || [primary];
+        let synonymMatches = voices.filter(v => {
+            const lv = normVoice(v);
+            return synList.some(s => lv.startsWith(s));
         });
+        if (synonymMatches.length) return synonymMatches;
+        // 4. Loose contains
+        let loose = voices.filter(v => normVoice(v).includes(primary));
+        if (loose.length) return loose;
+        // 5. Last resort: return all voices (caller will pick first)
+        return [];
+    }
 
-        // Second pass: voices that contain the code anywhere
-        if (filteredVoices.length === 0 && norm) {
-            filteredVoices = this.availableVoices.filter(voice =>
-                String(voice.lang || "")
-                    .toLowerCase()
-                    .includes(norm)
-            );
+    // ===== INTERNAL HELPERS (NEW FLOW) =====
+    async _waitForVoices(timeoutMs = 1200) {
+        const start = performance.now();
+        const pollInterval = 50;
+        let lastLength = 0;
+        while (performance.now() - start < timeoutMs) {
+            const list = this.speechSynthesis.getVoices();
+            if (list.length > 0) {
+                // Heuristic: stable length twice
+                if (list.length === lastLength) return list;
+                lastLength = list.length;
+            }
+            await new Promise(r => setTimeout(r, pollInterval));
         }
+        return this.speechSynthesis.getVoices();
+    }
 
-        // Do not fall back to all voices: if none match, return empty array so UI shows "no voices available"
-        if (filteredVoices.length === 0) return [];
-        return filteredVoices;
+    _chooseCompatibleVoice(primary, filtered) {
+        if (filtered && filtered.length) return filtered[0];
+        // If nothing filtered provided (unexpected), fallback to best guess in all voices
+        const voices = this.availableVoices || [];
+        const normVoice = v =>
+            String(v.lang || "")
+                .replace(/_/g, "-")
+                .toLowerCase();
+        const primaryOf = v => normVoice(v).split("-")[0];
+        // Prefer same primary
+        const same = voices.filter(v => primaryOf(v) === primary);
+        if (same.length) return same[0];
+        return voices[0] || null;
     }
 
     // ===== VOICE PREFERENCE UTILITIES =====
@@ -592,6 +650,14 @@ class KimiVoiceManager {
     }
 
     async speak(text, options = {}) {
+        // Check if TTS is globally enabled
+        if (!this.ttsEnabled) {
+            if (window.KIMI_CONFIG?.DEBUG?.VOICE) {
+                console.log("TTS is disabled globally, skipping speak");
+            }
+            return;
+        }
+
         // If no text or voice not ready, attempt short retries for voice initialization
         if (!text) {
             console.warn("Unable to speak: empty text");
@@ -604,7 +670,7 @@ class KimiVoiceManager {
             // Small jittered backoff
             const wait = 100 + Math.floor(Math.random() * 200); // 100-300ms
             await new Promise(r => setTimeout(r, wait));
-            // If voices available, try to init
+            // If voices available, try to init (simplified selection, no legacy 'auto' heuristics)
             if (this.availableVoices.length > 0) {
                 // attempt to pick a voice for the current language
                 try {
@@ -658,66 +724,22 @@ class KimiVoiceManager {
         // Use centralized emotion system for consistency
         const emotionFromText = window.kimiEmotionSystem?.analyzeEmotionValidated(text) || "neutral";
 
-        // PRE-PREPARE speaking animation before TTS starts
-        if (window.kimiVideo) {
-            // Always prepare a speaking context based on detected emotion
-            requestAnimationFrame(async () => {
-                try {
-                    const traits = await this.db?.getAllPersonalityTraits(
-                        window.kimiMemory?.selectedCharacter || (await this.db.getSelectedCharacter())
-                    );
-                    const affection = traits ? traits.affection : 50;
-
-                    // Choose the appropriate speaking context
-                    if (emotionFromText === "negative") {
-                        window.kimiVideo.switchToContext("speakingNegative", "negative", null, traits || {}, affection);
-                    } else if (emotionFromText === "neutral") {
-                        // Even neutral text should use speaking context during TTS
-                        window.kimiVideo.switchToContext("speakingPositive", "neutral", null, traits || {}, affection);
-                    } else {
-                        // For positive and specific emotions
-                        const videoCategory =
-                            window.kimiEmotionSystem?.getVideoCategory(emotionFromText, traits) || "speakingPositive";
-                        window.kimiVideo.switchToContext(videoCategory, emotionFromText, null, traits || {}, affection);
-                    }
-                } catch (e) {
-                    console.warn("Failed to prepare speaking animation:", e);
-                }
-            });
+        // SIMPLE VIDEO CONTROL
+        if (window.kimiVideoController) {
+            window.kimiVideoController.playVideo("tts", text);
         }
 
         if (typeof window.updatePersonalityTraitsFromEmotion === "function") {
             window.updatePersonalityTraitsFromEmotion(emotionFromText, text);
         }
+
+        // Start TTS AFTER video is prepared
         this.showResponseWithPerfectTiming(text);
 
         utterance.onstart = async () => {
             this.isSpeaking = true;
-
-            // IMMEDIATELY switch to appropriate speaking animation when TTS starts
-            try {
-                if (window.kimiVideo) {
-                    const traits = await this.db?.getAllPersonalityTraits(
-                        window.kimiMemory?.selectedCharacter || (await this.db.getSelectedCharacter())
-                    );
-                    const affection = traits ? traits.affection : 50;
-
-                    // Choose speaking context based on the detected emotion using centralized logic
-                    if (emotionFromText === "negative") {
-                        window.kimiVideo.switchToContext("speakingNegative", "negative", null, traits || {}, affection);
-                    } else if (emotionFromText === "neutral") {
-                        // Even for neutral speech, use speaking context during TTS
-                        window.kimiVideo.switchToContext("speakingPositive", "neutral", null, traits || {}, affection);
-                    } else {
-                        // For positive and specific emotions, use appropriate speaking context
-                        const videoCategory =
-                            window.kimiEmotionSystem?.getVideoCategory(emotionFromText, traits) || "speakingPositive";
-                        window.kimiVideo.switchToContext(videoCategory, emotionFromText, null, traits || {}, affection);
-                    }
-                }
-            } catch (e) {
-                console.warn("Failed to switch to speaking context:", e);
-            }
+            // Speaking animation is already prepared above in PRE-PREPARE section
+            // No need to duplicate the logic here
         };
 
         utterance.onend = () => {
@@ -728,34 +750,9 @@ class KimiVoiceManager {
             this.clearTranscriptTimeout();
 
             // IMMEDIATELY return to neutral when TTS ends
-            if (window.kimiVideo) {
-                try {
-                    const info = window.kimiVideo.getCurrentVideoInfo ? window.kimiVideo.getCurrentVideoInfo() : null;
-
-                    // Only return to neutral if currently in a speaking context
-                    if (info && (info.context === "speakingPositive" || info.context === "speakingNegative")) {
-                        // Use async pattern to get traits for neutral transition
-                        (async () => {
-                            try {
-                                const traits = await this.db?.getAllPersonalityTraits(
-                                    window.kimiMemory?.selectedCharacter || (await this.db.getSelectedCharacter())
-                                );
-                                window.kimiVideo.switchToContext(
-                                    "neutral",
-                                    "neutral",
-                                    null,
-                                    traits || {},
-                                    traits?.affection || 50
-                                );
-                            } catch (e) {
-                                // Fallback without traits
-                                window.kimiVideo.switchToContext("neutral", "neutral", null, {}, 50);
-                            }
-                        })();
-                    }
-                } catch (e) {
-                    console.warn("Failed to return to neutral after TTS:", e);
-                }
+            // SIMPLE TTS END
+            if (window.kimiVideoController) {
+                window.kimiVideoController.playVideo("neutral");
             }
         };
 
@@ -853,10 +850,7 @@ class KimiVoiceManager {
     async updateTranscriptVisibility(shouldShow, text = null) {
         if (!this.transcriptContainer || !this.transcriptText) return false;
 
-        const showTranscript = await this.db?.getPreference(
-            "showTranscript",
-            window.KIMI_CONFIG?.DEFAULTS?.SHOW_TRANSCRIPT ?? true
-        );
+        const showTranscript = await this.db?.getPreference("showTranscript", window.KIMI_CONFIG?.DEFAULTS?.SHOW_TRANSCRIPT ?? true);
         if (!showTranscript) {
             // If transcript is disabled, always hide
             this.transcriptContainer.classList.remove("visible");
@@ -996,8 +990,7 @@ class KimiVoiceManager {
                 console.log("🎤 Permission denied - stopping listening");
                 this.micPermissionGranted = false;
                 this.stopListening();
-                const message =
-                    window.kimiI18nManager?.t("mic_permission_denied") || "Microphone permission denied. Click again to retry.";
+                const message = window.kimiI18nManager?.t("mic_permission_denied") || "Microphone permission denied. Click again to retry.";
                 // Use promise-based approach for async operation
                 this.updateTranscriptVisibility(true, message).then(() => {
                     setTimeout(() => {
@@ -1045,11 +1038,22 @@ class KimiVoiceManager {
             return;
         }
 
+        // Apply capability UI state every time we set up
+        this._applySpeechRecognitionCapabilityUI();
+
         // Remove any existing event listener to prevent duplicates
         this.micButton.removeEventListener("click", this.handleMicClick);
 
         // Create the click handler function
         this.handleMicClick = () => {
+            // If SR not available, just show explanatory message once.
+            if (!this.hasSR) {
+                const message = this._getUnsupportedSRMessage();
+                this.updateTranscriptVisibility(true, message).then(() => {
+                    setTimeout(() => this.updateTranscriptVisibility(false), 4000);
+                });
+                return;
+            }
             if (!this.SpeechRecognition) {
                 console.warn("🎤 Speech recognition not available");
                 let key = "sr_not_supported_generic";
@@ -1125,9 +1129,7 @@ class KimiVoiceManager {
                 return;
             } else if (permissionStatus.state === "denied") {
                 console.log("🎤 Microphone permission denied");
-                const message =
-                    window.kimiI18nManager?.t("mic_permission_denied") ||
-                    "Microphone permission denied. Please allow access in browser settings.";
+                const message = window.kimiI18nManager?.t("mic_permission_denied") || "Microphone permission denied. Please allow access in browser settings.";
                 this.updateTranscriptVisibility(true, message).then(() => {
                     setTimeout(() => {
                         this.updateTranscriptVisibility(false);
@@ -1174,7 +1176,10 @@ class KimiVoiceManager {
             console.error("Unable to add 'is-listening' - mic button not found");
         }
 
-        if (window.kimiVideo) {
+        if (window.kimiVideoController) {
+            window.kimiVideoController.playVideo("listening");
+        } else if (window.kimiVideo) {
+            // Fallback to old system
             window.kimiVideo.startListening();
         }
 
@@ -1193,8 +1198,7 @@ class KimiVoiceManager {
             this.stopListening();
 
             // Show user-friendly error message
-            const message =
-                window.kimiI18nManager?.t("mic_permission_denied") || "Microphone permission denied. Click again to retry.";
+            const message = window.kimiI18nManager?.t("mic_permission_denied") || "Microphone permission denied. Click again to retry.";
             this.updateTranscriptVisibility(true, message).then(() => {
                 setTimeout(() => {
                     this.updateTranscriptVisibility(false);
@@ -1226,14 +1230,17 @@ class KimiVoiceManager {
             const currentInfo = window.kimiVideo.getCurrentVideoInfo ? window.kimiVideo.getCurrentVideoInfo() : null;
             if (
                 currentInfo &&
-                (currentInfo.context === "speakingPositive" ||
-                    currentInfo.context === "speakingNegative" ||
-                    currentInfo.context === "dancing")
+                (currentInfo.context === "speakingPositive" || currentInfo.context === "speakingNegative" || currentInfo.context === "dancing")
             ) {
                 // Let emotion video finish naturally
             } else if (this.isStoppingVolontaire) {
-                // Use centralized video utility for neutral transition
-                window.kimiVideo.returnToNeutral();
+                // SIMPLE NEUTRAL
+                if (window.kimiVideoController) {
+                    window.kimiVideoController.playVideo("neutral");
+                } else if (window.kimiVideo) {
+                    // Fallback to old system
+                    window.kimiVideo.returnToNeutral();
+                }
             }
         }
 
@@ -1321,6 +1328,12 @@ class KimiVoiceManager {
             this.languageChangeHandler = null;
         }
 
+        if (window.KIMI_CONFIG?.DEBUG?.VOICE) {
+            console.warn("🎤 Voice selector empty after filtering", {
+                selectedLanguage: this.selectedLanguage,
+                available: (this.availableVoices || []).map(v => ({ name: v.name, lang: v.lang }))
+            });
+        }
         // Reset state
         this.currentVoice = null;
         this.isInitialized = false;
@@ -1349,9 +1362,7 @@ class KimiVoiceManager {
 
     async handleLanguageChange(e) {
         const rawLang = e.target.value;
-        const newLang = window.KimiLanguageUtils?.normalizeLanguageCode
-            ? window.KimiLanguageUtils.normalizeLanguageCode(rawLang)
-            : rawLang;
+        const newLang = window.KimiLanguageUtils?.normalizeLanguageCode ? window.KimiLanguageUtils.normalizeLanguageCode(rawLang) : rawLang;
         const oldLang = this.selectedLanguage;
         console.log(`🎤 Language changing: "${oldLang}" → "${newLang}"`);
 
@@ -1363,34 +1374,17 @@ class KimiVoiceManager {
             await window.kimiI18nManager.setLanguage(newLang);
         }
 
-        // Check saved voice compatibility: only reset to 'auto' if incompatible
+        // Revalidate current voice preference for new language (remove "auto" semantics)
         try {
-            const currentVoicePref = await this.db?.getPreference("selectedVoice", "auto");
-            // Clear in-memory currentVoice to allow re-selection
-            this.currentVoice = null;
-
-            if (currentVoicePref && currentVoicePref !== "auto") {
-                // If saved voice name exists, check if it's present among filtered voices for the new language
-                const filtered = this.getVoicesForLanguage(newLang);
-                const compatible = filtered.some(v => v.name === currentVoicePref);
-                if (!compatible) {
-                    // Only write 'auto' when incompatible
-                    await this.db?.setPreference("selectedVoice", "auto");
-                }
+            const pref = await this.db?.getPreference("selectedVoice", null);
+            if (pref) {
+                const compatible = this.getVoicesForLanguage(newLang).some(v => v.name === pref);
+                if (!compatible) await this.db?.setPreference("selectedVoice", null);
             }
+        } catch {}
 
-            // Re-init voices to pick a correct voice for the new language
-            await this.initVoices();
-            // Ensure voice selector reflects new language even if no voice chosen
-            this.updateVoiceSelector();
-        } catch (err) {
-            // On error, fall back to safe behavior: init voices and set 'auto'
-            try {
-                await this.db?.setPreference("selectedVoice", "auto");
-            } catch {}
-            await this.initVoices();
-            this.updateVoiceSelector();
-        }
+        this.currentVoice = null;
+        await this.initVoices();
 
         if (this.currentVoice) {
             console.log(`🎤 Voice selected for "${newLang}": "${this.currentVoice.name}" (${this.currentVoice.lang})`);
@@ -1445,9 +1439,7 @@ class KimiVoiceManager {
                 base = "en";
             }
         }
-        return window.KimiLanguageUtils?.normalizeLanguageCode
-            ? window.KimiLanguageUtils.normalizeLanguageCode(base)
-            : base || "en";
+        return window.KimiLanguageUtils?.normalizeLanguageCode ? window.KimiLanguageUtils.normalizeLanguageCode(base) : base || "en";
     }
 
     async updateSelectedCharacter() {
@@ -1470,7 +1462,7 @@ class KimiVoiceManager {
     }
 
     _toggleMicrophoneCore() {
-        if (!this.SpeechRecognition) {
+        if (!this.hasSR || !this.SpeechRecognition) {
             console.warn("🎤 Speech recognition not available");
             return false;
         }

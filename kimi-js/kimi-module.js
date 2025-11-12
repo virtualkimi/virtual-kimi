@@ -4,19 +4,47 @@
 
 // Fonctions utilitaires et logique (référencent window.*)
 
+// Helper function to avoid video logic duplication
+async function handleVideoResponseWithFallback(sanitizedText, response, updatedTraits, selectedCharacter) {
+    if (window.kimiVideoController) {
+        // SIMPLE API
+        window.kimiVideoController.playVideo("user", sanitizedText);
+        if (response) {
+            window.kimiVideoController.playVideo("llm", response);
+        }
+    } else {
+        // Fallback to legacy logic
+        const lang = (await window.kimiDB?.getPreference("selectedLanguage", "en")) || "en";
+        const keywords = (window.KIMI_CONTEXT_KEYWORDS && (window.KIMI_CONTEXT_KEYWORDS[lang] || window.KIMI_CONTEXT_KEYWORDS.en)) || {};
+        // Centralized dancing detection via hasKeywordCategory
+        const userAskedDance = (window.hasKeywordCategory && window.hasKeywordCategory("dancing", sanitizedText, lang)) || false;
+
+        if (userAskedDance && window.kimiVideo) {
+            window.kimiVideo.switchToContext("dancing", "dancing", null, updatedTraits, updatedTraits.affection, true);
+        } else if (window.kimiVideo) {
+            const userEmotion = window.kimiEmotionSystem?.analyzeEmotionValidated(sanitizedText) || "neutral";
+            if (userEmotion === "negative") {
+                window.kimiVideo.respondWithEmotion("negative", updatedTraits, updatedTraits.affection);
+            } else if (response) {
+                const responseEmotion = window.kimiEmotionSystem?.analyzeEmotionValidated(response) || "positive";
+                // User negative override already handled; else use response emotion
+                window.kimiVideo.respondWithEmotion(responseEmotion, updatedTraits, updatedTraits.affection);
+            } else {
+                window.kimiVideo.respondWithEmotion("neutral", updatedTraits, updatedTraits.affection);
+            }
+        }
+    }
+}
+
 function updateFavorabilityLabel(characterKey) {
     const favorabilityLabel = document.getElementById("favorability-label");
     if (favorabilityLabel && window.KIMI_CHARACTERS && window.KIMI_CHARACTERS[characterKey]) {
         // New semantics: show overall personality average (independent display)
         favorabilityLabel.removeAttribute("for"); // decouple from any specific slider
-        favorabilityLabel.setAttribute("data-i18n", "personality_average_of");
-        favorabilityLabel.setAttribute("data-i18n-params", JSON.stringify({ name: window.KIMI_CHARACTERS[characterKey].name }));
+        if (window.setI18n) window.setI18n(favorabilityLabel, "personality_average_of", { name: window.KIMI_CHARACTERS[characterKey].name });
         favorabilityLabel.textContent = `💖 Personality average of ${window.KIMI_CHARACTERS[characterKey].name}`;
         if (!favorabilityLabel.getAttribute("title")) {
-            favorabilityLabel.setAttribute(
-                "title",
-                "Average of (Affection + Playfulness + Intelligence + Empathy + Humor + Romance) / 6"
-            );
+            favorabilityLabel.setAttribute("title", "Average of (Affection + Playfulness + Intelligence + Empathy + Humor + Romance) / 6");
         }
         applyTranslations();
     }
@@ -33,7 +61,7 @@ async function updateGlobalPersonalityUI(characterKey = null) {
         const db = window.kimiDB;
         if (!db) return;
         const character = characterKey || (await db.getSelectedCharacter());
-        const traits = await db.getAllPersonalityTraits(character);
+        const traits = window.getCharacterTraits ? await window.getCharacterTraits(character) : await db.getAllPersonalityTraits(character);
         const avg = computePersonalityAverage(traits);
         // Reuse existing favorability bar elements for global average
         const bar = document.getElementById("favorability-bar");
@@ -79,17 +107,15 @@ async function loadCharacterSection() {
 
         const ageDiv = document.createElement("div");
         ageDiv.className = "character-age";
-        ageDiv.setAttribute("data-i18n", "character_age");
-        ageDiv.setAttribute("data-i18n-params", JSON.stringify({ age: info.age }));
+        if (window.setI18n) window.setI18n(ageDiv, "character_age", { age: info.age });
 
         const birthplaceDiv = document.createElement("div");
         birthplaceDiv.className = "character-birthplace";
-        birthplaceDiv.setAttribute("data-i18n", "character_birthplace");
-        birthplaceDiv.setAttribute("data-i18n-params", JSON.stringify({ birthplace: info.birthplace }));
+        if (window.setI18n) window.setI18n(birthplaceDiv, "character_birthplace", { birthplace: info.birthplace });
 
         const summaryDiv = document.createElement("div");
         summaryDiv.className = "character-summary";
-        summaryDiv.setAttribute("data-i18n", `character_summary_${key}`);
+        if (window.setI18n) window.setI18n(summaryDiv, `character_summary_${key}`);
 
         detailsDiv.appendChild(ageDiv);
         detailsDiv.appendChild(birthplaceDiv);
@@ -100,7 +126,7 @@ async function loadCharacterSection() {
 
         const promptLabel = document.createElement("div");
         promptLabel.className = "character-prompt-label";
-        promptLabel.setAttribute("data-i18n", "system_prompt");
+        if (window.setI18n) window.setI18n(promptLabel, "system_prompt");
         promptLabel.textContent = "System Prompt";
 
         const promptInput = document.createElement("textarea");
@@ -116,14 +142,14 @@ async function loadCharacterSection() {
         const saveButton = document.createElement("button");
         saveButton.className = "kimi-button character-save-btn";
         saveButton.id = `save-${key}`;
-        saveButton.setAttribute("data-i18n", "save");
+        if (window.setI18n) window.setI18n(saveButton, "save");
         saveButton.textContent = "Save";
 
         // Reset button
         const resetButton = document.createElement("button");
         resetButton.className = "kimi-button character-reset-btn";
         resetButton.id = `reset-${key}`;
-        resetButton.setAttribute("data-i18n", "reset_to_default");
+        if (window.setI18n) window.setI18n(resetButton, "reset_to_default");
         resetButton.textContent = "Reset to Default";
 
         buttonsContainer.appendChild(saveButton);
@@ -163,7 +189,7 @@ async function loadCharacterSection() {
                     saveButton.disabled = true;
 
                     setTimeout(() => {
-                        saveButton.setAttribute("data-i18n", "save");
+                        if (window.setI18n) window.setI18n(saveButton, "save");
                         applyTranslations();
                         saveButton.classList.remove("success");
                         saveButton.disabled = false;
@@ -189,11 +215,11 @@ async function loadCharacterSection() {
                     const originalText = resetButton.textContent;
                     resetButton.textContent = "Reset!";
                     resetButton.classList.add("animated");
-                    resetButton.setAttribute("data-i18n", "reset_done");
+                    if (window.setI18n) window.setI18n(resetButton, "reset_done");
                     applyTranslations();
 
                     setTimeout(() => {
-                        resetButton.setAttribute("data-i18n", "reset_to_default");
+                        if (window.setI18n) window.setI18n(resetButton, "reset_to_default");
                         applyTranslations();
                         resetButton.classList.remove("animated");
                     }, 1500);
@@ -224,7 +250,7 @@ async function loadCharacterSection() {
             const chatHeaderName = document.querySelector(".chat-header span[data-i18n]");
             if (chatHeaderName) {
                 const info = window.KIMI_CHARACTERS[charKey] || window.KIMI_CHARACTERS.kimi;
-                chatHeaderName.setAttribute("data-i18n", `chat_with_${charKey}`);
+                if (window.setI18n) window.setI18n(chatHeaderName, `chat_with_${charKey}`);
                 applyTranslations();
             }
 
@@ -274,7 +300,7 @@ async function analyzeAndReact(text, useAdvancedLLM = true, onStreamToken = null
         let response;
 
         const selectedCharacter = await kimiDB.getSelectedCharacter();
-        const traits = await kimiDB.getAllPersonalityTraits(selectedCharacter);
+        const traits = window.getCharacterTraits ? await window.getCharacterTraits(selectedCharacter) : await kimiDB.getAllPersonalityTraits(selectedCharacter);
         const avg = window.getPersonalityAverage ? window.getPersonalityAverage(traits) : 50;
         const affection = typeof traits.affection === "number" ? traits.affection : 55;
         const characterTraits = window.KIMI_CHARACTERS[selectedCharacter]?.traits || "";
@@ -289,13 +315,12 @@ async function analyzeAndReact(text, useAdvancedLLM = true, onStreamToken = null
         if (useAdvancedLLM && isSystemReady && kimiLLM) {
             try {
                 const providerPref = kimiDB ? await kimiDB.getPreference("llmProvider", "openrouter") : "openrouter";
-                const apiKey =
-                    kimiDB && window.KimiProviderUtils ? await window.KimiProviderUtils.getApiKey(kimiDB, providerPref) : null;
+                const apiKey = kimiDB && window.KimiProviderUtils ? await window.KimiProviderUtils.getApiKey(kimiDB, providerPref) : null;
 
                 if (apiKey && apiKey.trim() !== "") {
                     try {
                         if (window.dispatchEvent) {
-                            window.dispatchEvent(new CustomEvent("chat:typing:start"));
+                            window.emitAppEvent && window.emitAppEvent("chat:typing:start");
                         }
                     } catch (e) {}
 
@@ -308,32 +333,23 @@ async function analyzeAndReact(text, useAdvancedLLM = true, onStreamToken = null
 
                     try {
                         if (window.dispatchEvent) {
-                            window.dispatchEvent(new CustomEvent("chat:typing:stop"));
+                            window.emitAppEvent && window.emitAppEvent("chat:typing:stop");
                         }
                     } catch (e) {}
 
-                    const updatedTraits = await kimiDB.getAllPersonalityTraits(selectedCharacter);
-                    // If user explicitly requested dancing, show dancing during Kimi's response
-                    const lang = await kimiDB.getPreference("selectedLanguage", "en");
-                    const keywords =
-                        (window.KIMI_CONTEXT_KEYWORDS &&
-                            (window.KIMI_CONTEXT_KEYWORDS[lang] || window.KIMI_CONTEXT_KEYWORDS.en)) ||
-                        {};
-                    const dancingWords = keywords.dancing || ["dance", "dancing"];
-                    const userAskedDance = dancingWords.some(w => sanitizedText.toLowerCase().includes(w.toLowerCase()));
+                    const updatedTraits = window.getCharacterTraits
+                        ? await window.getCharacterTraits(selectedCharacter)
+                        : await kimiDB.getAllPersonalityTraits(selectedCharacter);
 
-                    if (userAskedDance) {
-                        kimiVideo.switchToContext("dancing", "dancing", null, updatedTraits, updatedTraits.affection);
-                    } else {
-                        // Use emotion analysis from the LLM RESPONSE, not user input
-                        const responseEmotion = window.kimiEmotionSystem?.analyzeEmotionValidated(response) || "positive";
-                        kimiVideo.respondWithEmotion(responseEmotion, updatedTraits, updatedTraits.affection);
-                    }
+                    // Use centralized video handling to avoid duplication
+                    await handleVideoResponseWithFallback(sanitizedText, response, updatedTraits, selectedCharacter);
 
                     if (kimiLLM.updatePersonalityFromResponse) {
                         await kimiLLM.updatePersonalityFromResponse(sanitizedText, response);
                         const selectedCharacter2 = await kimiDB.getSelectedCharacter();
-                        const traits2 = await kimiDB.getAllPersonalityTraits(selectedCharacter2);
+                        const traits2 = window.getCharacterTraits
+                            ? await window.getCharacterTraits(selectedCharacter2)
+                            : await kimiDB.getAllPersonalityTraits(selectedCharacter2);
                         if (kimiVideo && kimiVideo.setMoodByPersonality) {
                             kimiVideo.setMoodByPersonality(traits2);
                         }
@@ -343,20 +359,21 @@ async function analyzeAndReact(text, useAdvancedLLM = true, onStreamToken = null
                     response = window.KimiFallbackManager
                         ? window.KimiFallbackManager.getFallbackMessage("api_missing")
                         : "To chat with me, add your API key in settings! 💕";
-                    const updatedTraits = await kimiDB.getAllPersonalityTraits(selectedCharacter);
+                    const updatedTraits = window.getCharacterTraits
+                        ? await window.getCharacterTraits(selectedCharacter)
+                        : await kimiDB.getAllPersonalityTraits(selectedCharacter);
                     kimiVideo.respondWithEmotion("neutral", updatedTraits, updatedTraits.affection);
                 }
             } catch (error) {
                 console.warn("LLM not available:", error.message);
                 try {
                     if (window.dispatchEvent) {
-                        window.dispatchEvent(new CustomEvent("chat:typing:stop"));
+                        window.emitAppEvent && window.emitAppEvent("chat:typing:stop");
                     }
                 } catch (e) {}
                 // Still show API key message if no key is configured
                 const providerPref2 = kimiDB ? await kimiDB.getPreference("llmProvider", "openrouter") : "openrouter";
-                const apiKey =
-                    kimiDB && window.KimiProviderUtils ? await window.KimiProviderUtils.getApiKey(kimiDB, providerPref2) : null;
+                const apiKey = kimiDB && window.KimiProviderUtils ? await window.KimiProviderUtils.getApiKey(kimiDB, providerPref2) : null;
                 if (!apiKey || apiKey.trim() === "") {
                     response = window.KimiFallbackManager
                         ? window.KimiFallbackManager.getFallbackMessage("api_missing")
@@ -364,24 +381,17 @@ async function analyzeAndReact(text, useAdvancedLLM = true, onStreamToken = null
                 } else {
                     response = await getBasicResponse(reaction);
                 }
-                const updatedTraits = await kimiDB.getAllPersonalityTraits(selectedCharacter);
-                const lang = await kimiDB.getPreference("selectedLanguage", "en");
-                const keywords =
-                    (window.KIMI_CONTEXT_KEYWORDS && (window.KIMI_CONTEXT_KEYWORDS[lang] || window.KIMI_CONTEXT_KEYWORDS.en)) ||
-                    {};
-                const dancingWords = keywords.dancing || ["dance", "dancing"];
-                const userAskedDance = dancingWords.some(w => sanitizedText.toLowerCase().includes(w.toLowerCase()));
-                if (userAskedDance) {
-                    kimiVideo.switchToContext("dancing", "dancing", null, updatedTraits, updatedTraits.affection);
-                } else {
-                    kimiVideo.respondWithEmotion("neutral", updatedTraits, updatedTraits.affection);
-                }
+                const updatedTraits = window.getCharacterTraits
+                    ? await window.getCharacterTraits(selectedCharacter)
+                    : await kimiDB.getAllPersonalityTraits(selectedCharacter);
+
+                // Use centralized video handling to avoid duplication
+                await handleVideoResponseWithFallback(sanitizedText, response, updatedTraits, selectedCharacter);
             }
         } else {
             // System not ready - check if it's because of missing API key
             const providerPref3 = kimiDB ? await kimiDB.getPreference("llmProvider", "openrouter") : "openrouter";
-            const apiKey =
-                kimiDB && window.KimiProviderUtils ? await window.KimiProviderUtils.getApiKey(kimiDB, providerPref3) : null;
+            const apiKey = kimiDB && window.KimiProviderUtils ? await window.KimiProviderUtils.getApiKey(kimiDB, providerPref3) : null;
             if (!apiKey || apiKey.trim() === "") {
                 response = window.KimiFallbackManager
                     ? window.KimiFallbackManager.getFallbackMessage("api_missing")
@@ -389,17 +399,12 @@ async function analyzeAndReact(text, useAdvancedLLM = true, onStreamToken = null
             } else {
                 response = await getBasicResponse(reaction);
             }
-            const updatedTraits = await kimiDB.getAllPersonalityTraits(selectedCharacter);
-            const lang = await kimiDB.getPreference("selectedLanguage", "en");
-            const keywords =
-                (window.KIMI_CONTEXT_KEYWORDS && (window.KIMI_CONTEXT_KEYWORDS[lang] || window.KIMI_CONTEXT_KEYWORDS.en)) || {};
-            const dancingWords = keywords.dancing || ["dance", "dancing"];
-            const userAskedDance = dancingWords.some(w => sanitizedText.toLowerCase().includes(w.toLowerCase()));
-            if (userAskedDance) {
-                kimiVideo.switchToContext("dancing", "dancing", null, updatedTraits, updatedTraits.affection);
-            } else {
-                kimiVideo.respondWithEmotion("neutral", updatedTraits, updatedTraits.affection);
-            }
+            const updatedTraits = window.getCharacterTraits
+                ? await window.getCharacterTraits(selectedCharacter)
+                : await kimiDB.getAllPersonalityTraits(selectedCharacter);
+
+            // Use centralized video handling to avoid duplication
+            await handleVideoResponseWithFallback(sanitizedText, null, updatedTraits, selectedCharacter);
         }
 
         // Use token usage collected by LLM manager if available
@@ -631,7 +636,7 @@ async function loadSettingsData() {
         const modelId = preferences.llmModelId || (window.kimiLLM ? window.kimiLLM.currentModel : "");
         const selectedCharacter = preferences.selectedCharacter || "kimi";
         const llmTemperature = preferences.llmTemperature !== undefined ? preferences.llmTemperature : 0.9;
-        const llmMaxTokens = preferences.llmMaxTokens !== undefined ? preferences.llmMaxTokens : 400;
+        const llmMaxTokens = preferences.llmMaxTokens !== undefined ? preferences.llmMaxTokens : 800;
         const llmTopP = preferences.llmTopP !== undefined ? preferences.llmTopP : 0.9;
         const llmFrequencyPenalty = preferences.llmFrequencyPenalty !== undefined ? preferences.llmFrequencyPenalty : 0.9;
         const llmPresencePenalty = preferences.llmPresencePenalty !== undefined ? preferences.llmPresencePenalty : 0.8;
@@ -736,9 +741,7 @@ async function loadSettingsData() {
         // For non-OpenRouter providers we keep placeholder per provider; the value is already set above.
         const apiKeyLabel = document.getElementById("api-key-label");
         if (apiKeyLabel) {
-            apiKeyLabel.textContent = window.KimiProviderUtils
-                ? window.KimiProviderUtils.getLabelForProvider(provider)
-                : "API Key";
+            apiKeyLabel.textContent = window.KimiProviderUtils ? window.KimiProviderUtils.getLabelForProvider(provider) : "API Key";
         }
 
         loadAvailableModels();
@@ -762,7 +765,7 @@ async function updatePersonalitySliders(characterKey) {
 
     try {
         // Get current traits from database for this character
-        const savedTraits = await kimiDB.getAllPersonalityTraits(characterKey);
+        const savedTraits = window.getCharacterTraits ? await window.getCharacterTraits(characterKey) : await kimiDB.getAllPersonalityTraits(characterKey);
 
         // Get default traits from KIMI_CHARACTERS constants
         const characterDefaults = window.KIMI_CHARACTERS[characterKey]?.traits || {};
@@ -874,7 +877,7 @@ async function syncLLMMaxTokensSlider() {
     const llmMaxTokensSlider = document.getElementById("llm-max-tokens");
     const llmMaxTokensValue = document.getElementById("llm-max-tokens-value");
     if (llmMaxTokensSlider && llmMaxTokensValue && kimiDB) {
-        const saved = await kimiDB.getPreference("llmMaxTokens", 400);
+        const saved = await kimiDB.getPreference("llmMaxTokens", 800);
         llmMaxTokensSlider.value = saved;
         llmMaxTokensValue.textContent = saved;
     }
@@ -972,9 +975,7 @@ async function loadAvailableModels() {
             const modelDiv = document.createElement("div");
             modelDiv.className = `model-card ${id === stats.current.id ? "selected" : ""}`;
             modelDiv.dataset.modelId = id;
-            const searchable = [model.name || "", model.provider || "", id, (model.strengths || []).join(" ")]
-                .join(" ")
-                .toLowerCase();
+            const searchable = [model.name || "", model.provider || "", id, (model.strengths || []).join(" ")].join(" ").toLowerCase();
             modelDiv.dataset.search = searchable;
 
             // Create model card elements safely
@@ -1003,9 +1004,7 @@ async function loadAvailableModels() {
             const bothNA = !inIsNum && !outIsNum;
             const bothZero = inIsNum && outIsNum && inNum === 0 && outNum === 0;
             const isFreeName =
-                /free/i.test(model.name || "") ||
-                /free/i.test(id || "") ||
-                (Array.isArray(model.strengths) && model.strengths.some(s => /free/i.test(s)));
+                /free/i.test(model.name || "") || /free/i.test(id || "") || (Array.isArray(model.strengths) && model.strengths.some(s => /free/i.test(s)));
             const fmt = n => {
                 if (!Number.isFinite(n)) return "N/A";
                 const roundedInt = Math.round(n);
@@ -1080,8 +1079,7 @@ async function loadAvailableModels() {
             return modelDiv;
         };
 
-        const recommendedIds =
-            window.kimiLLM && Array.isArray(window.kimiLLM.recommendedModelIds) ? window.kimiLLM.recommendedModelIds : [];
+        const recommendedIds = window.kimiLLM && Array.isArray(window.kimiLLM.recommendedModelIds) ? window.kimiLLM.recommendedModelIds : [];
 
         const recommendedEntries = recommendedIds.map(id => [id, stats.available[id]]).filter(([, model]) => !!model);
 
@@ -1113,7 +1111,7 @@ async function loadAvailableModels() {
             const title = document.createElement("div");
             title.className = "models-section-title";
             // i18n aware title
-            title.setAttribute("data-i18n", "models_recommended_title");
+            if (window.setI18n) window.setI18n(title, "models_recommended_title");
             recSection.appendChild(title);
             const list = document.createElement("div");
             list.className = "models-list";
@@ -1136,13 +1134,13 @@ async function loadAvailableModels() {
             // toggle show/hide label via i18n when available
             if (window.kimiI18nManager && typeof window.kimiI18nManager.t === "function") {
                 const currentKey = loadAvailableModels._allCollapsed === false ? "button_hide" : "button_show";
-                toggleBtn.setAttribute("data-i18n", currentKey);
+                if (window.setI18n) window.setI18n(toggleBtn, currentKey);
                 toggleBtn.textContent = window.kimiI18nManager.t(currentKey);
             } else {
                 toggleBtn.textContent = loadAvailableModels._allCollapsed === false ? "Hide" : "Show";
             }
             const label = document.createElement("span");
-            label.setAttribute("data-i18n", "models_all_title");
+            if (window.setI18n) window.setI18n(label, "models_all_title");
             header.appendChild(label);
             header.appendChild(toggleBtn);
             const refreshBtn = document.createElement("button");
@@ -1150,7 +1148,7 @@ async function loadAvailableModels() {
             refreshBtn.className = "kimi-button";
             refreshBtn.style.marginLeft = "8px";
             if (window.kimiI18nManager && typeof window.kimiI18nManager.t === "function") {
-                refreshBtn.setAttribute("data-i18n", "button_refresh");
+                if (window.setI18n) window.setI18n(refreshBtn, "button_refresh");
             } else {
                 refreshBtn.textContent = "Refresh";
             }
@@ -1188,7 +1186,7 @@ async function loadAvailableModels() {
                 loadAvailableModels._allCollapsed = nowCollapsed;
                 if (window.kimiI18nManager && typeof window.kimiI18nManager.t === "function") {
                     const key = nowCollapsed ? "button_show" : "button_hide";
-                    toggleBtn.setAttribute("data-i18n", key);
+                    if (window.setI18n) window.setI18n(toggleBtn, key);
                     toggleBtn.textContent = window.kimiI18nManager.t(key);
                 } else {
                     toggleBtn.textContent = nowCollapsed ? "Show" : "Hide";
@@ -1265,10 +1263,7 @@ async function sendMessage() {
 
     try {
         // Check if streaming is enabled (you can add a preference for this)
-        const streamingEnabled = await window.kimiDB?.getPreference(
-            "enableStreaming",
-            window.KIMI_CONFIG?.DEFAULTS?.ENABLE_STREAMING ?? true
-        );
+        const streamingEnabled = await window.kimiDB?.getPreference("enableStreaming", window.KIMI_CONFIG?.DEFAULTS?.ENABLE_STREAMING ?? true);
 
         if (streamingEnabled && window.kimiLLM && typeof window.kimiLLM.chatStreaming === "function") {
             // Use streaming through analyzeAndReact
@@ -1281,9 +1276,7 @@ async function sendMessage() {
                 const response = await analyzeAndReact(message);
                 let finalResponse = response;
                 if (!finalResponse || typeof finalResponse !== "string" || finalResponse.trim().length < 2) {
-                    finalResponse = window.getLocalizedEmotionalResponse
-                        ? window.getLocalizedEmotionalResponse("neutral")
-                        : "I'm here for you!";
+                    finalResponse = window.getLocalizedEmotionalResponse ? window.getLocalizedEmotionalResponse("neutral") : "I'm here for you!";
                 }
                 addMessageToChat("kimi", finalResponse);
                 if (window.voiceManager && !message.startsWith("Vous:")) {
@@ -1316,9 +1309,7 @@ async function sendMessage() {
                 // Final processing after streaming completes
                 let finalResponse = streamingResponse || response;
                 if (!finalResponse || finalResponse.trim().length < 2) {
-                    finalResponse = window.getLocalizedEmotionalResponse
-                        ? window.getLocalizedEmotionalResponse("neutral")
-                        : "I'm here for you!";
+                    finalResponse = window.getLocalizedEmotionalResponse ? window.getLocalizedEmotionalResponse("neutral") : "I'm here for you!";
                     if (messageObj && messageObj.updateText) {
                         messageObj.updateText(finalResponse);
                     }
@@ -1331,10 +1322,7 @@ async function sendMessage() {
                 // Voice synthesis after streaming completes (if not started during streaming)
                 if (window.voiceManager && !message.startsWith("Vous:") && finalResponse.length > 20) {
                     // Check if voice synthesis should happen
-                    const shouldSpeak = await window.kimiDB?.getPreference(
-                        "voiceEnabled",
-                        window.KIMI_CONFIG?.DEFAULTS?.VOICE_ENABLED ?? true
-                    );
+                    const shouldSpeak = await window.kimiDB?.getPreference("voiceEnabled", window.KIMI_CONFIG?.DEFAULTS?.VOICE_ENABLED ?? true);
                     if (shouldSpeak) {
                         window.voiceManager.speak(finalResponse);
                     }
@@ -1364,7 +1352,9 @@ async function sendMessage() {
                     // Final video state adjustment
                     if (window.kimiVideo && window.kimiDB) {
                         const selectedCharacter = await window.kimiDB.getSelectedCharacter();
-                        const traits = await window.kimiDB.getAllPersonalityTraits(selectedCharacter);
+                        const traits = window.getCharacterTraits
+                            ? await window.getCharacterTraits(selectedCharacter)
+                            : await window.kimiDB.getAllPersonalityTraits(selectedCharacter);
                         if (traits && emotionDetected) {
                             window.kimiVideo.setMoodByPersonality(traits);
                         }
@@ -1380,9 +1370,7 @@ async function sendMessage() {
                 const response = await analyzeAndReact(message);
                 let finalResponse = response;
                 if (!finalResponse || typeof finalResponse !== "string" || finalResponse.trim().length < 2) {
-                    finalResponse = window.getLocalizedEmotionalResponse
-                        ? window.getLocalizedEmotionalResponse("neutral")
-                        : "I'm here for you!";
+                    finalResponse = window.getLocalizedEmotionalResponse ? window.getLocalizedEmotionalResponse("neutral") : "I'm here for you!";
                 }
                 if (messageObj && messageObj.updateText) {
                     messageObj.updateText(finalResponse);
@@ -1399,9 +1387,7 @@ async function sendMessage() {
             let finalResponse = response;
             // If the LLM's response is empty, null, or too short, use the emotional fallback.
             if (!finalResponse || typeof finalResponse !== "string" || finalResponse.trim().length < 2) {
-                finalResponse = window.getLocalizedEmotionalResponse
-                    ? window.getLocalizedEmotionalResponse("neutral")
-                    : "I'm here for you!";
+                finalResponse = window.getLocalizedEmotionalResponse ? window.getLocalizedEmotionalResponse("neutral") : "I'm here for you!";
             }
             setTimeout(() => {
                 addMessageToChat("kimi", finalResponse);
@@ -1414,9 +1400,7 @@ async function sendMessage() {
     } catch (error) {
         console.error("Error while generating response:", error);
         const i18n = window.kimiI18nManager;
-        const fallbackResponse = i18n
-            ? i18n.t("fallback_general_error")
-            : "Sorry my love, I am having a little technical issue! 💕";
+        const fallbackResponse = i18n ? i18n.t("fallback_general_error") : "Sorry my love, I am having a little technical issue! 💕";
         addMessageToChat("kimi", fallbackResponse);
         if (window.voiceManager) {
             window.voiceManager.speak(fallbackResponse);
@@ -1432,14 +1416,7 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     const languageSelect = document.getElementById("language-selection");
     const voiceSelect = document.getElementById("voice-selection");
     // Affection restored as editable trait.
-    const traitSliders = [
-        "trait-affection",
-        "trait-playfulness",
-        "trait-intelligence",
-        "trait-empathy",
-        "trait-humor",
-        "trait-romance"
-    ];
+    const traitSliders = ["trait-affection", "trait-playfulness", "trait-intelligence", "trait-empathy", "trait-humor", "trait-romance"];
     const llmTemperatureSlider = document.getElementById("llm-temperature");
     const llmMaxTokensSlider = document.getElementById("llm-max-tokens");
     const llmTopPSlider = document.getElementById("llm-top-p");
@@ -1614,7 +1591,7 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
     if (llmMaxTokensSlider) {
         const listener = e => {
             const validation = window.KimiValidationUtils?.validateRange(e.target.value, "llmMaxTokens");
-            const value = validation?.value || parseInt(e.target.value) || 400;
+            const value = validation?.value || parseInt(e.target.value) || 800;
 
             document.getElementById("llm-max-tokens-value").textContent = value;
             e.target.value = value;
@@ -1681,8 +1658,7 @@ function setupSettingsListeners(kimiDB, kimiMemory) {
         colorThemeSelect.removeEventListener("change", window._kimiColorThemeListener);
         window._kimiColorThemeListener = async e => {
             if (kimiDB) await kimiDB.setPreference("colorTheme", e.target.value);
-            if (window.kimiAppearanceManager && window.kimiAppearanceManager.changeTheme)
-                await window.kimiAppearanceManager.changeTheme(e.target.value);
+            if (window.kimiAppearanceManager && window.kimiAppearanceManager.changeTheme) await window.kimiAppearanceManager.changeTheme(e.target.value);
         };
         colorThemeSelect.addEventListener("change", window._kimiColorThemeListener);
     }
@@ -1776,10 +1752,7 @@ async function refreshAllSliders() {
     try {
         const enableStreamingToggle = document.getElementById("enable-streaming");
         if (enableStreamingToggle) {
-            const streamingEnabled = await window.kimiDB.getPreference(
-                "enableStreaming",
-                window.KIMI_CONFIG?.DEFAULTS?.ENABLE_STREAMING ?? true
-            );
+            const streamingEnabled = await window.kimiDB.getPreference("enableStreaming", window.KIMI_CONFIG?.DEFAULTS?.ENABLE_STREAMING ?? true);
             enableStreamingToggle.classList.toggle("active", streamingEnabled);
             enableStreamingToggle.setAttribute("aria-checked", streamingEnabled ? "true" : "false");
         }
@@ -1894,7 +1867,7 @@ async function syncPersonalityTraits(characterName = null) {
     if (!kimiDB) return;
 
     const selectedCharacter = characterName || (await kimiDB.getSelectedCharacter());
-    const traits = await kimiDB.getAllPersonalityTraits(selectedCharacter);
+    const traits = window.getCharacterTraits ? await window.getCharacterTraits(selectedCharacter) : await kimiDB.getAllPersonalityTraits(selectedCharacter);
 
     // Build required traits prioritizing character-specific defaults (fallback to generic)
     const getRequiredTraits = () => {
@@ -1962,7 +1935,9 @@ async function ensureVideoContextConsistency() {
     if (!window.kimiVideo || !window.kimiDB) return;
 
     const selectedCharacter = await window.kimiDB.getSelectedCharacter();
-    const traits = await window.kimiDB.getAllPersonalityTraits(selectedCharacter);
+    const traits = window.getCharacterTraits
+        ? await window.getCharacterTraits(selectedCharacter)
+        : await window.kimiDB.getAllPersonalityTraits(selectedCharacter);
 
     // Validate current video context using centralized validation
     const currentInfo = window.kimiVideo.getCurrentVideoInfo();

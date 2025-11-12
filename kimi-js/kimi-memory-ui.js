@@ -344,7 +344,10 @@ class KimiMemoryUI {
                         }
             ${tagsHtml}
                         <div class="memory-meta">
-                            <span class="memory-date">${this.formatDate(memory.timestamp)}</span>
+                            <span class="memory-date">${this.formatDate(
+                                // Robust fallback chain: createdAt -> timestamp -> lastAccess -> lastModified -> Date.now()
+                                memory.createdAt || memory.timestamp || memory.lastAccess || memory.lastModified || Date.now()
+                            )}</span>
                             ${
                                 memory.sourceText
                                     ? `<span class="memory-source" data-i18n="memory_source_label" title="${
@@ -422,9 +425,7 @@ class KimiMemoryUI {
         const moreCount = tags.length - visible.length;
 
         const escape = txt =>
-            window.KimiValidationUtils && window.KimiValidationUtils.escapeHtml
-                ? window.KimiValidationUtils.escapeHtml(String(txt))
-                : String(txt);
+            window.KimiValidationUtils && window.KimiValidationUtils.escapeHtml ? window.KimiValidationUtils.escapeHtml(String(txt)) : String(txt);
 
         const classify = tag => {
             if (tag.startsWith("relationship:")) return "tag-relationship";
@@ -434,9 +435,7 @@ class KimiMemoryUI {
             return "tag-generic";
         };
 
-        const chips = visible
-            .map(tag => `<span class="memory-tag ${classify(tag)}" title="${escape(tag)}">${escape(tag)}</span>`)
-            .join("");
+        const chips = visible.map(tag => `<span class="memory-tag ${classify(tag)}" title="${escape(tag)}">${escape(tag)}</span>`).join("");
 
         const moreChip = moreCount > 0 ? `<span class="memory-tag tag-more" title="${moreCount} more">+${moreCount}</span>` : "";
 
@@ -470,12 +469,26 @@ class KimiMemoryUI {
         return "low";
     }
 
-    formatDate(timestamp) {
-        const date = new Date(timestamp);
+    formatDate(raw) {
+        if (!raw) return "";
+        let date = null;
+        // Accept Date object, number, string
+        if (raw instanceof Date) {
+            date = raw;
+        } else {
+            // Some legacy records may store ISO string or Date object stringified
+            try {
+                date = new Date(raw);
+            } catch {
+                date = null;
+            }
+        }
+        if (!date || isNaN(date.getTime())) {
+            return ""; // Hide instead of showing 'Invalid Date'
+        }
         const now = new Date();
         const diffTime = now - date;
         const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
         if (diffDays === 0) return "Today";
         if (diffDays === 1) return "Yesterday";
         if (diffDays < 7) return `${diffDays} days ago`;
@@ -484,10 +497,7 @@ class KimiMemoryUI {
 
     highlightMemoryContent(content) {
         // Escape HTML first using centralized util
-        const escapedContent =
-            window.KimiValidationUtils && window.KimiValidationUtils.escapeHtml
-                ? window.KimiValidationUtils.escapeHtml(content)
-                : content;
+        const escapedContent = window.KimiValidationUtils && window.KimiValidationUtils.escapeHtml ? window.KimiValidationUtils.escapeHtml(content) : content;
 
         // Simple highlighting for search terms if there's a search active
         const searchInput = document.getElementById("memory-search");
@@ -642,39 +652,25 @@ class KimiMemoryUI {
                     <label style="display: block; margin-bottom: 8px; font-weight: 500;" data-i18n="label_category"></label>
                     <select id="edit-memory-category" class="kimi-select" style="width: 100%;">
                         <option value="personal" ${memory.category === "personal" ? "selected" : ""}>${
-                            window.kimiI18nManager && window.kimiI18nManager.t
-                                ? window.kimiI18nManager.t("memory_category_personal")
-                                : "Personal Info"
+                            window.kimiI18nManager && window.kimiI18nManager.t ? window.kimiI18nManager.t("memory_category_personal") : "Personal Info"
                         }</option>
                         <option value="preferences" ${memory.category === "preferences" ? "selected" : ""}>${
-                            window.kimiI18nManager && window.kimiI18nManager.t
-                                ? window.kimiI18nManager.t("memory_category_preferences")
-                                : "Likes & Dislikes"
+                            window.kimiI18nManager && window.kimiI18nManager.t ? window.kimiI18nManager.t("memory_category_preferences") : "Likes & Dislikes"
                         }</option>
                         <option value="relationships" ${memory.category === "relationships" ? "selected" : ""}>${
-                            window.kimiI18nManager && window.kimiI18nManager.t
-                                ? window.kimiI18nManager.t("memory_category_relationships")
-                                : "Relationships"
+                            window.kimiI18nManager && window.kimiI18nManager.t ? window.kimiI18nManager.t("memory_category_relationships") : "Relationships"
                         }</option>
                         <option value="activities" ${memory.category === "activities" ? "selected" : ""}>${
-                            window.kimiI18nManager && window.kimiI18nManager.t
-                                ? window.kimiI18nManager.t("memory_category_activities")
-                                : "Activities & Hobbies"
+                            window.kimiI18nManager && window.kimiI18nManager.t ? window.kimiI18nManager.t("memory_category_activities") : "Activities & Hobbies"
                         }</option>
                         <option value="goals" ${memory.category === "goals" ? "selected" : ""}>${
-                            window.kimiI18nManager && window.kimiI18nManager.t
-                                ? window.kimiI18nManager.t("memory_category_goals")
-                                : "Goals & Plans"
+                            window.kimiI18nManager && window.kimiI18nManager.t ? window.kimiI18nManager.t("memory_category_goals") : "Goals & Plans"
                         }</option>
                         <option value="experiences" ${memory.category === "experiences" ? "selected" : ""}>${
-                            window.kimiI18nManager && window.kimiI18nManager.t
-                                ? window.kimiI18nManager.t("memory_category_experiences")
-                                : "Experiences"
+                            window.kimiI18nManager && window.kimiI18nManager.t ? window.kimiI18nManager.t("memory_category_experiences") : "Experiences"
                         }</option>
                         <option value="important" ${memory.category === "important" ? "selected" : ""}>${
-                            window.kimiI18nManager && window.kimiI18nManager.t
-                                ? window.kimiI18nManager.t("memory_category_important")
-                                : "Important Events"
+                            window.kimiI18nManager && window.kimiI18nManager.t ? window.kimiI18nManager.t("memory_category_important") : "Important Events"
                         }</option>
                     </select>
                 </div>
@@ -710,10 +706,7 @@ class KimiMemoryUI {
                 const newContent = dialog.querySelector("#edit-memory-content").value.trim();
 
                 if (!newContent) {
-                    this.showFeedback(
-                        window.kimiI18nManager ? window.kimiI18nManager.t("validation_empty_message") : "Content cannot be empty",
-                        "error"
-                    );
+                    this.showFeedback(window.kimiI18nManager ? window.kimiI18nManager.t("validation_empty_message") : "Content cannot be empty", "error");
                     return;
                 }
 
@@ -743,19 +736,14 @@ class KimiMemoryUI {
                         console.log("✅ UI updated");
                     } else {
                         this.showFeedback(
-                            window.kimiI18nManager
-                                ? window.kimiI18nManager.t("fallback_general_error")
-                                : "Error: unable to update memory",
+                            window.kimiI18nManager ? window.kimiI18nManager.t("fallback_general_error") : "Error: unable to update memory",
                             "error"
                         );
                         console.error("❌ Update failed, result:", result);
                     }
                 } catch (error) {
                     console.error("Error updating memory:", error);
-                    this.showFeedback(
-                        window.kimiI18nManager ? window.kimiI18nManager.t("fallback_general_error") : "Error updating memory",
-                        "error"
-                    );
+                    this.showFeedback(window.kimiI18nManager ? window.kimiI18nManager.t("fallback_general_error") : "Error updating memory", "error");
                 }
             });
 

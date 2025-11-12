@@ -71,7 +71,7 @@ class KimiI18nManager {
     detectLanguage() {
         const nav = (navigator && (navigator.language || (navigator.languages && navigator.languages[0]))) || "en";
         const short = String(nav).slice(0, 2).toLowerCase();
-        return ["en", "fr", "es", "de", "it", "ja", "zh"].includes(short) ? short : "en";
+        return ["en", "fr", "es", "de", "it", "pt", "ja", "zh"].includes(short) ? short : "en";
     }
 }
 

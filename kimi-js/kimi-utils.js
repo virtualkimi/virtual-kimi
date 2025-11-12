@@ -1,4 +1,132 @@
 // CENTRALIZED KIMI UTILITIES
+// Lightweight additional helpers (Phase 1 consolidation):
+// 1. emitAppEvent(name, detail) -> standard CustomEvent emitter with safe try/catch.
+// 2. getCharacterTraits(char?) -> single place to fetch all personality traits (reduces repetition).
+// 3. setI18n(element, key, params?) -> uniform attribute assignment for i18n keys.
+// These are intentionally minimal & backward-compatible.
+
+if (!window.emitAppEvent) {
+    window.emitAppEvent = function emitAppEvent(name, detail = {}) {
+        if (!name) return false;
+        try {
+            window.dispatchEvent(new CustomEvent(name, { detail }));
+            return true;
+        } catch {
+            return false;
+        }
+    };
+}
+
+if (!window.getCharacterTraits) {
+    window.getCharacterTraits = async function getCharacterTraits(character = null) {
+        try {
+            const db = window.kimiDB;
+            if (!db || typeof db.getAllPersonalityTraits !== "function") return {};
+            // Init cache structure
+            if (!window.__KIMI_TRAITS_CACHE__) {
+                const cfgTtl = (window.KIMI_TRAITS_CACHE_CONFIG && window.KIMI_TRAITS_CACHE_CONFIG.ttlMs) || window.KIMI_CONFIG?.traitsCacheTtlMs;
+                const ttl = typeof cfgTtl === "number" && cfgTtl > 0 ? cfgTtl : 120000;
+                window.__KIMI_TRAITS_CACHE__ = {
+                    data: new Map(),
+                    ts: new Map(),
+                    ttl,
+                    metrics: { hits: 0, misses: 0, invalidations: 0 }
+                }; // TTL configurable (default 2 min)
+                // Centralized trait keys constant
+                window.__KIMI_TRAIT_KEYS__ = ["affection", "playfulness", "intelligence", "empathy", "humor", "romance"];
+            }
+            const cache = window.__KIMI_TRAITS_CACHE__;
+            let char = character;
+            if (!char && typeof db.getSelectedCharacter === "function") {
+                char = await db.getSelectedCharacter();
+            }
+            if (!char) return {};
+            const now = Date.now();
+            const cached = cache.data.get(char);
+            const ts = cache.ts.get(char) || 0;
+            if (cached && now - ts < cache.ttl) {
+                cache.metrics.hits++;
+                return cached;
+            }
+            cache.metrics.misses++;
+            const traits = (await db.getAllPersonalityTraits(char)) || {};
+            cache.data.set(char, traits);
+            cache.ts.set(char, now);
+            return traits;
+        } catch {
+            return {};
+        }
+    };
+}
+
+if (!window.setI18n) {
+    window.setI18n = function setI18n(el, key, params = null) {
+        if (!el || !key) return;
+        try {
+            el.setAttribute("data-i18n", key);
+            if (params && typeof params === "object") {
+                el.setAttribute("data-i18n-params", JSON.stringify(params));
+            }
+        } catch {}
+    };
+}
+
+// Invalidate trait cache on relevant preference updates (e.g., personality changes)
+if (window.addEventListener && !window.__KIMI_TRAITS_CACHE_LISTENER__) {
+    window.__KIMI_TRAITS_CACHE_LISTENER__ = true;
+    window.addEventListener("preferenceUpdated", ev => {
+        try {
+            if (!window.__KIMI_TRAITS_CACHE__) return;
+            const key = ev?.detail?.key;
+            const traitKeys = window.__KIMI_TRAIT_KEYS__ || ["affection", "playfulness", "intelligence", "empathy", "humor", "romance"];
+            const shouldInvalidate = !key || traitKeys.includes(String(key).toLowerCase()) || /trait|personality/i.test(key);
+            if (shouldInvalidate) {
+                window.__KIMI_TRAITS_CACHE__.data.clear();
+                window.__KIMI_TRAITS_CACHE__.ts.clear();
+                if (window.__KIMI_TRAITS_CACHE__.metrics) window.__KIMI_TRAITS_CACHE__.metrics.invalidations++;
+            }
+        } catch {}
+    });
+}
+
+// Debug helper
+if (!window.kimiTraitCacheInfo) {
+    window.kimiTraitCacheInfo = function () {
+        const c = window.__KIMI_TRAITS_CACHE__;
+        if (!c) return { enabled: false };
+        return {
+            enabled: true,
+            entries: c.data.size,
+            ttlMs: c.ttl,
+            keys: [...c.data.keys()],
+            metrics: c.metrics ? { ...c.metrics } : null,
+            traitKeys: window.__KIMI_TRAIT_KEYS__ || []
+        };
+    };
+}
+
+// Simple runtime micro-test for cache invalidation
+if (!window.testTraitCacheInvalidation) {
+    window.testTraitCacheInvalidation = async function () {
+        const report = { initialFetch: null, secondFetchCached: null, afterInvalidation: null, passed: false };
+        try {
+            const traits1 = await window.getCharacterTraits();
+            report.initialFetch = { keys: Object.keys(traits1).length };
+            const before = performance.now();
+            const traits2 = await window.getCharacterTraits();
+            const dur2 = performance.now() - before;
+            report.secondFetchCached = { ms: Math.round(dur2), keys: Object.keys(traits2).length };
+            // Emit fake preferenceUpdated affecting traits
+            window.emitAppEvent && window.emitAppEvent("preferenceUpdated", { key: "affection" });
+            const traits3 = await window.getCharacterTraits();
+            report.afterInvalidation = { keys: Object.keys(traits3).length };
+            report.passed = report.initialFetch.keys === report.afterInvalidation.keys;
+        } catch (e) {
+            report.error = String(e);
+        }
+        return report;
+    };
+}
 
 // Input validation and sanitization utilities
 window.KimiValidationUtils = {
@@ -60,7 +188,7 @@ window.KimiValidationUtils = {
             voicePitch: { min: 0.5, max: 2, def: 1.1 },
             voiceVolume: { min: 0, max: 1, def: 0.8 },
             llmTemperature: { min: 0, max: 1, def: 0.9 },
-            llmMaxTokens: { min: 1, max: 8192, def: 400 },
+            llmMaxTokens: { min: 1, max: 8192, def: 800 },
             llmTopP: { min: 0, max: 1, def: 0.9 },
             llmFrequencyPenalty: { min: 0, max: 2, def: 0.9 },
             llmPresencePenalty: { min: 0, max: 2, def: 0.8 },
@@ -236,12 +364,7 @@ class KimiSecurityUtils {
 
         switch (type) {
             case "html":
-                return input
-                    .replace(/&/g, "&amp;")
-                    .replace(/</g, "&lt;")
-                    .replace(/>/g, "&gt;")
-                    .replace(/"/g, "&quot;")
-                    .replace(/'/g, "&#x27;");
+                return input.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;");
             case "number":
                 const num = parseFloat(input);
                 return isNaN(num) ? 0 : num;

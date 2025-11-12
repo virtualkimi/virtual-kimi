@@ -4,6 +4,7 @@ import KimiEmotionSystem from "./kimi-emotion-system.js";
 import KimiMemorySystem from "./kimi-memory-system.js";
 import KimiMemory from "./kimi-memory.js";
 import { KimiDataManager } from "./kimi-data-manager.js"; // Explicit import (phasing out window.KimiDataManager)
+import { initializeVideoController } from "./kimi-video-controller.js"; // Unified video control
 
 document.addEventListener("DOMContentLoaded", async function () {
     const DEFAULT_SYSTEM_PROMPT = window.DEFAULT_SYSTEM_PROMPT;
@@ -33,16 +34,13 @@ document.addEventListener("DOMContentLoaded", async function () {
         const favorabilityLabel = window.KimiDOMUtils.get("#favorability-label");
         if (favorabilityLabel && window.KIMI_CHARACTERS && window.KIMI_CHARACTERS[selectedCharacter]) {
             favorabilityLabel.removeAttribute("for");
-            favorabilityLabel.setAttribute("data-i18n", "personality_average_of");
-            favorabilityLabel.setAttribute(
-                "data-i18n-params",
-                JSON.stringify({ name: window.KIMI_CHARACTERS[selectedCharacter].name })
-            );
+            if (window.setI18n) window.setI18n(favorabilityLabel, "personality_average_of");
+            favorabilityLabel.setAttribute("data-i18n-params", JSON.stringify({ name: window.KIMI_CHARACTERS[selectedCharacter].name }));
             favorabilityLabel.textContent = `💖 Personality average of ${window.KIMI_CHARACTERS[selectedCharacter].name}`;
         }
         const chatHeaderName = window.KimiDOMUtils.get(".chat-header span[data-i18n]");
         if (chatHeaderName && window.KIMI_CHARACTERS && window.KIMI_CHARACTERS[selectedCharacter]) {
-            chatHeaderName.setAttribute("data-i18n", `chat_with_${selectedCharacter}`);
+            if (window.setI18n) window.setI18n(chatHeaderName, `chat_with_${selectedCharacter}`);
         }
         kimiLLM = new KimiLLMManager(kimiDB);
         window.kimiLLM = kimiLLM;
@@ -150,10 +148,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             } else {
                 baseUrl = shared[provider] || shared.openai;
             }
-            const modelId = await window.kimiDB.getPreference(
-                "llmModelId",
-                window.kimiLLM ? window.kimiLLM.currentModel : "model-id"
-            );
+            const modelId = await window.kimiDB.getPreference("llmModelId", window.kimiLLM ? window.kimiLLM.currentModel : "model-id");
             const providerSelect = ApiUi.providerSelect();
             if (providerSelect) providerSelect.value = provider;
             const baseUrlInput = ApiUi.baseUrlInput();
@@ -176,9 +171,7 @@ document.addEventListener("DOMContentLoaded", async function () {
                 }
             }
             // Load the provider-specific key
-            const keyPref = window.KimiProviderUtils
-                ? window.KimiProviderUtils.getKeyPrefForProvider(provider)
-                : "providerApiKey";
+            const keyPref = window.KimiProviderUtils ? window.KimiProviderUtils.getKeyPrefForProvider(provider) : "providerApiKey";
             const storedKey = await window.kimiDB.getPreference(keyPref, "");
             if (apiKeyInput) apiKeyInput.value = storedKey || "";
             ApiUi.setPresence(storedKey ? "#4caf50" : "#9e9e9e");
@@ -288,26 +281,18 @@ document.addEventListener("DOMContentLoaded", async function () {
 
                 const apiKeyLabel = document.getElementById("api-key-label");
                 // Load provider-specific key into the input for clarity
-                const keyPref = window.KimiProviderUtils
-                    ? window.KimiProviderUtils.getKeyPrefForProvider(provider)
-                    : "providerApiKey";
+                const keyPref = window.KimiProviderUtils ? window.KimiProviderUtils.getKeyPrefForProvider(provider) : "providerApiKey";
                 const storedKey = await window.kimiDB.getPreference(keyPref, "");
                 if (apiKeyInput && provider !== "ollama") apiKeyInput.value = storedKey || "";
                 const color = provider === "ollama" ? "#9e9e9e" : storedKey && storedKey.length > 0 ? "#4caf50" : "#9e9e9e";
                 ApiUi.setPresence(color);
                 // Changing provider invalidates previous test state
                 ApiUi.setTestPresence("#9e9e9e");
-                ApiUi.setTestEnabled(
-                    provider === "ollama"
-                        ? true
-                        : !!(window.KIMI_VALIDATORS && window.KIMI_VALIDATORS.validateApiKey(storedKey || ""))
-                );
+                ApiUi.setTestEnabled(provider === "ollama" ? true : !!(window.KIMI_VALIDATORS && window.KIMI_VALIDATORS.validateApiKey(storedKey || "")));
 
                 // Dynamic label per provider
                 if (apiKeyLabel) {
-                    apiKeyLabel.textContent = window.KimiProviderUtils
-                        ? window.KimiProviderUtils.getLabelForProvider(provider)
-                        : "API Key";
+                    apiKeyLabel.textContent = window.KimiProviderUtils ? window.KimiProviderUtils.getLabelForProvider(provider) : "API Key";
                 }
                 const savedBadge = ApiUi.savedBadge();
                 if (savedBadge) {
@@ -406,6 +391,9 @@ document.addEventListener("DOMContentLoaded", async function () {
     await kimiVideo.init(kimiDB);
     window.kimiVideo = kimiVideo;
 
+    // Initialize unified video controller
+    window.kimiVideoController = initializeVideoController(kimiVideo, window.kimiEmotionSystem, kimiDB);
+
     if (video1 && video2 && kimiDB && kimiDB.getSelectedCharacter) {
         try {
             const selectedCharacter = await kimiDB.getSelectedCharacter();
@@ -467,12 +455,13 @@ document.addEventListener("DOMContentLoaded", async function () {
                 if (window.kimiMemoryUI && typeof window.kimiMemoryUI.updateMemoryStats === "function") {
                     await window.kimiMemoryUI.updateMemoryStats();
                 }
-                saveCharacterBtn.setAttribute("data-i18n", "saved");
+                if (window.setI18n) window.setI18n(saveCharacterBtn, "saved");
+                saveCharacterBtn.classList.remove("pulse-animation");
                 saveCharacterBtn.classList.add("success");
                 saveCharacterBtn.disabled = true;
 
                 setTimeout(() => {
-                    saveCharacterBtn.setAttribute("data-i18n", "save");
+                    if (window.setI18n) window.setI18n(saveCharacterBtn, "apply_character");
                     saveCharacterBtn.classList.remove("success");
                     saveCharacterBtn.disabled = false;
                 }, 1000);
@@ -551,9 +540,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         });
         (function (el) {
             if (!el) return;
-            const pad =
-                (p => (p ? parseFloat(p) : 0))(getComputedStyle(el).paddingTop) +
-                (p => (p ? parseFloat(p) : 0))(getComputedStyle(el).paddingBottom);
+            const pad = (p => (p ? parseFloat(p) : 0))(getComputedStyle(el).paddingTop) + (p => (p ? parseFloat(p) : 0))(getComputedStyle(el).paddingBottom);
             const lh = parseFloat(getComputedStyle(el).lineHeight) || 18,
                 max = lh * 4 + pad;
             const a = () => {
@@ -576,15 +563,19 @@ document.addEventListener("DOMContentLoaded", async function () {
     const helpOverlay = document.getElementById("help-overlay");
     const helpButton = document.getElementById("help-button");
     const helpClose = document.getElementById("help-close");
+    const globalHelpButton = document.getElementById("global-help-button");
 
     if (!settingsButton || !helpButton) {
         console.error("Critical UI buttons missing from DOM");
         return;
     }
 
-    helpButton.addEventListener("click", () => {
-        window.kimiOverlayManager.open("help-overlay");
-    });
+    const openHelp = () => window.kimiOverlayManager.open("help-overlay");
+
+    helpButton.addEventListener("click", openHelp);
+    if (globalHelpButton) {
+        globalHelpButton.addEventListener("click", openHelp);
+    }
 
     if (helpClose) {
         helpClose.addEventListener("click", () => {
@@ -654,8 +645,7 @@ document.addEventListener("DOMContentLoaded", async function () {
                 }
 
                 const testMessage =
-                    window.kimiI18nManager?.t("voice_test_message") ||
-                    "Hello my love! Here is my new voice configured with all the settings! Do you like it?";
+                    window.kimiI18nManager?.t("voice_test_message") || "Hello my love! Here is my new voice configured with all the settings! Do you like it?";
                 voiceManager.speak(testMessage, {
                     rate,
                     pitch,
@@ -692,9 +682,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             if (provider !== "ollama") {
                 const isValid = (window.KIMI_VALIDATORS && window.KIMI_VALIDATORS.validateApiKey(apiKey)) || false;
                 if (!isValid) {
-                    statusSpan.textContent =
-                        window.kimiI18nManager?.t("api_key_invalid_format") ||
-                        "Invalid API key format (must start with sk-or-v1-)";
+                    statusSpan.textContent = window.kimiI18nManager?.t("api_key_invalid_format") || "Invalid API key format (must start with sk-or-v1-)";
                     statusSpan.style.color = "#ff6b6b";
                     return;
                 }
@@ -703,9 +691,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             if (window.kimiDB) {
                 // Save API key under provider-specific preference key (skip for Ollama)
                 if (provider !== "ollama") {
-                    const keyPref = window.KimiProviderUtils
-                        ? window.KimiProviderUtils.getKeyPrefForProvider(provider)
-                        : "providerApiKey";
+                    const keyPref = window.KimiProviderUtils ? window.KimiProviderUtils.getKeyPrefForProvider(provider) : "providerApiKey";
                     await window.kimiDB.setPreference(keyPref, apiKey);
                 }
                 await window.kimiDB.setPreference("llmProvider", provider);
@@ -732,8 +718,7 @@ document.addEventListener("DOMContentLoaded", async function () {
                             const apiKeyInputEl = ApiUi.apiKeyInput();
                             const hasKey = apiKeyInputEl && apiKeyInputEl.value.trim().length > 0;
                             if (provider !== "ollama" && hasKey) {
-                                savedBadge.textContent =
-                                    (window.kimiI18nManager && window.kimiI18nManager.t("saved_short")) || "Saved";
+                                savedBadge.textContent = (window.kimiI18nManager && window.kimiI18nManager.t("saved_short")) || "Saved";
                                 savedBadge.style.display = "inline";
                             } else {
                                 savedBadge.style.display = "none";
@@ -783,9 +768,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             t = setTimeout(async () => {
                 const providerEl = ApiUi.providerSelect();
                 const provider = providerEl ? providerEl.value : "openrouter";
-                const keyPref = window.KimiProviderUtils
-                    ? window.KimiProviderUtils.getKeyPrefForProvider(provider)
-                    : "providerApiKey";
+                const keyPref = window.KimiProviderUtils ? window.KimiProviderUtils.getKeyPrefForProvider(provider) : "providerApiKey";
                 const value = input.value.trim();
                 // Update Test button state immediately
                 const validNow = !!(window.KIMI_VALIDATORS && window.KIMI_VALIDATORS.validateApiKey(value));
@@ -796,8 +779,7 @@ document.addEventListener("DOMContentLoaded", async function () {
                         const savedBadge = ApiUi.savedBadge();
                         if (savedBadge) {
                             if (value) {
-                                savedBadge.textContent =
-                                    (window.kimiI18nManager && window.kimiI18nManager.t("saved_short")) || "Saved";
+                                savedBadge.textContent = (window.kimiI18nManager && window.kimiI18nManager.t("saved_short")) || "Saved";
                                 savedBadge.style.display = "inline";
                             } else {
                                 savedBadge.style.display = "none";
@@ -994,7 +976,9 @@ document.addEventListener("DOMContentLoaded", async function () {
             let dbTraits = null;
             try {
                 if (window.kimiDB && typeof window.kimiDB.getAllPersonalityTraits === "function") {
-                    dbTraits = await window.kimiDB.getAllPersonalityTraits(character || null);
+                    dbTraits = window.getCharacterTraits
+                        ? await window.getCharacterTraits(character || null)
+                        : await window.kimiDB.getAllPersonalityTraits(character || null);
                 }
             } catch (e) {
                 dbTraits = null;
@@ -1042,8 +1026,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             f8KeyPressed = true;
             const activeElement = document.activeElement;
             const isInputFocused =
-                activeElement &&
-                (activeElement.tagName === "INPUT" || activeElement.tagName === "TEXTAREA" || activeElement.isContentEditable);
+                activeElement && (activeElement.tagName === "INPUT" || activeElement.tagName === "TEXTAREA" || activeElement.isContentEditable);
 
             // Only trigger if no input field is focused
             if (!isInputFocused && window.voiceManager && window.voiceManager.toggleMicrophone) {
@@ -1179,7 +1162,7 @@ document.addEventListener("DOMContentLoaded", async function () {
                     let traits = lastTraits;
                     if (!traits || Object.keys(traits).length === 0) {
                         // Fallback: fetch all traits if partial not provided
-                        traits = db && (await db.getAllPersonalityTraits(character));
+                        traits = db && (window.getCharacterTraits ? await window.getCharacterTraits(character) : await db.getAllPersonalityTraits(character));
                     }
 
                     // 1) Update UI sliders if available
@@ -1211,7 +1194,9 @@ document.addEventListener("DOMContentLoaded", async function () {
                         const allTraits =
                             traits && Object.keys(traits).length > 0
                                 ? { ...traits }
-                                : (db && (await db.getAllPersonalityTraits(character))) || {};
+                                : (db &&
+                                      (window.getCharacterTraits ? await window.getCharacterTraits(character) : await db.getAllPersonalityTraits(character))) ||
+                                  {};
                         try {
                             window.kimiVideo.setMoodByPersonality(allTraits);
                         } catch {}
@@ -1238,11 +1223,7 @@ document.addEventListener("DOMContentLoaded", async function () {
                     }
 
                     try {
-                        if (
-                            window.KIMI_DEBUG_SYNC &&
-                            window.kimiVideo &&
-                            typeof window.kimiVideo.getCurrentVideoInfo === "function"
-                        ) {
+                        if (window.KIMI_DEBUG_SYNC && window.kimiVideo && typeof window.kimiVideo.getCurrentVideoInfo === "function") {
                             const afterInfo = window.kimiVideo.getCurrentVideoInfo();
                             if (
                                 beforeInfo &&

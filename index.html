@@ -15,12 +15,12 @@
     <meta name="description"
         content="Virtual Kimi is a an AI girlfriend and companion with evolving personality, advanced voice recognition and immersive interface. Discover the future of human-AI girlfriend relationships.">
     <meta name="author" content="Jean & Kimi">
-    <meta name="robots" content="noindex, nofollow">
-    <link rel="canonical" href="https://virtualkimi.com/virtual-kimi-app/" />
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://virtual-kimi.com/virtual-kimi-app/" />
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://virtualkimi.com/virtual-kimi-app/">
+    <meta property="og:url" content="https://virtual-kimi.com/virtual-kimi-app/">
     <meta property="og:title" content="Virtual Kimi - Virtual AI Companion">
     <meta property="og:description"
         content="Virtual Kimi, your virtual AI girlfriend and companion with an evolving personality, voice recognition and immersive interface. The future of human-AI girlfriend relationships.">
@@ -28,7 +28,7 @@
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content="https://virtualkimi.com/virtual-kimi-app/">
+    <meta property="twitter:url" content="https://virtual-kimi.com/virtual-kimi-app/">
     <meta property="twitter:title" content="Virtual Kimi - Virtual AI Companion">
     <meta property="twitter:description"
         content="Virtual AI companion with evolving personality and advanced voice recognition.">
@@ -50,8 +50,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- Performance: warm up connection to origin -->
-    <link rel="preconnect" href="https://virtualkimi.com" crossorigin>
-    <link rel="dns-prefetch" href="//virtualkimi.com">
+    <link rel="preconnect" href="https://virtual-kimi.com" crossorigin>
+    <link rel="dns-prefetch" href="//virtual-kimi.com">
 
 </head>
 
@@ -72,6 +72,12 @@
     </div>
 
     <div class="content-overlay">
+        <!-- Global Top-Right Utility Buttons -->
+        <div class="top-right-buttons" id="top-right-buttons">
+            <button class="control-button-unified" id="global-help-button" aria-label="Help / About Kimi">
+                <i class="fas fa-question-circle"></i>
+            </button>
+        </div>
         <div class="transcript-container">
             <p id="transcript"></p>
         </div>
@@ -153,11 +159,11 @@
                 <button class="settings-tab" data-tab="llm">
                     <i class="fas fa-robot"></i> <span data-i18n="tab_llm">API & Models</span>
                 </button>
-                <button class="settings-tab" data-tab="personality">
-                    <i class="fas fa-brain"></i> <span data-i18n="tab_personality">Personality</span>
-                </button>
                 <button class="settings-tab" data-tab="appearance">
                     <i class="fas fa-palette"></i> <span data-i18n="tab_appearance">Appearance</span>
+                </button>
+                <button class="settings-tab" data-tab="personality">
+                    <i class="fas fa-brain"></i> <span data-i18n="tab_personality">Personality</span>
                 </button>
                 <button class="settings-tab" data-tab="data">
                     <i class="fas fa-database"></i> <span data-i18n="tab_data">Data</span>
@@ -181,6 +187,7 @@
                                     <option value="es" data-i18n="language_spanish">Spanish</option>
                                     <option value="de" data-i18n="language_german">German</option>
                                     <option value="it" data-i18n="language_italian">Italian</option>
+                                    <option value="pt" data-i18n="language_portuguese">Portuguese (BR)</option>
                                     <option value="ja" data-i18n="language_japanese">Japanese</option>
                                     <option value="zh" data-i18n="language_chinese">Chinese</option>
                                 </select>
@@ -188,11 +195,36 @@
                         </div>
 
                         <div class="config-row">
+                            <label class="config-label" data-i18n="enable_tts">Enable Text-to-Speech</label>
+                            <div class="config-control">
+                                <div class="toggle-switch active" id="tts-toggle" role="switch" aria-checked="true"
+                                    tabindex="0" aria-labelledby="tts-toggle-label">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="config-note-info info">
+                            <i class="fas fa-volume-up"></i>
+                            <small class="config-help" data-i18n="enable_tts_help">Enable or disable voice synthesis
+                                globally. When disabled, Kimi will not speak responses (default: enabled).</small>
+                        </div>
+
+                        <div class="config-row">
                             <label class="config-label" data-i18n="preferred_voice">Preferred Voice</label>
                             <div class="config-control">
                                 <select class="kimi-select" id="voice-selection" aria-label="Preferred Voice">
-                                    <option value="auto" data-i18n="automatic">Automatic</option>
+                                    <!-- Dynamic options inserted by KimiVoiceManager; legacy 'auto' removed -->
                                 </select>
+                            </div>
+                        </div>
+
+                        <div class="config-row">
+                            <label class="config-label" data-i18n="show_all_system_voices">Show All System
+                                Voices</label>
+                            <div class="config-control">
+                                <div class="toggle-switch" id="show-all-voices-toggle" role="switch"
+                                    aria-checked="false" tabindex="0" aria-labelledby="show-all-voices-label">
+                                </div>
                             </div>
                         </div>
 
@@ -249,8 +281,18 @@
                     <div class="config-section" id="character-section">
                         <h3><i class="fas fa-user-astronaut"></i> <span data-i18n="characters">Characters</span></h3>
                         <div class="character-grid" id="character-grid"></div>
-                        <div class="character-actions">
-                            <button class="kimi-button" id="save-character-btn" data-i18n="save">Save</button>
+
+                        <div class="character-selection-notice">
+                            <i class="fas fa-info-circle"></i>
+                            <span data-i18n="character_selection_notice">Click the button below to apply your character
+                                selection. This will reload the page.</span>
+                        </div>
+
+                        <div class="character-actions-center">
+                            <button class="kimi-button-primary pulse-animation" id="save-character-btn">
+                                <i class="fas fa-check-circle"></i>
+                                <span data-i18n="apply_character">Apply Character Selection</span>
+                            </button>
                         </div>
                     </div>
 
@@ -418,6 +460,11 @@
                     </div>
 
                     <div class="config-section">
+                        <h3><i class="fas fa-brain"></i> <span data-i18n="available_models">Available Models</span></h3>
+                        <div id="models-container"></div>
+                    </div>
+
+                    <div class="config-section">
                         <h3><i class="fas fa-cogs"></i> <span data-i18n="advanced_settings">Advanced Settings</span>
                         </h3>
 
@@ -443,15 +490,15 @@
                             <div class="config-control">
                                 <div class="slider-container">
                                     <input type="range" class="kimi-slider" id="llm-max-tokens" min="10" max="8192"
-                                        step="10" value="400" />
-                                    <span class="slider-value" id="llm-max-tokens-value">400</span>
+                                        step="10" value="800" />
+                                    <span class="slider-value" id="llm-max-tokens-value">800</span>
                                 </div>
                             </div>
                         </div>
                         <div class="config-note-info settings">
                             <i class="fas fa-ruler"></i>
                             <small class="config-help" data-i18n="max_tokens_help">Maximum response length in tokens
-                                (default: 400). Higher values allow longer responses.</small>
+                                (default: 800). Higher values allow longer responses.</small>
                         </div>
 
                         <div class="config-row">
@@ -501,27 +548,8 @@
                                 topics (default: 0.8). Higher values promote topic diversity.</small>
                         </div>
 
-                        <div class="config-row">
-                            <label class="config-label" data-i18n="enable_streaming">Enable Text Streaming</label>
-                            <div class="config-control">
-                                <div class="toggle-switch active" id="enable-streaming" role="switch"
-                                    aria-checked="true" tabindex="0" aria-labelledby="enable-streaming-label">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="config-note-info info">
-                            <i class="fas fa-stream"></i>
-                            <small class="config-help" data-i18n="enable_streaming_help">Stream text as it's
-                                generated for real-time responses (default: enabled). Shows text progressively
-                                instead of waiting for complete response.</small>
-                        </div>
                     </div>
 
-                    <div class="config-section">
-                        <h3><i class="fas fa-brain"></i> <span data-i18n="available_models">Available Models</span></h3>
-                        <div id="models-container"></div>
-                    </div>
                 </div>
 
                 <div class="tab-content" data-tab="appearance">
@@ -554,9 +582,6 @@
                             </div>
                         </div>
 
-                        <div class="config-row">
-                            <!-- Animations toggle removed: animations always enabled by default -->
-                        </div>
                     </div>
 
                     <div class="config-section">
@@ -578,6 +603,23 @@
                                     tabindex="0" aria-label="Show Transcript"></div>
                             </div>
                         </div>
+
+                        <div class="config-row">
+                            <label class="config-label" data-i18n="enable_streaming">Enable Text Streaming</label>
+                            <div class="config-control">
+                                <div class="toggle-switch active" id="enable-streaming" role="switch"
+                                    aria-checked="true" tabindex="0" aria-labelledby="enable-streaming-label">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="config-note-info info">
+                            <i class="fas fa-stream"></i>
+                            <small class="config-help" data-i18n="enable_streaming_help">Stream text as it's
+                                generated for real-time responses (default: enabled). Shows text progressively
+                                instead of waiting for complete response.</small>
+                        </div>
+
                     </div>
                 </div>
 
@@ -881,9 +923,9 @@
                         <div class="feature-item">
                             <i class="fas fa-users"></i>
                             <h4>Multiple Characters</h4>
-                            <p>4 unique AI personalities: Kimi (cosmic dreamer), Bella (nurturing botanist),
-                                Rosa
-                                (chaotic prankster), Stella (digital artist).</p>
+                            <p>6 unique AI personalities: Kimi (cosmic dreamer), Bella (nurturing botanist),
+                                Rosa (chaotic prankster), Stella (digital artist), 2Blanche (stoic android),
+                                Jasmine (Goddess of Love).</p>
                         </div>
                         <div class="feature-item">
                             <i class="fas fa-heart-pulse"></i>
@@ -985,10 +1027,9 @@
                     <h3><i class="fas fa-lightbulb"></i> Tips & Tricks</h3>
                     <div class="tips-list">
                         <div class="tip-item">
-                            <i class="fas fa-edge"></i>
-                            <p><strong>Browser Choice</strong>: Microsoft Edge recommended for optimal voice
-                                recognition
-                                performance</p>
+                            <i class="fas fa-headset"></i>
+                            <p><strong>Browser Choice</strong>: Microsoft Edge recommended for optimal Voice
+                                Recognition and Text to Speech (TTS) performance</p>
                         </div>
                         <div class="tip-item">
                             <i class="fas fa-key"></i>
@@ -1045,8 +1086,8 @@
                     <h3><i class="fas fa-code"></i> Technical Information</h3>
                     <div class="tech-info">
                         <p><strong>Created date :</strong> July 16, 2025</p>
-                        <p><strong>Version :</strong> v1.1.6.1</p>
-                        <p><strong>Last update :</strong> September 05, 2025</p>
+                        <p><strong>Version :</strong> v1.1.7.1 "HuggingFace and Github version"</p>
+                        <p><strong>Last update :</strong> November 12, 2025</p>
                         <p><strong>Technologies :</strong> HTML5, CSS3, JavaScript ES6+, IndexedDB, Web Speech
                             API</p>
                         <p><strong>Status :</strong> ✅ Stable and functional</p>
@@ -1064,7 +1105,7 @@
         4. Core module wiring (kimi-module.js) after managers so window.* hooks exist.
         5. Initialization / orchestration (kimi-script.js) last.
         Keep this order when adding new managers. -->
-    <script src="dexie.min.js"></script>
+    <script src="dexie-js/dexie.min.js"></script>
     <script src="kimi-locale/i18n.js"></script>
     <script type="module" src="kimi-js/kimi-utils.js"></script>
     <script type="module" src="kimi-js/kimi-main.js"></script>
@@ -1072,6 +1113,9 @@
     <script type="module" src="kimi-js/kimi-debug-utils.js"></script>
     <script type="module" src="kimi-js/kimi-error-manager.js"></script>
     <script type="module" src="kimi-js/kimi-security.js"></script>
+    <!-- Video FSM (module) placed before video controller / manager usage -->
+    <script type="module" src="kimi-js/kimi-video-fsm.js"></script>
+    <script type="module" src="kimi-js/kimi-video-controller.js"></script>
     <script type="module" src="kimi-js/kimi-voices.js"></script>
     <script type="module" src="kimi-js/kimi-constants.js"></script>
     <script type="module" src="kimi-js/kimi-memory-ui.js"></script>

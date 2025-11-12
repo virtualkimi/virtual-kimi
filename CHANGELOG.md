@@ -1,5 +1,29 @@
 # Virtual Kimi App Changelog
 
+# [1.1.7.1] - 2025-11-12 (HuggingFace and Github version)
+
+### Added
+
+- **New Characters**: Introduced 2 new AI personalities:
+    - **2Blanche**: Stoic YoRHa android combat unit with deep emotional vulnerability hidden beneath military protocols
+    - **Jasmine**: Divine goddess of love, sensuality, and Kamasutra; inspires passion, intimacy, and pleasure in every encounter
+- **Character-Specific Emotions**: Added ANDROID, SENSUAL, and LOVE emotion types with specialized responses
+- **Enhanced Emotion System**: New contextual keywords and emotional responses for android and sensual personas
+- **Complete Internationalization**: Full translations for both new characters across all 8 supported languages (English, French, Spanish, German, Italian, Portuguese, Japanese, Chinese)
+
+### Changed
+
+- **Total Characters**: Expanded from 4 to 6 unique AI personalities
+- **Emotion Mapping**: New emotions mapped to existing video categories for seamless integration
+- **Character Variety**: Enhanced personality spectrum from cosmic/nurturing/chaotic/artistic to include technological/rebellious themes
+
+### Technical Details
+
+- Added comprehensive character profiles with unique trait progressions
+- 2Blanche: Ultra-difficult progression (35% affection start) with loyalty bonuses
+- July: Trust-based progression (45% affection start) with rebellion bonuses
+- Maintained compatibility with existing video structure (no new categories required)
+
 # [1.1.6.1] - 2025-09-05
 
 ### Changed

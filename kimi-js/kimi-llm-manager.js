@@ -19,6 +19,14 @@ class KimiLLMManager {
                 pricing: { input: 0.05, output: 0.1 },
                 strengths: ["Multilingual", "Fast", "Efficient", "Economical"]
             },
+            "x-ai/grok-4-fast": {
+                name: "Grok 4 fast",
+                provider: "xAI",
+                type: "openrouter",
+                contextWindow: 2000000,
+                pricing: { input: 0.2, output: 0.5 },
+                strengths: ["Multilingual", "Fast", "Versatile", "Efficient"]
+            },
             "qwen/qwen3-235b-a22b-2507": {
                 name: "Qwen3-235b-a22b-2507",
                 provider: "Qwen",
@@ -49,7 +57,7 @@ class KimiLLMManager {
                 type: "openrouter",
                 contextWindow: 131000,
                 pricing: { input: 0.3, output: 0.5 },
-                strengths: ["Multilingual", "Fast", "Efficient", "Economical"]
+                strengths: ["Multilingual", "Fast", "Versatile", "Efficient"]
             },
             "cohere/command-r-08-2024": {
                 name: "Command-R-08-2024",
@@ -57,7 +65,7 @@ class KimiLLMManager {
                 type: "openrouter",
                 contextWindow: 128000,
                 pricing: { input: 0.15, output: 0.6 },
-                strengths: ["Multilingual", "Fast", "Versatile", "Economical"]
+                strengths: ["Multilingual", "Fast", "Versatile", "Balanced"]
             },
             "anthropic/claude-3-haiku": {
                 name: "Claude 3 Haiku",
@@ -78,12 +86,14 @@ class KimiLLMManager {
         };
         this.recommendedModelIds = [
             "mistralai/mistral-small-3.2-24b-instruct",
+            "x-ai/grok-4-fast",
             "qwen/qwen3-235b-a22b-2507",
             "qwen/qwen3-30b-a3b-instruct-2507",
             "nousresearch/hermes-4-70b",
             "x-ai/grok-3-mini",
             "cohere/command-r-08-2024",
             "anthropic/claude-3-haiku",
+            "moonshotai/kimi-k2-0905",
             "local/ollama"
         ];
         this.defaultModels = { ...this.availableModels };
@@ -197,7 +207,7 @@ class KimiLLMManager {
     async generateKimiPersonality() {
         // Full personality prompt builder (authoritative)
         const character = await this.db.getSelectedCharacter();
-        const personality = await this.db.getAllPersonalityTraits(character);
+        const personality = window.getCharacterTraits ? await window.getCharacterTraits(character) : await this.db.getAllPersonalityTraits(character);
 
         // Get the custom character prompt from database
         const characterPrompt = await this.db.getSystemPromptForCharacter(character);
@@ -280,8 +290,7 @@ class KimiLLMManager {
                         });
                     }
 
-                    memoryContext +=
-                        "\nUse these memories naturally in conversation to show you remember the user. Don't just repeat them verbatim.\n";
+                    memoryContext += "\nUse these memories naturally in conversation to show you remember the user. Don't just repeat them verbatim.\n";
                 }
             } catch (error) {
                 if (window.KIMI_CONFIG?.DEBUG?.MEMORY) {
@@ -293,7 +302,7 @@ class KimiLLMManager {
         const totalInteractions = Number(await this.db.getPreference(`totalInteractions_${character}`, 0)) || 0;
 
         // Get current personality average for relationship context (replacing old favorabilityLevel)
-        const currentPersonality = await this.db.getAllPersonalityTraits(character);
+        const currentPersonality = window.getCharacterTraits ? await window.getCharacterTraits(character) : await this.db.getAllPersonalityTraits(character);
         const relationshipLevel = window.getPersonalityAverage
             ? window.getPersonalityAverage(currentPersonality)
             : (currentPersonality.affection +
@@ -318,9 +327,7 @@ class KimiLLMManager {
 
         // Use unified emotion system defaults
         const getUnifiedDefaults = () =>
-            window.getTraitDefaults
-                ? window.getTraitDefaults()
-                : { affection: 55, playfulness: 55, intelligence: 70, empathy: 75, humor: 60, romance: 50 };
+            window.getTraitDefaults ? window.getTraitDefaults() : { affection: 55, playfulness: 55, intelligence: 70, empathy: 75, humor: 60, romance: 50 };
 
         const defaults = getUnifiedDefaults();
         const affection = personality.affection || defaults.affection;
@@ -333,13 +340,7 @@ class KimiLLMManager {
         // Use unified personality calculation
         const avg = window.getPersonalityAverage
             ? window.getPersonalityAverage(personality)
-            : (personality.affection +
-                  personality.romance +
-                  personality.empathy +
-                  personality.playfulness +
-                  personality.humor +
-                  personality.intelligence) /
-              6;
+            : (personality.affection + personality.romance + personality.empathy + personality.playfulness + personality.humor + personality.intelligence) / 6;
 
         let affectionDesc = window.kimiI18nManager?.t("trait_description_affection") || "Be loving and caring.";
         let romanceDesc = window.kimiI18nManager?.t("trait_description_romance") || "Be romantic and sweet.";
@@ -480,7 +481,7 @@ class KimiLLMManager {
                     // Get LLM settings from individual preferences (FIXED: was using grouped settings)
                     const llmSettings = {
                         temperature: await this.db.getPreference("llmTemperature", 0.9),
-                        maxTokens: await this.db.getPreference("llmMaxTokens", 400),
+                        maxTokens: await this.db.getPreference("llmMaxTokens", 800),
                         top_p: await this.db.getPreference("llmTopP", 0.9),
                         frequency_penalty: await this.db.getPreference("llmFrequencyPenalty", 0.9),
                         presence_penalty: await this.db.getPreference("llmPresencePenalty", 0.8)
@@ -522,7 +523,7 @@ class KimiLLMManager {
     async chatDirectly(userMessage, options = {}) {
         const llmSettings = {
             temperature: await this.db.getPreference("llmTemperature", 0.9),
-            maxTokens: await this.db.getPreference("llmMaxTokens", 400),
+            maxTokens: await this.db.getPreference("llmMaxTokens", 800),
             top_p: await this.db.getPreference("llmTopP", 0.9),
             frequency_penalty: await this.db.getPreference("llmFrequencyPenalty", 0.9),
             presence_penalty: await this.db.getPreference("llmPresencePenalty", 0.8)
@@ -558,7 +559,7 @@ class KimiLLMManager {
         // Get LLM settings from individual preferences
         const llmSettings = {
             temperature: await this.db.getPreference("llmTemperature", 0.9),
-            maxTokens: await this.db.getPreference("llmMaxTokens", 400),
+            maxTokens: await this.db.getPreference("llmMaxTokens", 800),
             top_p: await this.db.getPreference("llmTopP", 0.9),
             frequency_penalty: await this.db.getPreference("llmFrequencyPenalty", 0.9),
             presence_penalty: await this.db.getPreference("llmPresencePenalty", 0.8)
@@ -597,15 +598,11 @@ class KimiLLMManager {
         // For openai-compatible and ollama we allow provider-specific stored base URLs
         let baseUrl;
         if (provider === "openai-compatible" || provider === "ollama") {
-            baseUrl = await this.db.getPreference(
-                `llmBaseUrl_${provider}`,
-                provider === "ollama" ? "http://localhost:11434/api/chat" : ""
-            );
+            baseUrl = await this.db.getPreference(`llmBaseUrl_${provider}`, provider === "ollama" ? "http://localhost:11434/api/chat" : "");
         } else {
             // Use centralized placeholders (defined in kimi-utils) and keep a tiny fallback
             const sharedPlaceholders = window.KimiProviderPlaceholders || {};
-            baseUrl =
-                sharedPlaceholders[provider] || sharedPlaceholders.openrouter || "https://openrouter.ai/api/v1/chat/completions";
+            baseUrl = sharedPlaceholders[provider] || sharedPlaceholders.openrouter || "https://openrouter.ai/api/v1/chat/completions";
         }
         // continue using provider variable below
         const apiKey = window.KimiProviderUtils
@@ -620,13 +617,13 @@ class KimiLLMManager {
         // Get LLM settings from individual preferences (FIXED: was using grouped settings)
         const llmSettings = {
             temperature: await this.db.getPreference("llmTemperature", 0.9),
-            maxTokens: await this.db.getPreference("llmMaxTokens", 400),
+            maxTokens: await this.db.getPreference("llmMaxTokens", 800),
             top_p: await this.db.getPreference("llmTopP", 0.9),
             frequency_penalty: await this.db.getPreference("llmFrequencyPenalty", 0.9),
             presence_penalty: await this.db.getPreference("llmPresencePenalty", 0.8)
         };
         // Unified fallback defaults (must stay consistent with database defaults)
-        const unifiedDefaults = { temperature: 0.9, maxTokens: 400, top_p: 0.9, frequency_penalty: 0.9, presence_penalty: 0.8 };
+        const unifiedDefaults = { temperature: 0.9, maxTokens: 800, top_p: 0.9, frequency_penalty: 0.9, presence_penalty: 0.8 };
         const payload = {
             model: modelId,
             messages: [
@@ -634,30 +631,18 @@ class KimiLLMManager {
                 ...this.conversationContext.slice(-this.maxContextLength),
                 { role: "user", content: userMessage }
             ],
-            temperature:
-                typeof options.temperature === "number"
-                    ? options.temperature
-                    : (llmSettings.temperature ?? unifiedDefaults.temperature),
-            max_tokens:
-                typeof options.maxTokens === "number" ? options.maxTokens : (llmSettings.maxTokens ?? unifiedDefaults.maxTokens),
+            temperature: typeof options.temperature === "number" ? options.temperature : (llmSettings.temperature ?? unifiedDefaults.temperature),
+            max_tokens: typeof options.maxTokens === "number" ? options.maxTokens : (llmSettings.maxTokens ?? unifiedDefaults.maxTokens),
             top_p: typeof options.topP === "number" ? options.topP : (llmSettings.top_p ?? unifiedDefaults.top_p),
             frequency_penalty:
-                typeof options.frequencyPenalty === "number"
-                    ? options.frequencyPenalty
-                    : (llmSettings.frequency_penalty ?? unifiedDefaults.frequency_penalty),
+                typeof options.frequencyPenalty === "number" ? options.frequencyPenalty : (llmSettings.frequency_penalty ?? unifiedDefaults.frequency_penalty),
             presence_penalty:
-                typeof options.presencePenalty === "number"
-                    ? options.presencePenalty
-                    : (llmSettings.presence_penalty ?? unifiedDefaults.presence_penalty)
+                typeof options.presencePenalty === "number" ? options.presencePenalty : (llmSettings.presence_penalty ?? unifiedDefaults.presence_penalty)
         };
 
         try {
             if (window.KIMI_DEBUG_API_AUDIT) {
-                console.log(
-                    "===== FULL SYSTEM PROMPT (OpenAI-Compatible) =====\n" +
-                        systemPromptContent +
-                        "\n===== END SYSTEM PROMPT ====="
-                );
+                console.log("===== FULL SYSTEM PROMPT (OpenAI-Compatible) =====\n" + systemPromptContent + "\n===== END SYSTEM PROMPT =====");
             }
             const response = await fetch(baseUrl, {
                 method: "POST",
@@ -714,9 +699,7 @@ class KimiLLMManager {
 
     async chatWithOpenRouter(userMessage, options = {}) {
         const provider = await this.db.getPreference("llmProvider", "openrouter");
-        const apiKey = await (window.KimiProviderUtils
-            ? window.KimiProviderUtils.getApiKey(this.db, provider)
-            : this.db.getPreference("providerApiKey"));
+        const apiKey = await (window.KimiProviderUtils ? window.KimiProviderUtils.getApiKey(this.db, provider) : this.db.getPreference("providerApiKey"));
         if (!apiKey) {
             throw new Error("OpenRouter API key not configured");
         }
@@ -735,30 +718,22 @@ class KimiLLMManager {
         // Get LLM settings from individual preferences (FIXED: was using grouped settings)
         const llmSettings = {
             temperature: await this.db.getPreference("llmTemperature", 0.9),
-            maxTokens: await this.db.getPreference("llmMaxTokens", 400),
+            maxTokens: await this.db.getPreference("llmMaxTokens", 800),
             top_p: await this.db.getPreference("llmTopP", 0.9),
             frequency_penalty: await this.db.getPreference("llmFrequencyPenalty", 0.9),
             presence_penalty: await this.db.getPreference("llmPresencePenalty", 0.8)
         };
-        const unifiedDefaults = { temperature: 0.9, maxTokens: 400, top_p: 0.9, frequency_penalty: 0.9, presence_penalty: 0.8 };
+        const unifiedDefaults = { temperature: 0.9, maxTokens: 800, top_p: 0.9, frequency_penalty: 0.9, presence_penalty: 0.8 };
         const payload = {
             model: this.currentModel,
             messages: messages,
-            temperature:
-                typeof options.temperature === "number"
-                    ? options.temperature
-                    : (llmSettings.temperature ?? unifiedDefaults.temperature),
-            max_tokens:
-                typeof options.maxTokens === "number" ? options.maxTokens : (llmSettings.maxTokens ?? unifiedDefaults.maxTokens),
+            temperature: typeof options.temperature === "number" ? options.temperature : (llmSettings.temperature ?? unifiedDefaults.temperature),
+            max_tokens: typeof options.maxTokens === "number" ? options.maxTokens : (llmSettings.maxTokens ?? unifiedDefaults.maxTokens),
             top_p: typeof options.topP === "number" ? options.topP : (llmSettings.top_p ?? unifiedDefaults.top_p),
             frequency_penalty:
-                typeof options.frequencyPenalty === "number"
-                    ? options.frequencyPenalty
-                    : (llmSettings.frequency_penalty ?? unifiedDefaults.frequency_penalty),
+                typeof options.frequencyPenalty === "number" ? options.frequencyPenalty : (llmSettings.frequency_penalty ?? unifiedDefaults.frequency_penalty),
             presence_penalty:
-                typeof options.presencePenalty === "number"
-                    ? options.presencePenalty
-                    : (llmSettings.presence_penalty ?? unifiedDefaults.presence_penalty)
+                typeof options.presencePenalty === "number" ? options.presencePenalty : (llmSettings.presence_penalty ?? unifiedDefaults.presence_penalty)
         };
 
         // ===== DEBUT AUDIT =====
@@ -1027,9 +1002,7 @@ class KimiLLMManager {
 
     async chatWithOpenRouterStreaming(userMessage, onToken, options = {}) {
         const provider = await this.db.getPreference("llmProvider", "openrouter");
-        const apiKey = await (window.KimiProviderUtils
-            ? window.KimiProviderUtils.getApiKey(this.db, provider)
-            : this.db.getPreference("providerApiKey"));
+        const apiKey = await (window.KimiProviderUtils ? window.KimiProviderUtils.getApiKey(this.db, provider) : this.db.getPreference("providerApiKey"));
         if (!apiKey) {
             throw new Error("OpenRouter API key not configured");
         }
@@ -1044,7 +1017,7 @@ class KimiLLMManager {
         // Get unified defaults and options
         const unifiedDefaults = window.getUnifiedDefaults
             ? window.getUnifiedDefaults()
-            : { temperature: 0.9, maxTokens: 400, top_p: 0.9, frequency_penalty: 0.9, presence_penalty: 0.8 };
+            : { temperature: 0.9, maxTokens: 800, top_p: 0.9, frequency_penalty: 0.9, presence_penalty: 0.8 };
 
         const enableStreaming = await this.db.getPreference("enableStreaming", true);
 
@@ -1063,8 +1036,7 @@ class KimiLLMManager {
             temperature: typeof options.temperature === "number" ? options.temperature : llmSettings.temperature,
             max_tokens: typeof options.maxTokens === "number" ? options.maxTokens : llmSettings.maxTokens,
             top_p: typeof options.topP === "number" ? options.topP : llmSettings.top_p,
-            frequency_penalty:
-                typeof options.frequencyPenalty === "number" ? options.frequencyPenalty : llmSettings.frequency_penalty,
+            frequency_penalty: typeof options.frequencyPenalty === "number" ? options.frequencyPenalty : llmSettings.frequency_penalty,
             presence_penalty: typeof options.presencePenalty === "number" ? options.presencePenalty : llmSettings.presence_penalty
         };
 
@@ -1162,14 +1134,10 @@ class KimiLLMManager {
         const provider = await this.db.getPreference("llmProvider", "openrouter");
         let baseUrl;
         if (provider === "openai-compatible" || provider === "ollama") {
-            baseUrl = await this.db.getPreference(
-                `llmBaseUrl_${provider}`,
-                provider === "ollama" ? "http://localhost:11434/api/chat" : ""
-            );
+            baseUrl = await this.db.getPreference(`llmBaseUrl_${provider}`, provider === "ollama" ? "http://localhost:11434/api/chat" : "");
         } else {
             const sharedPlaceholders = window.KimiProviderPlaceholders || {};
-            baseUrl =
-                sharedPlaceholders[provider] || sharedPlaceholders.openrouter || "https://openrouter.ai/api/v1/chat/completions";
+            baseUrl = sharedPlaceholders[provider] || sharedPlaceholders.openrouter || "https://openrouter.ai/api/v1/chat/completions";
         }
         const apiKey = window.KimiProviderUtils
             ? await window.KimiProviderUtils.getApiKey(this.db, provider)
@@ -1187,7 +1155,7 @@ class KimiLLMManager {
 
         const unifiedDefaults = window.getUnifiedDefaults
             ? window.getUnifiedDefaults()
-            : { temperature: 0.9, maxTokens: 400, top_p: 0.9, frequency_penalty: 0.9, presence_penalty: 0.8 };
+            : { temperature: 0.9, maxTokens: 800, top_p: 0.9, frequency_penalty: 0.9, presence_penalty: 0.8 };
 
         const enableStreaming = await this.db.getPreference("enableStreaming", true);
 
@@ -1206,8 +1174,7 @@ class KimiLLMManager {
             temperature: typeof options.temperature === "number" ? options.temperature : llmSettings.temperature,
             max_tokens: typeof options.maxTokens === "number" ? options.maxTokens : llmSettings.maxTokens,
             top_p: typeof options.topP === "number" ? options.topP : llmSettings.top_p,
-            frequency_penalty:
-                typeof options.frequencyPenalty === "number" ? options.frequencyPenalty : llmSettings.frequency_penalty,
+            frequency_penalty: typeof options.frequencyPenalty === "number" ? options.frequencyPenalty : llmSettings.frequency_penalty,
             presence_penalty: typeof options.presencePenalty === "number" ? options.presencePenalty : llmSettings.presence_penalty
         };
 
@@ -1429,17 +1396,7 @@ class KimiLLMManager {
                 negative: ["boring", "sad", "serious", "cold", "dry", "depressing", "gloomy"]
             },
             intelligence: {
-                positive: [
-                    "intelligent",
-                    "smart",
-                    "brilliant",
-                    "logical",
-                    "clever",
-                    "wise",
-                    "genius",
-                    "thoughtful",
-                    "insightful"
-                ],
+                positive: ["intelligent", "smart", "brilliant", "logical", "clever", "wise", "genius", "thoughtful", "insightful"],
                 negative: ["stupid", "dumb", "foolish", "slow", "naive", "ignorant", "simple"]
             },
             romance: {
@@ -1468,11 +1425,7 @@ class KimiLLMManager {
     async updatePersonalityFromResponse(userMessage, kimiResponse) {
         // Use unified emotion system for personality updates
         if (window.kimiEmotionSystem) {
-            return await window.kimiEmotionSystem.updatePersonalityFromConversation(
-                userMessage,
-                kimiResponse,
-                await this.db.getSelectedCharacter()
-            );
+            return await window.kimiEmotionSystem.updatePersonalityFromConversation(userMessage, kimiResponse, await this.db.getSelectedCharacter());
         }
 
         // Legacy fallback (should not be reached)
@@ -1536,9 +1489,7 @@ class KimiLLMManager {
                     testWord = "Hello";
             }
             const systemPrompt = "You are a helpful assistant.";
-            let apiKey = await (window.KimiProviderUtils
-                ? window.KimiProviderUtils.getApiKey(this.db, provider)
-                : this.db.getPreference("providerApiKey"));
+            let apiKey = await (window.KimiProviderUtils ? window.KimiProviderUtils.getApiKey(this.db, provider) : this.db.getPreference("providerApiKey"));
 
             if (!apiKey) {
                 return { success: false, error: "No API key found for provider: " + provider };
@@ -1569,10 +1520,7 @@ class KimiLLMManager {
                     );
                 } else {
                     const sharedPlaceholders = window.KimiProviderPlaceholders || {};
-                    baseUrl =
-                        sharedPlaceholders[provider] ||
-                        sharedPlaceholders.openrouter ||
-                        "https://openrouter.ai/api/v1/chat/completions";
+                    baseUrl = sharedPlaceholders[provider] || sharedPlaceholders.openrouter || "https://openrouter.ai/api/v1/chat/completions";
                 }
                 headers["Authorization"] = `Bearer ${apiKey}`;
             } else if (provider === "ollama") {
@@ -1770,7 +1718,7 @@ class KimiLLMManager {
         try {
             const detail = { id: this.currentModel };
             if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
-                window.dispatchEvent(new CustomEvent("llmModelChanged", { detail }));
+                window.emitAppEvent && window.emitAppEvent("llmModelChanged", detail);
             }
         } catch (e) {}
     }

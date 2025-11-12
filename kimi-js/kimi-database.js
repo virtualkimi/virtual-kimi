@@ -3,6 +3,7 @@ class KimiDatabase {
     constructor() {
         this.dbName = "KimiDB";
         this.db = new Dexie(this.dbName);
+        this._recoveredFromSchemaError = false; // guard against infinite rebuild loop
         // Personality write queue to batch and serialize rapid updates
         this._personalityQueue = {};
         this._personalityFlushTimer = null;
@@ -38,7 +39,7 @@ class KimiDatabase {
                             category: "llm",
                             settings: {
                                 temperature: 0.9,
-                                maxTokens: 400,
+                                maxTokens: 800,
                                 top_p: 0.9,
                                 frequency_penalty: 0.9,
                                 presence_penalty: 0.8
@@ -58,7 +59,7 @@ class KimiDatabase {
                             name: "Mistral Small 3.2",
                             provider: "openrouter",
                             apiKey: "",
-                            config: { temperature: 0.9, maxTokens: 400 },
+                            config: { temperature: 0.9, maxTokens: 800 },
                             added: new Date().toISOString(),
                             lastUsed: null
                         });
@@ -171,9 +172,7 @@ class KimiDatabase {
                 const errorType = error.name === "SchemaError" ? "SchemaError" : "DatabaseError";
                 window.kimiErrorManager.logError(errorType, error, {
                     operation: "getAllMemories",
-                    suggestion: error.message?.includes("not indexed")
-                        ? "Clear browser data to force schema upgrade"
-                        : "Check database integrity"
+                    suggestion: error.message?.includes("not indexed") ? "Clear browser data to force schema upgrade" : "Check database integrity"
                 });
             }
             return [];
@@ -193,7 +192,50 @@ class KimiDatabase {
     }
 
     async init() {
-        await this.db.open();
+        try {
+            await this.db.open();
+        } catch (e) {
+            if (e && e.name === "UpgradeError" && /primary key/i.test(e.message || "") && !this._recoveredFromSchemaError) {
+                console.warn("⚠️ Dexie UpgradeError (primary key) detected. Rebuilding IndexedDB store.");
+                try {
+                    this._recoveredFromSchemaError = true;
+                    await Dexie.delete(this.dbName);
+                    // Recreate schema (reuse original definitions)
+                    this.db = new Dexie(this.dbName);
+                    this.db.version(3).stores({
+                        conversations: "++id,timestamp,favorability,character",
+                        preferences: "key",
+                        settings: "category",
+                        personality: "[character+trait],character",
+                        llmModels: "id",
+                        memories: "++id,[character+category],character,timestamp,isActive,importance"
+                    });
+                    this.db.version(4).stores({
+                        conversations: "++id,timestamp,favorability,character",
+                        preferences: "key",
+                        settings: "category",
+                        personality: "[character+trait],character",
+                        llmModels: "id",
+                        memories: "++id,[character+category],character,timestamp,isActive,importance,accessCount"
+                    });
+                    this.db.version(5).stores({
+                        conversations: "++id,timestamp,favorability,character",
+                        preferences: "key",
+                        settings: "category",
+                        personality: "[character+trait],character",
+                        llmModels: "id",
+                        memories: "++id,[character+category],character,timestamp,isActive,importance,accessCount"
+                    });
+                    await this.db.open();
+                    console.log("✅ Database rebuilt after schema UpgradeError");
+                } catch (rebuildErr) {
+                    console.error("❌ Failed to rebuild database after UpgradeError", rebuildErr);
+                    throw rebuildErr;
+                }
+            } else {
+                throw e;
+            }
+        }
         await this.initializeDefaultsIfNeeded();
         await this.runPostOpenMigrations();
         return this.db;
@@ -223,7 +265,7 @@ class KimiDatabase {
     getDefaultPreferences() {
         return [
             { key: "selectedLanguage", value: "en" },
-            { key: "selectedVoice", value: "auto" },
+            { key: "selectedVoice", value: "" }, // legacy 'auto' removed
             { key: "voiceRate", value: 1.1 },
             { key: "voicePitch", value: 1.1 },
             { key: "voiceVolume", value: 0.8 },
@@ -247,7 +289,7 @@ class KimiDatabase {
                 category: "llm",
                 settings: {
                     temperature: 0.9,
-                    maxTokens: 400,
+                    maxTokens: 800,
                     top_p: 0.9,
                     frequency_penalty: 0.9,
                     presence_penalty: 0.8
@@ -275,7 +317,7 @@ class KimiDatabase {
                 name: "Mistral Small 3.2",
                 provider: "openrouter",
                 apiKey: "",
-                config: { temperature: 0.9, maxTokens: 400 },
+                config: { temperature: 0.9, maxTokens: 800 },
                 added: new Date().toISOString(),
                 lastUsed: null
             }
@@ -511,13 +553,20 @@ class KimiDatabase {
                     }
                 }
                 if (modified) {
-                    console.log(
-                        `🔧 Forced Migration: Normalized ${modified} language-related preference(s) to primary subtag (no backup)`
-                    );
+                    console.log(`🔧 Forced Migration: Normalized ${modified} language-related preference(s) to primary subtag (no backup)`);
                 }
             } catch (fmErr) {
                 console.warn("Forced migration failed:", fmErr);
             }
+
+            // Migration: clear legacy 'auto' voice preference
+            try {
+                const legacyVoice = await this.db.preferences.get("selectedVoice");
+                if (legacyVoice && legacyVoice.value === "auto") {
+                    await this.db.preferences.put({ key: "selectedVoice", value: "", updated: new Date().toISOString() });
+                    console.log("🔧 Migration: replaced legacy 'auto' selectedVoice with blank value");
+                }
+            } catch {}
         } catch {}
     }
 
@@ -608,7 +657,7 @@ class KimiDatabase {
         });
         if (window.dispatchEvent) {
             try {
-                window.dispatchEvent(new CustomEvent("preferenceUpdated", { detail: { key, value } }));
+                window.emitAppEvent && window.emitAppEvent("preferenceUpdated", { key, value });
             } catch {}
         }
         return result;
@@ -617,8 +666,7 @@ class KimiDatabase {
     async getPreference(key, defaultValue = null) {
         // Try cache first (use a singleton cache instance)
         const cacheKey = `pref_${key}`;
-        const cache =
-            window.KimiCacheManager && typeof window.KimiCacheManager.get === "function" ? window.KimiCacheManager : null;
+        const cache = window.KimiCacheManager && typeof window.KimiCacheManager.get === "function" ? window.KimiCacheManager : null;
         if (cache && typeof cache.get === "function") {
             const cached = cache.get(cacheKey);
             if (cached !== null) {
@@ -629,8 +677,7 @@ class KimiDatabase {
         try {
             const record = await this.db.preferences.get(key);
             if (!record) {
-                const cache =
-                    window.KimiCacheManager && typeof window.KimiCacheManager.set === "function" ? window.KimiCacheManager : null;
+                const cache = window.KimiCacheManager && typeof window.KimiCacheManager.set === "function" ? window.KimiCacheManager : null;
                 if (cache && typeof cache.set === "function") {
                     cache.set(cacheKey, defaultValue, 60000); // Cache for 1 minute
                 }
@@ -675,8 +722,7 @@ class KimiDatabase {
             }
 
             // Cache the result
-            const cache =
-                window.KimiCacheManager && typeof window.KimiCacheManager.set === "function" ? window.KimiCacheManager : null;
+            const cache = window.KimiCacheManager && typeof window.KimiCacheManager.set === "function" ? window.KimiCacheManager : null;
             if (cache && typeof cache.set === "function") {
                 cache.set(cacheKey, value, 60000); // Cache for 1 minute
             }

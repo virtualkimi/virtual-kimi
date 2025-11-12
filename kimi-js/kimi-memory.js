@@ -24,8 +24,7 @@ class KimiMemory {
             this.selectedCharacter = await this.db.getSelectedCharacter();
 
             // Load affection trait from personality database with unified defaults
-            const charDefAff =
-                (window.KIMI_CHARACTERS && window.KIMI_CHARACTERS[this.selectedCharacter]?.traits?.affection) || null;
+            const charDefAff = (window.KIMI_CHARACTERS && window.KIMI_CHARACTERS[this.selectedCharacter]?.traits?.affection) || null;
             const unifiedDefaults = window.kimiEmotionSystem?.TRAIT_DEFAULTS || { affection: 55 };
             const defaultAff = typeof charDefAff === "number" ? charDefAff : unifiedDefaults.affection;
             this.affectionTrait = await this.db.getPersonalityTrait("affection", defaultAff, this.selectedCharacter);
@@ -55,7 +54,7 @@ class KimiMemory {
             // Use global personality average for conversation favorability score
             let relationshipLevel = 50; // fallback
             try {
-                const traits = await this.db.getAllPersonalityTraits(character);
+                const traits = window.getCharacterTraits ? await window.getCharacterTraits(character) : await this.db.getAllPersonalityTraits(character);
                 relationshipLevel = window.getPersonalityAverage ? window.getPersonalityAverage(traits) : 50;
             } catch (error) {
                 console.warn("Error calculating relationship level for conversation:", error);
@@ -109,11 +108,7 @@ class KimiMemory {
             this.selectedCharacter = await this.db.getSelectedCharacter();
             // Use unified default that matches KimiEmotionSystem
             const unifiedDefaults = window.kimiEmotionSystem?.TRAIT_DEFAULTS || { affection: 55 };
-            this.affectionTrait = await this.db.getPersonalityTrait(
-                "affection",
-                unifiedDefaults.affection,
-                this.selectedCharacter
-            );
+            this.affectionTrait = await this.db.getPersonalityTrait("affection", unifiedDefaults.affection, this.selectedCharacter);
             this.updateFavorabilityBar();
         } catch (error) {
             console.error("Error updating affection trait:", error);
@@ -137,7 +132,9 @@ class KimiMemory {
         let relationshipLevel = 50; // fallback
         try {
             if (this.db) {
-                const traits = await this.db.getAllPersonalityTraits(this.selectedCharacter);
+                const traits = window.getCharacterTraits
+                    ? await window.getCharacterTraits(this.selectedCharacter)
+                    : await this.db.getAllPersonalityTraits(this.selectedCharacter);
                 relationshipLevel = window.getPersonalityAverage ? window.getPersonalityAverage(traits) : 50;
             }
         } catch (error) {

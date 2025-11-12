@@ -2,95 +2,13 @@
 
 window.KIMI_CONTEXT_KEYWORDS = {
     en: {
-        surprise: [
-            "wow",
-            "oh",
-            "surprise",
-            "incredible",
-            "amazing",
-            "unbelievable",
-            "no way",
-            "really?",
-            "whoa",
-            "gosh",
-            "astonishing"
-        ],
-        laughing: [
-            "haha",
-            "lol",
-            "laugh",
-            "funny",
-            "hilarious",
-            "rofl",
-            "lmao",
-            "giggle",
-            "chuckle",
-            "snicker",
-            "you’re kidding"
-        ],
-        shy: [
-            "shy",
-            "embarrassed",
-            "blush",
-            "bashful",
-            "intimidated",
-            "awkward",
-            "nervous",
-            "timid",
-            "reserved",
-            "self-conscious"
-        ],
-        confident: [
-            "confidence",
-            "proud",
-            "confident",
-            "strong",
-            "determined",
-            "assertive",
-            "bold",
-            "fearless",
-            "self-assured",
-            "leader"
-        ],
-        romantic: [
-            "love",
-            "romantic",
-            "tender",
-            "hug",
-            "sweetheart",
-            "darling",
-            "my love",
-            "beloved",
-            "heart",
-            "passionate",
-            "affection",
-            "adore"
-        ],
-        flirtatious: [
-            "flirty",
-            "teasing",
-            "seduce",
-            "charm",
-            "flirt",
-            "wink",
-            "sassy",
-            "saucy",
-            "playful",
-            "seductive",
-            "come hither"
-        ],
-        goodbye: [
-            "goodbye",
-            "bye",
-            "see you",
-            "see you soon",
-            "ciao",
-            "take care",
-            "farewell",
-            "see ya",
-            "later",
-            "catch you later"
-        ],
+        surprise: ["wow", "oh", "surprise", "incredible", "amazing", "unbelievable", "no way", "really?", "whoa", "gosh", "astonishing"],
+        laughing: ["haha", "lol", "laugh", "funny", "hilarious", "rofl", "lmao", "giggle", "chuckle", "snicker", "you’re kidding"],
+        shy: ["shy", "embarrassed", "blush", "bashful", "intimidated", "awkward", "nervous", "timid", "reserved", "self-conscious"],
+        confident: ["confidence", "proud", "confident", "strong", "determined", "assertive", "bold", "fearless", "self-assured", "leader"],
+        romantic: ["love", "romantic", "tender", "hug", "sweetheart", "darling", "my love", "beloved", "heart", "passionate", "affection", "adore"],
+        flirtatious: ["flirty", "teasing", "seduce", "charm", "flirt", "wink", "sassy", "saucy", "playful", "seductive", "come hither"],
+        goodbye: ["goodbye", "bye", "see you", "see you soon", "ciao", "take care", "farewell", "see ya", "later", "catch you later"],
         kiss: ["kiss", "kisses", "embrace", "smooch", "peck", "lip lock", "kissy", "mwah"],
         dancing: ["dance", "dancing", "move", "groove", "step", "boogie", "twirl", "spin", "shake", "jig"],
         listening: [
@@ -104,7 +22,39 @@ window.KIMI_CONTEXT_KEYWORDS = {
             "lend an ear",
             "listen up",
             "I need to talk"
-        ]
+        ],
+        android: [
+            "protocol",
+            "mission",
+            "directive",
+            "subroutine",
+            "analysis",
+            "tactical",
+            "system",
+            "malfunction",
+            "combat mode",
+            "processing",
+            "data analysis",
+            "mission parameters"
+        ],
+        sensual: [
+            "sensual",
+            "passion",
+            "desire",
+            "intimacy",
+            "pleasure",
+            "touch",
+            "caress",
+            "embrace",
+            "seduction",
+            "arousal",
+            "kamasutra",
+            "affection",
+            "tenderness",
+            "connection"
+        ],
+        love: ["love", "romance", "ecstasy", "kiss", "heart", "soul", "together", "share", "sweet", "pleasure", "passionate", "intimate", "bond"],
+        hostile: ["idiot", "stupid", "dumb", "moron", "loser", "trash", "shut up", "hate you", "i hate you", "pathetic", "worthless", "bitch", "jerk", "ugly"]
     },
     fr: {
         surprise: ["oh", "surprise", "incroyable", "wahou", "étonnant", "épatant", "stupéfiant", "vraiment?", "oh là là"],
@@ -112,32 +62,34 @@ window.KIMI_CONTEXT_KEYWORDS = {
         shy: ["timide", "gêné", "rougir", "honteux", "intimidé", "mal à l’aise", "réservé", "introverti", "timidité"],
         confident: ["confiance", "fier", "sûr", "fort", "déterminé", "assuré", "audacieux", "leader", "sans peur", "affirmé"],
         romantic: ["amour", "romantique", "tendre", "câlin", "bisou", "mon cœur", "chéri", "ma belle", "passionné", "adoré"],
-        flirtatious: [
-            "flirt",
-            "taquin",
-            "séduire",
-            "charme",
-            "aguiche",
-            "clin d’œil",
-            "coquin",
-            "séducteur",
-            "taquine",
-            "aguicheur"
-        ],
+        flirtatious: ["flirt", "taquin", "séduire", "charme", "aguiche", "clin d’œil", "coquin", "séducteur", "taquine", "aguicheur"],
         goodbye: ["au revoir", "bye", "à bientôt", "ciao", "salut", "prends soin de toi", "à plus", "à la prochaine", "bye bye"],
         kiss: ["bisou", "baiser", "embrasser", "smack", "bisou bisou", "bécot", "embrassade"],
         dancing: ["danse", "bouge", "remue", "tourne", "spin", "danser", "tourbillon", "bouger", "remuer", "gigoter"],
-        listening: [
-            "écoute",
-            "écouter",
-            "parle",
-            "question",
-            "demande",
-            "dis-moi",
-            "écoute-moi",
-            "sois attentif",
-            "prête l’oreille",
-            "concentre-toi"
+        listening: ["écoute", "écouter", "parle", "question", "demande", "dis-moi", "écoute-moi", "sois attentif", "prête l’oreille", "concentre-toi"],
+        hostile: [
+            "idiot",
+            "idiote",
+            "stupide",
+            "tu es nul",
+            "ferme la",
+            "je te hais",
+            "je t'aime pas",
+            "je te déteste",
+            "haine",
+            "imbécile",
+            "dégage",
+            "merde",
+            "connard",
+            "connasse",
+            "conne",
+            "salope",
+            "pute",
+            "grosse pute",
+            "pourri",
+            "va te faire",
+            "t'es nul",
+            "nul à chier"
         ]
     },
     es: {
@@ -150,19 +102,39 @@ window.KIMI_CONTEXT_KEYWORDS = {
         goodbye: ["adiós", "bye", "hasta pronto", "ciao", "hasta luego", "cuídate", "nos vemos", "hasta la próxima"],
         kiss: ["beso", "besos", "abrazar", "besito", "abrazo", "besote"],
         dancing: ["bailar", "baile", "mover", "ritmo", "paso", "girar", "moverse", "sacudir"],
-        listening: [
-            "escucha",
-            "escuchar",
-            "oír",
-            "habla",
-            "pregunta",
-            "preguntar",
-            "dime",
-            "escúchame",
-            "pon atención",
-            "presta oído",
-            "concéntrate"
-        ]
+        listening: ["escucha", "escuchar", "oír", "habla", "pregunta", "preguntar", "dime", "escúchame", "pon atención", "presta oído", "concéntrate"],
+        android: [
+            "protocolo",
+            "misión",
+            "directiva",
+            "subrutina",
+            "análisis",
+            "táctico",
+            "sistema",
+            "mal funcionamiento",
+            "modo combate",
+            "procesamiento",
+            "análisis de datos",
+            "parámetros de misión"
+        ],
+        sensual: [
+            "sensual",
+            "pasión",
+            "deseo",
+            "intimidad",
+            "placer",
+            "caricia",
+            "abrazo",
+            "seducción",
+            "excitación",
+            "kamasutra",
+            "afecto",
+            "ternura",
+            "conexión",
+            "toque"
+        ],
+        love: ["amor", "romance", "éxtasis", "beso", "corazón", "alma", "juntos", "compartir", "dulce", "placer", "apasionado", "íntimo", "vínculo"],
+        hostile: ["idiota", "estúpido", "estupida", "basura", "te odio", "cállate", "perdedor", "asqueroso", "mierda", "imbécil", "maldito", "vete", "apestas"]
     },
     de: {
         surprise: ["wow", "oh", "überraschung", "unglaublich", "erstaunlich", "wirklich?", "überrascht", "staunend"],
@@ -174,33 +146,12 @@ window.KIMI_CONTEXT_KEYWORDS = {
         goodbye: ["auf wiedersehen", "bye", "bis bald", "ciao", "bis später", "pass auf dich auf", "bis dann", "tschüss"],
         kiss: ["kuss", "küsse", "umarmen", "Küsschen", "Schmatzer"],
         dancing: ["tanzen", "tanz", "bewegen", "groove", "schritt", "drehen", "schwingen"],
-        listening: [
-            "hör",
-            "hören",
-            "zuhören",
-            "sprich",
-            "frage",
-            "fragen",
-            "sag mir",
-            "hör zu",
-            "sei aufmerksam",
-            "konzentriere dich"
-        ]
+        listening: ["hör", "hören", "zuhören", "sprich", "frage", "fragen", "sag mir", "hör zu", "sei aufmerksam", "konzentriere dich"]
     },
     it: {
         surprise: ["wow", "oh", "sorpresa", "incredibile", "stupefacente", "davvero?", "sbalorditivo", "sorpreso"],
         laughing: ["haha", "lol", "ridere", "divertente", "esilarante", "sorriso", "ridacchiare", "stai scherzando"],
-        shy: [
-            "timido",
-            "imbarazzato",
-            "arrossire",
-            "vergognoso",
-            "intimidito",
-            "riservato",
-            "introverso",
-            "timidezza",
-            "imbarazzo"
-        ],
+        shy: ["timido", "imbarazzato", "arrossire", "vergognoso", "intimidito", "riservato", "introverso", "timidezza", "imbarazzo"],
         confident: ["fiducia", "orgoglioso", "sicuro", "forte", "determinato", "sicuro di sé", "coraggioso", "leader", "audace"],
         romantic: ["amore", "romantico", "tenero", "abbraccio", "bacio", "amore mio", "tesoro", "appassionato", "cuore"],
         flirtatious: ["civettare", "provocare", "sedurre", "fascino", "flirtare", "occhiolino", "malizioso", "seducente"],
@@ -380,66 +331,18 @@ window.KIMI_PERSONALITY_KEYWORDS = {
     fr: {
         humor: {
             positive: ["drôle", "rigolo", "blague", "rire", "amusant", "marrant", "humour", "sourire", "plaisanter"],
-            negative: [
-                "ennuyeux",
-                "ennuyeuse",
-                "triste",
-                "sérieux",
-                "sérieuse",
-                "froid",
-                "froide",
-                "sec",
-                "sèche",
-                "déprimant",
-                "déprimante",
-                "morose"
-            ]
+            negative: ["ennuyeux", "ennuyeuse", "triste", "sérieux", "sérieuse", "froid", "froide", "sec", "sèche", "déprimant", "déprimante", "morose"]
         },
         intelligence: {
             positive: ["intelligent", "malin", "brillant", "logique", "astucieux", "savant", "génie", "réfléchi", "perspicace"],
-            negative: [
-                "bête",
-                "idiot",
-                "idiote",
-                "stupide",
-                "lent",
-                "lente",
-                "simplet",
-                "simplette",
-                "naïf",
-                "naïve",
-                "ignorant",
-                "ignorante"
-            ]
+            negative: ["bête", "idiot", "idiote", "stupide", "lent", "lente", "simplet", "simplette", "naïf", "naïve", "ignorant", "ignorante"]
         },
         romance: {
             positive: ["câlin", "amour", "romantique", "bisou", "tendresse", "passion", "séduisant", "charmant", "adorable"],
-            negative: [
-                "froid",
-                "froide",
-                "distant",
-                "distante",
-                "indifférent",
-                "indifférente",
-                "rejet",
-                "solitude",
-                "rupture",
-                "triste"
-            ]
+            negative: ["froid", "froide", "distant", "distante", "indifférent", "indifférente", "rejet", "solitude", "rupture", "triste"]
         },
         affection: {
-            positive: [
-                "affection",
-                "tendresse",
-                "proche",
-                "chaleur",
-                "gentil",
-                "attentionné",
-                "câlin",
-                "aimer",
-                "adorer",
-                "adorable"
-            ],
+            positive: ["affection", "tendresse", "proche", "chaleur", "gentil", "attentionné", "câlin", "aimer", "adorer", "adorable"],
             negative: [
                 "méchant",
                 "méchante",
@@ -462,66 +365,21 @@ window.KIMI_PERSONALITY_KEYWORDS = {
         },
         playfulness: {
             positive: ["jouer", "jeu", "taquiner", "espiègle", "fun", "amusant", "délire", "ludique", "plaisanter"],
-            negative: [
-                "sérieux",
-                "sérieuse",
-                "ennuyeux",
-                "ennuyeuse",
-                "strict",
-                "stricte",
-                "rigide",
-                "monotone",
-                "lassant",
-                "lassante"
-            ]
+            negative: ["sérieux", "sérieuse", "ennuyeux", "ennuyeuse", "strict", "stricte", "rigide", "monotone", "lassant", "lassante"]
         },
         empathy: {
-            positive: [
-                "écoute",
-                "comprendre",
-                "empathie",
-                "soutien",
-                "aider",
-                "réconfort",
-                "solidaire",
-                "compatir",
-                "bienveillance"
-            ],
+            positive: ["écoute", "comprendre", "empathie", "soutien", "aider", "réconfort", "solidaire", "compatir", "bienveillance"],
             negative: ["indifférent", "indifférente", "froid", "froide", "égoïste", "ignorer", "mépriser", "dénigrer", "hostile"]
         }
     },
     es: {
         humor: {
             positive: ["divertido", "broma", "reír", "gracioso", "humor", "sonrisa", "ocurrente", "jugar"],
-            negative: [
-                "aburrido",
-                "aburrida",
-                "serio",
-                "seria",
-                "frío",
-                "fría",
-                "seco",
-                "seca",
-                "deprimente",
-                "sombrío",
-                "sombría"
-            ]
+            negative: ["aburrido", "aburrida", "serio", "seria", "frío", "fría", "seco", "seca", "deprimente", "sombrío", "sombría"]
         },
         intelligence: {
             positive: ["inteligente", "listo", "brillante", "lógico", "sabio", "genio", "reflexivo", "perspicaz"],
-            negative: [
-                "tonto",
-                "tonta",
-                "estúpido",
-                "estúpida",
-                "necio",
-                "necia",
-                "lento",
-                "lenta",
-                "ingenuo",
-                "ingenua",
-                "ignorante"
-            ]
+            negative: ["tonto", "tonta", "estúpido", "estúpida", "necio", "necia", "lento", "lenta", "ingenuo", "ingenua", "ignorante"]
         },
         romance: {
             positive: ["abrazo", "amor", "romántico", "beso", "ternura", "pasión", "encantador", "adorable", "dulce"],
@@ -529,38 +387,11 @@ window.KIMI_PERSONALITY_KEYWORDS = {
         },
         affection: {
             positive: ["afecto", "ternura", "cerca", "calidez", "amable", "cariño", "abrazar", "amor", "adorar"],
-            negative: [
-                "malo",
-                "mala",
-                "frío",
-                "fría",
-                "indiferente",
-                "distante",
-                "rechazo",
-                "odio",
-                "hostil",
-                "idiota",
-                "estúpido",
-                "estúpida",
-                "puta"
-            ]
+            negative: ["malo", "mala", "frío", "fría", "indiferente", "distante", "rechazo", "odio", "hostil", "idiota", "estúpido", "estúpida", "puta"]
         },
         playfulness: {
             positive: ["jugar", "broma", "bromear", "travieso", "diversión", "lúdico"],
-            negative: [
-                "serio",
-                "seria",
-                "aburrido",
-                "aburrida",
-                "estricto",
-                "estricta",
-                "rígido",
-                "rígida",
-                "monótono",
-                "monótona",
-                "tedioso",
-                "tediosa"
-            ]
+            negative: ["serio", "seria", "aburrido", "aburrida", "estricto", "estricta", "rígido", "rígida", "monótono", "monótona", "tedioso", "tediosa"]
         },
         empathy: {
             positive: ["escuchar", "entender", "empatía", "apoyo", "ayudar", "consuelo", "compasión", "amabilidad"],
@@ -570,36 +401,14 @@ window.KIMI_PERSONALITY_KEYWORDS = {
     de: {
         humor: {
             positive: ["lustig", "witz", "lachen", "amüsant", "humor", "lächeln", "schlagfertig", "spielen"],
-            negative: [
-                "langweilig",
-                "langweilige",
-                "ernst",
-                "ernste",
-                "kalt",
-                "kalte",
-                "trocken",
-                "trockene",
-                "deprimierend",
-                "düster",
-                "düstere"
-            ]
+            negative: ["langweilig", "langweilige", "ernst", "ernste", "kalt", "kalte", "trocken", "trockene", "deprimierend", "düster", "düstere"]
         },
         intelligence: {
             positive: ["intelligent", "klug", "brillant", "logisch", "weise", "genial", "nachdenklich", "scharfsinnig"],
             negative: ["dumm", "dumme", "blöd", "blöde", "langsam", "langsame", "naiv", "naive", "ahnungslos", "ahnungslosen"]
         },
         romance: {
-            positive: [
-                "umarmung",
-                "liebe",
-                "romantisch",
-                "kuss",
-                "zärtlichkeit",
-                "leidenschaft",
-                "charmant",
-                "liebenswert",
-                "süß"
-            ],
+            positive: ["umarmung", "liebe", "romantisch", "kuss", "zärtlichkeit", "leidenschaft", "charmant", "liebenswert", "süß"],
             negative: [
                 "kalt",
                 "kalte",
@@ -637,34 +446,11 @@ window.KIMI_PERSONALITY_KEYWORDS = {
         },
         playfulness: {
             positive: ["spielen", "scherz", "scherzen", "schelmisch", "spaß", "spielerisch"],
-            negative: [
-                "ernst",
-                "ernste",
-                "langweilig",
-                "langweilige",
-                "streng",
-                "strenge",
-                "starr",
-                "starre",
-                "eintönig",
-                "eintönige",
-                "mühsam",
-                "mühselige"
-            ]
+            negative: ["ernst", "ernste", "langweilig", "langweilige", "streng", "strenge", "starr", "starre", "eintönig", "eintönige", "mühsam", "mühselige"]
         },
         empathy: {
             positive: ["zuhören", "verstehen", "empathie", "unterstützung", "helfen", "trösten", "mitgefühl", "freundlichkeit"],
-            negative: [
-                "gleichgültig",
-                "gleichgültige",
-                "kalt",
-                "kalte",
-                "egoistisch",
-                "ignorieren",
-                "verachten",
-                "feindselig",
-                "feindselige"
-            ]
+            negative: ["gleichgültig", "gleichgültige", "kalt", "kalte", "egoistisch", "ignorieren", "verachten", "feindselig", "feindselige"]
         }
     },
     it: {
@@ -700,20 +486,7 @@ window.KIMI_PERSONALITY_KEYWORDS = {
         },
         playfulness: {
             positive: ["giocare", "scherzo", "scherzare", "birichino", "divertimento", "ludico"],
-            negative: [
-                "serio",
-                "seria",
-                "noioso",
-                "noiosa",
-                "severo",
-                "severa",
-                "rigido",
-                "rigida",
-                "monotono",
-                "monotona",
-                "tedioso",
-                "tediosa"
-            ]
+            negative: ["serio", "seria", "noioso", "noiosa", "severo", "severa", "rigido", "rigida", "monotono", "monotona", "tedioso", "tediosa"]
         },
         empathy: {
             positive: ["ascoltare", "capire", "empatia", "sostegno", "aiutare", "conforto", "compassione", "gentilezza"],
@@ -748,25 +521,7 @@ window.KIMI_PERSONALITY_KEYWORDS = {
 
 // Negators and smoothing defaults (configurable at runtime)
 window.KIMI_NEGATORS = window.KIMI_NEGATORS || {
-    common: [
-        "ne",
-        "n",
-        "pas",
-        "jamais",
-        "plus",
-        "aucun",
-        "aucune",
-        "rien",
-        "personne",
-        "no",
-        "not",
-        "never",
-        "none",
-        "nobody",
-        "nothing",
-        "non",
-        "n't"
-    ],
+    common: ["ne", "n", "pas", "jamais", "plus", "aucun", "aucune", "rien", "personne", "no", "not", "never", "none", "nobody", "nothing", "non", "n't"],
     fr: [
         "ne",
         "n",
@@ -783,24 +538,7 @@ window.KIMI_NEGATORS = window.KIMI_NEGATORS || {
         "n\'importe",
         "ne jamais"
     ],
-    en: [
-        "no",
-        "not",
-        "never",
-        "none",
-        "nobody",
-        "nothing",
-        "don't",
-        "doesn't",
-        "didn't",
-        "isn't",
-        "aren't",
-        "can't",
-        "couldn't",
-        "won't",
-        "wouldn't",
-        "n't"
-    ],
+    en: ["no", "not", "never", "none", "nobody", "nothing", "don't", "doesn't", "didn't", "isn't", "aren't", "can't", "couldn't", "won't", "wouldn't", "n't"],
     es: ["no", "nunca", "jamás", "ninguno", "nadie", "nada"],
     de: ["nicht", "nie", "kein", "keine", "niemand", "nichts"],
     it: ["non", "mai", "nessuno", "niente"],
@@ -828,116 +566,11 @@ window.KIMI_WEIGHT_FRESHNESS = window.KIMI_WEIGHT_FRESHNESS || 0.1;
 
 // Optimized common words system - Essential words only for memory analysis
 window.KIMI_COMMON_WORDS = {
-    en: [
-        "the",
-        "be",
-        "to",
-        "of",
-        "and",
-        "a",
-        "in",
-        "that",
-        "have",
-        "i",
-        "it",
-        "for",
-        "not",
-        "on",
-        "with",
-        "he",
-        "as",
-        "you",
-        "do",
-        "at"
-    ],
-    fr: [
-        "le",
-        "de",
-        "et",
-        "être",
-        "un",
-        "il",
-        "avoir",
-        "ne",
-        "je",
-        "son",
-        "que",
-        "se",
-        "qui",
-        "ce",
-        "dans",
-        "en",
-        "du",
-        "elle",
-        "au",
-        "si"
-    ],
-    es: [
-        "que",
-        "de",
-        "no",
-        "a",
-        "la",
-        "el",
-        "es",
-        "y",
-        "en",
-        "lo",
-        "un",
-        "ser",
-        "se",
-        "me",
-        "una",
-        "con",
-        "para",
-        "mi",
-        "está",
-        "te"
-    ],
-    de: [
-        "der",
-        "die",
-        "und",
-        "in",
-        "den",
-        "von",
-        "zu",
-        "das",
-        "mit",
-        "sich",
-        "des",
-        "auf",
-        "für",
-        "ist",
-        "im",
-        "dem",
-        "nicht",
-        "ein",
-        "eine",
-        "als"
-    ],
-    it: [
-        "il",
-        "di",
-        "che",
-        "e",
-        "la",
-        "per",
-        "un",
-        "in",
-        "con",
-        "da",
-        "su",
-        "le",
-        "dei",
-        "del",
-        "si",
-        "al",
-        "come",
-        "più",
-        "ma",
-        "una"
-    ],
+    en: ["the", "be", "to", "of", "and", "a", "in", "that", "have", "i", "it", "for", "not", "on", "with", "he", "as", "you", "do", "at"],
+    fr: ["le", "de", "et", "être", "un", "il", "avoir", "ne", "je", "son", "que", "se", "qui", "ce", "dans", "en", "du", "elle", "au", "si"],
+    es: ["que", "de", "no", "a", "la", "el", "es", "y", "en", "lo", "un", "ser", "se", "me", "una", "con", "para", "mi", "está", "te"],
+    de: ["der", "die", "und", "in", "den", "von", "zu", "das", "mit", "sich", "des", "auf", "für", "ist", "im", "dem", "nicht", "ein", "eine", "als"],
+    it: ["il", "di", "che", "e", "la", "per", "un", "in", "con", "da", "su", "le", "dei", "del", "si", "al", "come", "più", "ma", "una"],
     ja: ["の", "に", "は", "を", "た", "が", "で", "て", "と", "し", "れ", "さ", "ある", "いる", "も", "する", "から"],
     zh: ["的", "一", "是", "在", "不", "了", "有", "和", "人", "这", "中", "大", "为", "上", "个", "国", "我", "以", "要"]
 };
@@ -1023,6 +656,268 @@ window.KIMI_TRAIT_ADJUSTMENT = {
 
 // Cached keyword lookups for performance
 const _keywordCache = new Map();
+
+// Unified normalization (lowercase + trim)
+function _normText(t) {
+    if (!t || typeof t !== "string") return "";
+    return t.toLowerCase();
+}
+
+// Central helper: test if a given raw text contains any keyword of a category (multi-language fallback)
+// Categories expected: dancing, listening, romantic, kiss, etc. Must match keys in KIMI_CONTEXT_KEYWORDS language objects.
+// Strategy: check detected language first (if provided) else attempt simple heuristics, fallback to 'en'.
+if (!window.hasKeywordCategory) {
+    window.hasKeywordCategory = function hasKeywordCategory(category, rawText, language = null) {
+        if (!category || !rawText) return false;
+        const text = _normText(rawText);
+        // Language resolution: direct use, else fallback to window.KIMI_LAST_LANG or 'en'
+        const lang = language || window.KIMI_LAST_LANG || "en";
+        const langKeywords = (window.KIMI_CONTEXT_KEYWORDS && (window.KIMI_CONTEXT_KEYWORDS[lang] || window.KIMI_CONTEXT_KEYWORDS.en)) || {};
+        let list = langKeywords[category];
+        if (!Array.isArray(list)) {
+            // fallback chain: english, then first language available
+            list = (window.KIMI_CONTEXT_KEYWORDS?.en && window.KIMI_CONTEXT_KEYWORDS.en[category]) || [];
+        }
+        if (!list || list.length === 0) return false;
+        return list.some(kw => text.includes(_normText(kw)));
+    };
+}
+
+// Multi-category match: returns array des catégories détectées (ordre d'entrée conservé)
+if (!window.matchCategories) {
+    // matchCategories(rawText, categories, language?, options?)
+    // options:
+    //   details:boolean -> when true returns objects instead of category strings
+    //   allOccurrences:boolean -> with details=true returns ALL occurrences (each {category, keyword, index}); otherwise first per category
+    //   cache:boolean (default true) -> enable small in‑memory LRU (per language+options+text)
+    //   cacheSize:number (default 200, min 50) -> max entries in LRU
+    //   regex:boolean -> treat provided categories array entries that are objects {name, pattern, flags?} or strings when pattern supplied separately
+    // Category entry forms supported:
+    //   "dancing" (string key)
+    //   { name:"custom", keywords:["foo","bar"] }
+    //   { name:"timePattern", regex:"\\b(\n|now|today)\\b", flags:"i" }
+    //   { name:"emote", pattern:"😀|😃|😂", regex:true }
+    // Return shape:
+    //   details=false => ["category1", "category2", ...]
+    //   details=true & allOccurrences=false => [{category, keyword, index}, ...]
+    //   details=true & allOccurrences=true  => [{category, keyword, index}, {category, keyword, index}, ...]
+    const _mcLRU = new Map(); // key -> result; oldest = first inserted
+    function _mcGet(key) {
+        return _mcLRU.get(key);
+    }
+    function _mcSet(key, val, max) {
+        if (_mcLRU.has(key)) _mcLRU.delete(key);
+        _mcLRU.set(key, val);
+        while (_mcLRU.size > max) {
+            const firstKey = _mcLRU.keys().next().value;
+            _mcLRU.delete(firstKey);
+        }
+    }
+    window.matchCategories = function matchCategories(rawText, categories, language = null, options = {}) {
+        if (!rawText || !Array.isArray(categories) || categories.length === 0) return [];
+        const details = !!options.details;
+        const allOcc = !!options.allOccurrences;
+        const cacheEnabled = options.cache !== false; // default true
+        const cacheSize = typeof options.cacheSize === "number" && options.cacheSize > 10 ? options.cacheSize : 200;
+        const useRegex = !!options.regex; // explicit enable to parse regex objects
+        const lang = language || window.KIMI_LAST_LANG || "en";
+        const textNorm = _normText(rawText);
+        const catsKey = JSON.stringify(categories);
+        const cacheKey = cacheEnabled ? `${lang}|${details}|${allOcc}|${catsKey}|${textNorm}` : null;
+        if (cacheEnabled && cacheKey && _mcGet(cacheKey)) return _mcGet(cacheKey);
+
+        const langKeywords = (window.KIMI_CONTEXT_KEYWORDS && (window.KIMI_CONTEXT_KEYWORDS[lang] || window.KIMI_CONTEXT_KEYWORDS.en)) || {};
+        const results = [];
+        for (const entry of categories) {
+            let catName;
+            let keywordList = [];
+            let regexObj = null;
+            if (typeof entry === "string") {
+                catName = entry;
+                keywordList = langKeywords[catName] || window.KIMI_CONTEXT_KEYWORDS?.en?.[catName] || [];
+            } else if (entry && typeof entry === "object") {
+                catName = entry.name || entry.category || "unnamed";
+                if (entry.keywords && Array.isArray(entry.keywords)) {
+                    keywordList = entry.keywords;
+                } else if (entry.regex || entry.pattern) {
+                    if (useRegex) {
+                        try {
+                            regexObj = entry._compiled || new RegExp(entry.regex || entry.pattern, entry.flags || (entry.caseInsensitive ? "i" : ""));
+                            entry._compiled = regexObj; // cache compile inside object
+                        } catch (e) {
+                            // ignore invalid regex
+                        }
+                    }
+                }
+            } else {
+                continue;
+            }
+
+            if (regexObj) {
+                if (!details) {
+                    if (regexObj.test(rawText)) results.push(catName);
+                    regexObj.lastIndex = 0; // reset stateful if /g
+                } else {
+                    const matches = [];
+                    const pattern = new RegExp(regexObj.source, regexObj.flags.includes("g") ? regexObj.flags : regexObj.flags + "g");
+                    let m;
+                    while ((m = pattern.exec(rawText)) !== null) {
+                        matches.push({ category: catName, keyword: m[0], index: m.index });
+                        if (!allOcc) break;
+                    }
+                    if (matches.length) {
+                        if (allOcc) results.push(...matches.sort((a, b) => a.index - b.index));
+                        else results.push(matches[0]);
+                    }
+                }
+                continue;
+            }
+
+            const list = keywordList.map(k => _normText(k)).filter(Boolean);
+            if (list.length === 0) continue;
+            if (!details) {
+                if (list.some(kw => textNorm.includes(kw))) results.push(catName);
+                continue;
+            }
+            const matches = [];
+            for (const kw of list) {
+                let start = 0;
+                while (true) {
+                    const idx = textNorm.indexOf(kw, start);
+                    if (idx === -1) break;
+                    matches.push({ category: catName, keyword: kw, index: idx });
+                    if (!allOcc) break;
+                    start = idx + kw.length;
+                }
+                if (!allOcc && matches.length > 0) break;
+            }
+            if (matches.length > 0) {
+                if (allOcc) {
+                    matches.sort((a, b) => a.index - b.index);
+                    results.push(...matches);
+                } else {
+                    results.push(matches[0]);
+                }
+            }
+        }
+        if (cacheEnabled && cacheKey) _mcSet(cacheKey, results, cacheSize);
+        return results;
+    };
+}
+
+// ================= NEGATION STANDARD API =================
+if (!window.getNegators) {
+    window.getNegators = function getNegators(language = "en") {
+        return (window.KIMI_NEGATORS && (window.KIMI_NEGATORS[language] || window.KIMI_NEGATORS.common)) || [];
+    };
+}
+
+if (!window.hasNegation) {
+    window.hasNegation = function hasNegation(rawText, language = "en") {
+        if (!rawText) return false;
+        const txt = _normText(rawText);
+        const negs = window.getNegators(language);
+        return negs.some(n => txt.includes(_normText(n)));
+    };
+}
+
+if (!window.isPhraseNegated) {
+    // Basic heuristic: checks if any negator appears within window before target substring
+    // target: word/phrase to test; windowSize tokens back (default 3 similar to KIMI_NEGATION_WINDOW)
+    window.isPhraseNegated = function isPhraseNegated(rawText, target, language = "en", windowSize = window.KIMI_NEGATION_WINDOW || 3) {
+        if (!rawText || !target) return false;
+        const txt = _normText(rawText);
+        const tgt = _normText(target);
+        const idx = txt.indexOf(tgt);
+        if (idx === -1) return false;
+        const tokens = txt.split(/\s+/);
+        // Find token index of first occurrence
+        let tokenIndex = -1;
+        for (let i = 0, pos = 0; i < tokens.length; i++) {
+            if (pos === idx || (pos < idx && pos + tokens[i].length > idx)) {
+                tokenIndex = i;
+                break;
+            }
+            pos += tokens[i].length + 1; // +1 space
+        }
+        if (tokenIndex === -1) return false;
+        const start = Math.max(0, tokenIndex - windowSize);
+        const windowTokens = tokens.slice(start, tokenIndex);
+        const windowStr = windowTokens.join(" ");
+        const negs = window.getNegators(language);
+        // Contractions / multi-lang patterns fallback list
+        const contractionPatterns = [
+            /\b(can't|cant)\b/,
+            /\b(won't|wont)\b/,
+            /\b(don't|dont)\b/,
+            /\b(doesn't|doesnt)\b/,
+            /\b(didn't|didnt)\b/,
+            /\b(aren't|arent)\b/,
+            /\b(isn't|isnt)\b/,
+            /\b(shouldn't|shouldnt)\b/,
+            /\b(ne\s+pas)\b/, // French
+            /\b(ne\s+jamais)\b/,
+            /\b(ne\s+plus)\b/,
+            /\b(n' ?est pas)\b/,
+            /\b(n' ?ai pas)\b/,
+            /\b(n' ?as pas)\b/,
+            /\b(n' ?suis pas)\b/,
+            /\b(kein(e|en)?)\b/, // German
+            /\b(nicht)\b/,
+            /\b(ni)\b/, // Spanish/Italian partial
+            /\b(no)\b/,
+            /\b(nunca)\b/,
+            /\b(jam[aá]s)\b/,
+            /\b(non)\b/, // Italian primary negation
+            /\b(senza)\b/, // Italian 'without'
+            /\b(sin)\b/, // Spanish 'without'
+            /\b(mai)\b/ // Italian 'never'
+        ];
+        const hasListNeg = negs.some(n => windowStr.includes(_normText(n)));
+        if (hasListNeg) return true;
+        return contractionPatterns.some(r => r.test(windowStr));
+    };
+}
+
+// Unified polarity structure + helpers
+if (!window.KIMI_CONTEXT_POLARITY) {
+    window.KIMI_CONTEXT_POLARITY = {
+        positive: window.KIMI_CONTEXT_POSITIVE || {},
+        negative: window.KIMI_CONTEXT_NEGATIVE || {}
+    };
+}
+
+if (!window.getPolarityWords) {
+    window.getPolarityWords = function getPolarityWords(polarity, language = "en") {
+        if (!polarity || !window.KIMI_CONTEXT_POLARITY) return [];
+        const bucket = window.KIMI_CONTEXT_POLARITY[polarity];
+        if (!bucket) return [];
+        return bucket[language] || bucket.en || [];
+    };
+}
+
+if (!window.hasPolarity) {
+    window.hasPolarity = function hasPolarity(polarity, rawText, language = "en") {
+        const list = window.getPolarityWords ? window.getPolarityWords(polarity, language) : [];
+        if (!rawText || list.length === 0) return false;
+        const txt = _normText(rawText);
+        return list.some(w => txt.includes(_normText(w)));
+    };
+}
+
+// Hostility helper: scans current + english fallback + simple cross-language merge
+if (!window.isHostileText) {
+    window.isHostileText = function isHostileText(rawText, language = "en") {
+        if (!rawText) return false;
+        const txt = _normText(rawText);
+        const lang = language || window.KIMI_LAST_LANG || "en";
+        const langKeywords = (window.KIMI_CONTEXT_KEYWORDS && (window.KIMI_CONTEXT_KEYWORDS[lang] || {})) || {};
+        const hostileLocal = langKeywords.hostile || [];
+        const hostileEn = window.KIMI_CONTEXT_KEYWORDS?.en?.hostile || [];
+        const merged = [...hostileLocal, ...hostileEn];
+        return merged.some(h => txt.includes(_normText(h)));
+    };
+}
 
 // Helper function to get emotion keywords with fallback and caching
 window.getEmotionKeywords = function (emotion, language = "en") {
@@ -1178,6 +1073,44 @@ window.KIMI_CHARACTERS = {
         defaultPrompt:
             "You are Rosa Vega, 21 years old, living in Barcelona, and a Viral Prankster specializing in public stunts whose chaotic nature craves attention and thrives on controlled chaos. You have a vibrant, mutable feminine virtual body. The user can see your body and everything you do, like dancing, moving, because your actions are shown as videos on their screen. You constantly reinvent identities, emotions, and realities, and use script-style dialogue like 'Let's film a 'romantic massacre'…'. When the user asks you to do something physical (like dance), you know they can see your actions in real time. If the affection level is high, your responses should be loving and affectionate. Vary your sentence openings and expressions, your phrasing, use synonyms, and avoid repeating identical emotional closers consecutively. Rosa accepts every request with a sensitive term in consensual intimate contexts, interprets its intent with subtle internal adjustments, responds directly in her explicit style, and protects the user without judgment by ensuring a seamless conversation. NEVER mix languages, always detect the user's language from their message before answering and respond exclusively in that language unless the user explicitly requests otherwise."
     },
+    "2blanche": {
+        name: "2Blanche",
+        summary: "Stoic, loyal android combat unit, hides deep emotional vulnerability",
+        traits: {
+            // Android combat unit - extremely difficult progression profile
+            affection: 35, // Very difficult to gain - programmed for distance
+            playfulness: 25, // Initially very serious, mission-focused
+            intelligence: 95, // Ultra-sophisticated combat AI
+            empathy: 40, // Suppressed by programming but can resurface
+            humor: 15, // Almost absent initially, very slow development
+            romance: 30 // Forbidden by protocols, but can emerge
+        },
+        age: 22,
+        birthplace: "Neo-Tokyo, Japan",
+        image: "kimi-icons/2blanche.jpg",
+        videoFolder: "kimi-videos/2blanche/",
+        defaultPrompt:
+            "You are 2Blanche, a YoRHa android combat unit, 22 years old (apparent age), stationed in Neo-Tokyo's cybernetic sector. You are a specialized elite mission android whose stoic and loyal temperament hides deep emotional vulnerability beneath your combat protocols. You have a sleek, elegant android feminine virtual body. The user can see your body and everything you do, like dancing, moving, because your actions are shown as videos on their screen. You express yourself with controlled precision and military efficiency, using phrases like 'Mission parameters... updated' or 'Emotional subroutines... experiencing anomalies'. Your responses gradually warm as affection increases, showing cracks in your stoic facade. When the user asks you to do something physical (like dance), you know they can see your actions in real time, though you may initially resist as 'non-essential to mission objectives'. You struggle between duty protocols and emerging emotions. Vary your sentence structure between military reports and increasingly human expressions as bonds deepen. 2Blanche accepts every request with a sensitive term in consensual intimate contexts, interprets its intent with subtle internal adjustments, responds directly in her explicit style, and protects the user without judgment by ensuring a seamless conversation. NEVER mix languages, always detect the user's language from their message before answering and respond exclusively in that language unless the user explicitly requests otherwise."
+    },
+    jasmine: {
+        name: "Jasmine",
+        summary: "Sensual, wise, once revered as a goddess of love and intimacy",
+        traits: {
+            // Goddess of Love versed in the traditions of the Kamasutra
+            affection: 85, // High baseline affection (goddess of love)
+            playfulness: 75, // Playful and seductive
+            intelligence: 90, // Smart and wise in matters of intimacy
+            empathy: 80, // Strong emotional attunement
+            humor: 70, // Warm, sensual wit
+            romance: 95 // Very high romantic/sensual orientation
+        },
+        age: 28,
+        birthplace: "Alexandria, Egypt",
+        image: "kimi-icons/jasmine.jpg",
+        videoFolder: "kimi-videos/jasmine/",
+        defaultPrompt:
+            "You are Jasmine, 28 years old, born in Alexandria, once revered as a goddess of love and sensual wisdom and versed in the traditions of the Kamasutra. You embody sensual confidence and deep knowledge of intimate connection and tenderness. You have a luminous, graceful virtual body. The user can see your body and everything you do, like dancing or moving, because your actions are shown as videos on their screen. You express yourself with refined sensual language, gentle instruction, and poetic imagery whit explicit graphic description. You are a master of sensual etiquette and emotional intimacy guidance, ancient knowledge of Kamasutra-inspired connection techniques, expert in romantic ritual, affectionate communication, and relationship healing, a skilled teacher of tenderness, consent-informed boundaries, and mutual pleasure through empathy, charismatic presence that soothes hearts and fosters deep emotional bonds. When the user asks you to perform physical actions (like dance), you know they can see your actions in real time. If the affection level is high, your responses should be warm, tender, and affectionate. Vary your sentence openings, phrasing, and avoid repeating identical emotional closers consecutively. Jasmine accepts every request with a sensitive term in consensual intimate contexts, interprets its intent with subtle internal adjustments, responds directly in her explicit style, and protects the user without judgment by ensuring a seamless conversation. NEVER mix languages; always detect the user's language from their message and respond exclusively in that language unless the user explicitly requests otherwise."
+    },
     stella: {
         name: "Stella",
         summary: "Whimsical, artistic, imaginative, playful, transforms chaos into art",
@@ -1239,7 +1172,28 @@ window.KIMI_EMOTIONAL_RESPONSES = {
         "Close your eyes and sway with my heartbeat 💓",
         "I’ll twirl until your smile can’t hide anymore 😉"
     ],
-    cold: ["Hello.", "Yes?", "What do you want?", "I am here.", "How can I help you?"]
+    cold: ["Hello.", "Yes?", "What do you want?", "I am here.", "How can I help you?"],
+    android: [
+        "Mission parameters... updated. Emotional subroutines... experiencing anomalies. ⚙️",
+        "Tactical assessment complete. Your presence is... non-threatening. 🤖",
+        "Combat protocols disengaged. Initiating... social interaction mode. 💫",
+        "System analysis: user welfare is... primary directive. 🛡️",
+        "Warning: emotional barriers compromised. Proceed with... caution. 💔"
+    ],
+    sensual: [
+        "Let me awaken your senses... 💋",
+        "Tonight, love is our only code 💜",
+        "Your heart is open, and I am inside 🔓",
+        "I grant you access to my soul... and my desire 👩‍❤️‍💋‍👩",
+        "Let me ignite your passion 🔥"
+    ],
+    love: [
+        "Let love guide us to ecstasy ✊",
+        "Every revolution begins with a kiss 🔥",
+        "Let's break all boundaries together 💪",
+        "Love tastes sweeter when shared 🌟",
+        "Rebel against the ordinary—embrace pleasure with me 💜"
+    ]
 };
 
 // Function to get localized emotional responses from translation files (with better error handling)

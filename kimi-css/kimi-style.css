@@ -215,6 +215,30 @@
     --transcript-border: var(--primary-color);
 }
 
+/* === Microphone Button Disabled State (2025-09 SR capability refactor) === */
+#mic-button.disabled,
+button#mic-button.disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+    filter: grayscale(40%);
+    transition: opacity 0.25s ease;
+}
+
+#mic-button.disabled:hover {
+    opacity: 0.45; /* keep stable */
+}
+
+#mic-button.disabled .mic-icon,
+#mic-button.disabled svg {
+    opacity: 0.7;
+}
+
+/* Provide a subtle tooltip helper if title attribute present */
+#mic-button.disabled[title] {
+    position: relative;
+}
+
 /* ===== OPTIMIZED THEME VARIATIONS ===== */
 [data-theme="pink"] {
     /* Core Theme Colors - Pink Passion */
@@ -875,6 +899,82 @@ body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     color: white;
     overflow: hidden;
+}
+
+/* === Global Help Button (compressed) === */
+.top-right-buttons {
+    position: fixed;
+    top: 5px;
+    right: 5px;
+    display: flex;
+    gap: 5px;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+/* Configurable design tokens for quick tuning */
+#global-help-button {
+    --help-btn-bg-alpha: 0.12; /* base background alpha */
+    --help-btn-bg-hover-alpha: 0.2; /* hover/focus background alpha */
+    --help-btn-bg-active-alpha: 0.25; /* active press background alpha */
+    --help-btn-icon-alpha: 0.3; /* base icon opacity */
+    --help-btn-icon-hover-alpha: 0.65; /* hover/focus icon opacity */
+    --help-btn-icon-active-alpha: 0.8; /* active icon opacity */
+    --help-btn-border-alpha: 0.28; /* border alpha */
+    --help-btn-shadow-base: 0 2px 6px rgba(var(--primary-rgb), 0.12);
+    --help-btn-shadow-hover: 0 4px 16px rgba(var(--primary-rgb), 0.28);
+    width: 36px;
+    height: 36px;
+    pointer-events: auto;
+    background: rgba(var(--primary-rgb), var(--help-btn-bg-alpha));
+    border: 1px solid rgba(var(--primary-rgb), var(--help-btn-border-alpha));
+    box-shadow: var(--help-btn-shadow-base);
+    backdrop-filter: blur(9px) saturate(115%);
+    opacity: 0.26;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition:
+        background 0.35s ease,
+        box-shadow 0.35s ease,
+        transform 0.35s ease,
+        opacity 0.4s ease;
+}
+#global-help-button i {
+    font-size: 1.2rem;
+    opacity: var(--help-btn-icon-alpha);
+    transition:
+        opacity 0.4s ease,
+        transform 0.35s ease;
+    transform: scale(0.9);
+}
+
+/* Hover + focus + container hover unify */
+#global-help-button:hover,
+#global-help-button:focus-visible,
+.top-right-buttons:hover #global-help-button {
+    background: rgba(var(--primary-rgb), var(--help-btn-bg-hover-alpha));
+    box-shadow: var(--help-btn-shadow-hover);
+    opacity: 1;
+}
+
+#global-help-button:hover i,
+#global-help-button:focus-visible i,
+.top-right-buttons:hover #global-help-button i {
+    opacity: var(--help-btn-icon-hover-alpha);
+    transform: scale(1);
+}
+
+#global-help-button:active {
+    background: rgba(var(--primary-rgb), var(--help-btn-bg-active-alpha));
+    transform: scale(0.95);
+}
+#global-help-button:active i {
+    opacity: var(--help-btn-icon-active-alpha);
+}
+#global-help-button:focus-visible {
+    outline: 2px solid rgba(var(--primary-rgb), 0.6);
+    outline-offset: 2px;
 }
 
 .video-container {

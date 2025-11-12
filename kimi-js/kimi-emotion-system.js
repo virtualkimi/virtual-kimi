@@ -28,7 +28,12 @@ class KimiEmotionSystem {
             SHY: "shy",
             FLIRTATIOUS: "flirtatious",
             KISS: "kiss",
-            GOODBYE: "goodbye"
+            GOODBYE: "goodbye",
+
+            // New emotions for new characters
+            ANDROID: "android",
+            SENSUAL: "sensual",
+            LOVE: "love"
         };
 
         // Unified video context mapping - CENTRALIZED SOURCE OF TRUTH
@@ -54,6 +59,11 @@ class KimiEmotionSystem {
             shy: "neutral",
             goodbye: "neutral",
 
+            // New character specific emotions mapped to EXISTING categories only
+            android: "speakingPositive", // 2Blanche responses use existing speakingPositive videos
+            sensual: "speakingPositive", // Jasmine sensual mode uses existing speakingPositive videos
+            love: "speakingPositive", // Jasmine love mode uses existing speakingPositive videos
+
             // Explicit context mappings (for compatibility)
             speaking: "speakingPositive", // Generic speaking defaults to positive
             speakingPositive: "speakingPositive",
@@ -66,6 +76,9 @@ class KimiEmotionSystem {
             kiss: 9, // Very high - intimate moment
             romantic: 8, // High - emotional connection
             listening: 7, // High - active interaction
+            android: 6, // Medium-high - character-specific context
+            sensual: 6, // Medium-high - character-specific context
+            love: 6, // Medium-high - character-specific context
             flirtatious: 6, // Medium-high - playful interaction
             laughing: 6, // Medium-high - positive expression
             surprise: 5, // Medium - reaction
@@ -109,7 +122,12 @@ class KimiEmotionSystem {
             confident: { intelligence: 0.15, affection: 0.55 },
             listening: { empathy: 0.6, intelligence: 0.25 },
             kiss: { romance: 0.85, affection: 0.7 },
-            goodbye: { affection: -0.15, empathy: 0.1 }
+            goodbye: { affection: -0.15, empathy: 0.1 },
+
+            // New character-specific emotions
+            android: { intelligence: 0.8, affection: 0.1, empathy: -0.2 }, // High intelligence, slow emotional progress
+            sensual: { intelligence: 0.6, playfulness: 0.4, romance: 0.3 }, // Brilliance with charm
+            love: { playfulness: 0.7, intelligence: 0.3, affection: 0.2 } // Sensual energy
         };
 
         // Trait keyword scaling model for conversation analysis (per-message delta shaping)
@@ -185,6 +203,20 @@ class KimiEmotionSystem {
         if (this.validEmotions.includes(normalized)) return normalized;
 
         // Check common aliases
+        // NOTE (Clarity Patch - Option 1):
+        // The following alias map intentionally routes the generic context word "speaking"
+        // (and its positive / negative variants) to the polarity emotions "positive" / "negative".
+        // Later, when a video category is needed, the system remaps:
+        //   positive  -> speakingPositive (via emotionToVideoCategory)
+        //   negative  -> speakingNegative (via emotionToVideoCategory)
+        // Rationale:
+        //   1. Keep EMOTIONS focused on high-level semantic emotions (positive/negative) instead of
+        //      duplicating technical rendering states (speakingPositive / speakingNegative).
+        //   2. Preserve backward compatibility with older code that emitted "speaking" as an emotion.
+        //   3. Reduce surface area of the emotion validation list while still achieving correct video output.
+        // This can look like a double hop (speaking -> positive -> speakingPositive) but no information is lost.
+        // If later a direct mapping is desired, Option 2 would be to add SPEAKING_POSITIVE / SPEAKING_NEGATIVE
+        // into EMOTIONS and point aliases directly there. For now we keep the lean design.
         const aliases = {
             happy: "positive",
             sad: "negative",
@@ -198,7 +230,20 @@ class KimiEmotionSystem {
             // Speaking contexts as emotion aliases
             speaking: "positive", // Generic speaking defaults to positive
             speakingpositive: "positive",
-            speakingnegative: "negative"
+            speakingnegative: "negative",
+            // New character-specific aliases
+            robot: "android",
+            robotic: "android",
+            military: "android",
+            tactical: "android",
+            sensual: "sensual",
+            pleasure: "sensual",
+            emotional: "sensual",
+            intimate: "sensual",
+            tenderness: "love",
+            intimacy: "love",
+            position: "love",
+            love: "love"
         };
 
         if (aliases[normalized]) return aliases[normalized];
@@ -276,13 +321,22 @@ class KimiEmotionSystem {
         // Auto-detect language
         let detectedLang = this._detectLanguage(text, lang);
 
-        // Get language-specific keywords
-        const positiveWords = window.KIMI_CONTEXT_POSITIVE?.[detectedLang] ||
-            window.KIMI_CONTEXT_POSITIVE?.en || ["happy", "good", "great", "love"];
-        const negativeWords = window.KIMI_CONTEXT_NEGATIVE?.[detectedLang] ||
-            window.KIMI_CONTEXT_NEGATIVE?.en || ["sad", "bad", "angry", "hate"];
+        // Get language-specific polarity keywords via centralized helpers
+        const positiveWords = (window.getPolarityWords && window.getPolarityWords("positive", detectedLang)) || ["happy", "good", "great", "love"];
+        const negativeWords = (window.getPolarityWords && window.getPolarityWords("negative", detectedLang)) || ["sad", "bad", "angry", "hate"];
 
         const emotionKeywords = window.KIMI_CONTEXT_KEYWORDS?.[detectedLang] || window.KIMI_CONTEXT_KEYWORDS?.en || {};
+
+        // Hostile override (immediate negative if hostile keywords present via centralized helper)
+        try {
+            if (window.isHostileText && window.isHostileText(text, detectedLang)) {
+                return this.EMOTIONS.NEGATIVE;
+            }
+            // Fallback: also scan english if language auto-detected incorrectly
+            if (detectedLang !== "en" && window.isHostileText && window.isHostileText(text, "en")) {
+                return this.EMOTIONS.NEGATIVE;
+            }
+        } catch {}
 
         // Priority order for emotion detection - reordered for better logic
         const emotionChecks = [
@@ -299,19 +353,12 @@ class KimiEmotionSystem {
             // Listening intent (lower priority to not mask other emotions)
             {
                 emotion: this.EMOTIONS.LISTENING,
-                keywords: emotionKeywords.listening || [
-                    "listen carefully",
-                    "I'm listening",
-                    "listening to you",
-                    "hear me out",
-                    "pay attention"
-                ]
+                keywords: emotionKeywords.listening || ["listen carefully", "I'm listening", "listening to you", "hear me out", "pay attention"]
             }
         ];
 
         // Check for specific emotions first, applying sensitivity weights per language
-        const sensitivity = (window.KIMI_EMOTION_SENSITIVITY &&
-            (window.KIMI_EMOTION_SENSITIVITY[detectedLang] || window.KIMI_EMOTION_SENSITIVITY.default)) || {
+        const sensitivity = (window.KIMI_EMOTION_SENSITIVITY && (window.KIMI_EMOTION_SENSITIVITY[detectedLang] || window.KIMI_EMOTION_SENSITIVITY.default)) || {
             listening: 1,
             dancing: 1,
             romantic: 1,
@@ -382,7 +429,9 @@ class KimiEmotionSystem {
         }
 
         const selectedCharacter = character || (await this.db.getSelectedCharacter());
-        const traits = await this.db.getAllPersonalityTraits(selectedCharacter);
+        const traits = window.getCharacterTraits
+            ? await window.getCharacterTraits(selectedCharacter)
+            : await this.db.getAllPersonalityTraits(selectedCharacter);
 
         const safe = (v, def) => (typeof v === "number" && isFinite(v) ? v : def);
         let affection = safe(traits?.affection, this.TRAIT_DEFAULTS.affection);
@@ -592,7 +641,7 @@ class KimiEmotionSystem {
         if (!this.db) return;
         const lowerUser = this.normalizeText(userMessage || "");
         const lowerKimi = this.normalizeText(kimiResponse || "");
-        const traits = (await this.db.getAllPersonalityTraits(character)) || {};
+        const traits = (window.getCharacterTraits ? await window.getCharacterTraits(character) : await this.db.getAllPersonalityTraits(character)) || {};
         const selectedLanguage = await this.db.getPreference("selectedLanguage", "en");
 
         // Use unified keyword system
@@ -607,8 +656,7 @@ class KimiEmotionSystem {
         for (const trait of ["humor", "intelligence", "romance", "affection", "playfulness", "empathy"]) {
             const posWords = getPersonalityWords(trait, "positive");
             const negWords = getPersonalityWords(trait, "negative");
-            let currentVal =
-                typeof traits[trait] === "number" && isFinite(traits[trait]) ? traits[trait] : this.TRAIT_DEFAULTS[trait];
+            let currentVal = typeof traits[trait] === "number" && isFinite(traits[trait]) ? traits[trait] : this.TRAIT_DEFAULTS[trait];
             const model = this.TRAIT_KEYWORD_MODEL[trait];
             const posFactor = model.posFactor;
             const negFactor = model.negFactor;
@@ -732,14 +780,9 @@ class KimiEmotionSystem {
         // Try selected language list if set
         const lang = (window.KIMI_SELECTED_LANG && String(window.KIMI_SELECTED_LANG)) || null;
         const langNegators = (lang && window.KIMI_NEGATORS && window.KIMI_NEGATORS[lang]) || [];
-        const merged = new Set([
-            ...(Array.isArray(langNegators) ? langNegators : []),
-            ...(Array.isArray(globalNegators) ? globalNegators : [])
-        ]);
+        const merged = new Set([...(Array.isArray(langNegators) ? langNegators : []), ...(Array.isArray(globalNegators) ? globalNegators : [])]);
         // Always include a minimal english/french set as fallback
-        ["no", "not", "never", "none", "nobody", "nothing", "ne", "n", "pas", "jamais", "plus", "aucun", "rien", "non"].forEach(
-            x => merged.add(x)
-        );
+        ["no", "not", "never", "none", "nobody", "nothing", "ne", "n", "pas", "jamais", "plus", "aucun", "rien", "non"].forEach(x => merged.add(x));
         const win = Number(window.KIMI_NEGATION_WINDOW) || window;
         const start = Math.max(0, index - win);
         for (let i = start; i < index; i++) {
@@ -769,7 +812,12 @@ class KimiEmotionSystem {
             }
             if (match) {
                 // skip if a negation is in window before the match
-                if (!this.hasNegationWindow(tokens, i)) {
+                // Use global isPhraseNegated API (fallback to existing logic if absent)
+                const phrase = needleTokens.join(" ");
+                const isNeg = window.isPhraseNegated
+                    ? window.isPhraseNegated(haystack, phrase, this._detectLanguage(haystack, "auto"))
+                    : this.hasNegationWindow(tokens, i);
+                if (!isNeg) {
                     count++;
                 }
                 i += needleTokens.length - 1; // advance to avoid overlapping
@@ -795,7 +843,10 @@ class KimiEmotionSystem {
                 }
             }
             if (match) {
-                if (this.hasNegationWindow(tokens, i)) return true;
+                const phrase = needleTokens.join(" ");
+                const detectedLang = this._detectLanguage(haystack, "auto");
+                const isNeg = window.isPhraseNegated ? window.isPhraseNegated(haystack, phrase, detectedLang) : this.hasNegationWindow(tokens, i);
+                if (isNeg) return true;
                 i += needleTokens.length - 1;
             }
         }
@@ -826,13 +877,19 @@ class KimiEmotionSystem {
     // ===== UTILITY METHODS =====
     _detectLanguage(text, lang) {
         if (lang !== "auto") return lang;
-
+        // Quick heuristic detection
         if (/[àâäéèêëîïôöùûüÿç]/i.test(text)) return "fr";
-        else if (/[äöüß]/i.test(text)) return "de";
-        else if (/[ñáéíóúü]/i.test(text)) return "es";
-        else if (/[àèìòù]/i.test(text)) return "it";
-        else if (/[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]/i.test(text)) return "ja";
-        else if (/[\u4e00-\u9fff]/i.test(text)) return "zh";
+        if (/[äöüß]/i.test(text)) return "de";
+        if (/[ñáéíóúü]/i.test(text)) return "es";
+        if (/[àèìòù]/i.test(text)) return "it";
+        if (/[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]/i.test(text)) return "ja";
+        if (/[\u4e00-\u9fff]/i.test(text)) return "zh";
+
+        // Fallback: if last language set and hostiles detected there, reuse it
+        try {
+            const last = window.KIMI_LAST_LANG;
+            if (last && window.isHostileText && window.isHostileText(text, last)) return last;
+        } catch {}
         return "en";
     }
 
@@ -842,8 +899,7 @@ class KimiEmotionSystem {
         const selectedLanguage = await this.db.getPreference("selectedLanguage", "en");
         const romanticWords = window.KIMI_CONTEXT_KEYWORDS?.[selectedLanguage]?.romantic ||
             window.KIMI_CONTEXT_KEYWORDS?.en?.romantic || ["love", "romantic", "kiss"];
-        const humorWords = window.KIMI_CONTEXT_KEYWORDS?.[selectedLanguage]?.laughing ||
-            window.KIMI_CONTEXT_KEYWORDS?.en?.laughing || ["joke", "funny", "lol"];
+        const humorWords = window.KIMI_CONTEXT_KEYWORDS?.[selectedLanguage]?.laughing || window.KIMI_CONTEXT_KEYWORDS?.en?.laughing || ["joke", "funny", "lol"];
 
         const romanticPattern = new RegExp(`(${romanticWords.join("|")})`, "i");
         const humorPattern = new RegExp(`(${humorWords.join("|")})`, "i");
@@ -960,7 +1016,7 @@ window.refreshPersonalityAverageUI = async function (characterKey = null) {
             await window.updateGlobalPersonalityUI(characterKey);
         } else if (window.getPersonalityAverage && window.kimiDB) {
             const charKey = characterKey || (await window.kimiDB.getSelectedCharacter());
-            const traits = await window.kimiDB.getAllPersonalityTraits(charKey);
+            const traits = window.getCharacterTraits ? await window.getCharacterTraits(charKey) : await window.kimiDB.getAllPersonalityTraits(charKey);
             const avg = window.getPersonalityAverage(traits);
             const bar = document.getElementById("favorability-bar");
             const text = document.getElementById("favorability-text");
