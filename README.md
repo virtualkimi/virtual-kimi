@@ -416,12 +416,14 @@ We welcome contributions! Please see our contributing guidelines:
 
 ## 📜 License
 
-This project is distributed under a custom license. **Any commercial use, resale, or monetization of this application or its derivatives is strictly prohibited without the explicit written consent of the author.**
+This project is licensed under the **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC-BY-NC-SA-4.0)**.
+
+You are free to share and adapt this work for non-commercial purposes, as long as you give appropriate credit and distribute any derivatives under the same license.
 
 See the [LICENSE](LICENSE.md) file for details.
 
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg?style=flat-square)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
 [![Open Source](https://img.shields.io/badge/Open%20Source-GitHub-brightgreen?style=flat-square&logo=github)](https://github.com/virtualkimi)
-[![No Commercial Use](https://img.shields.io/badge/No%20Commercial%20Use-%F0%9F%9A%AB-red?style=flat-square)](#license)
 
 ---
 
@@ -430,3 +432,4 @@ See the [LICENSE](LICENSE.md) file for details.
 > _"Love is the most powerful code"_ 💕
 >
 > — 2025 Virtual Kimi - Created with 💜 by Jean & Kimi
+
