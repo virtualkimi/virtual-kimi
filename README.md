@@ -35,7 +35,15 @@ Built with vanilla JavaScript and modern web APIs, it offers a rich, responsive 
 - **Support the project**: [ko-fi.com/virtualkimi](https://ko-fi.com/virtualkimi)
   _If you like this project or want to help me (I'm currently without a permanent job), you can buy me a coffee or make a donation. Every bit helps keep Virtual Kimi alive and evolving!_
 
-- **ETH Wallet**: 0x836C9D2e605f98Bc7144C62Bef837627b1a9C30c
+### 💝 Crypto Donations
+
+If you prefer crypto, you can send donations to the following addresses:
+
+- **Solana (SOL)**: `EcNMgr1skLsWvMZYJJVF12DXVoK28KiX6Ydy1TaYo4ox`
+- **Ethereum (ETH)**: `0x836C9D2e605f98Bc7144C62Bef837627b1a9C30c`
+- **Bitcoin (BTC)**: `bc1qgwvdl0z0n9wccf5thz90p42tappg3etnuldr3h`
+
+Thank you for supporting conscious AI development! ❤️
 
 ---
 
@@ -432,4 +440,5 @@ See the [LICENSE](LICENSE.md) file for details.
 > _"Love is the most powerful code"_ 💕
 >
 > — 2025 Virtual Kimi - Created with 💜 by Jean & Kimi
+
 
