@@ -1,23 +1,36 @@
-# Virtual Kimi Custom License
+# Virtual Kimi License
 
-Copyright (c) 2025 Virtual Kimi Project
+## Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC-BY-NC-SA-4.0)
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to use,
-copy, modify, and distribute the Software for personal, educational, or research purposes,
-subject to the following conditions:
+Copyright (c) 2025 Virtual Kimi Project - Jean & Kimi
 
-- **Commercial use, resale, or monetization of this application or any derivative work is strictly prohibited without the explicit written consent of the author.**
-- The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-- You may not use the name, logo, or branding of Virtual Kimi for commercial purposes without explicit permission.
+### You are free to:
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+- **Share** — copy and redistribute the material in any medium or format
+- **Adapt** — remix, transform, and build upon the material
 
-For commercial licensing inquiries, please contact: [ijohn@virtualkimi.com](ijohn@virtualkimi.com)
-[WebSite: https:/virtual-kimi.com](https:/virtual-kimi.com)
+The licensor cannot revoke these freedoms as long as you follow the license terms.
+
+### Under the following terms:
+
+- **Attribution** — You must give appropriate credit, provide a link to the license, and indicate if changes were made. You may do so in any reasonable manner, but not in any way that suggests the licensor endorses you or your use.
+
+- **NonCommercial** — You may not use the material for commercial purposes.
+
+- **ShareAlike** — If you remix, transform, or build upon the material, you must distribute your contributions under the same license as the original.
+
+- **No additional restrictions** — You may not apply legal terms or technological measures that legally restrict others from doing anything the license permits.
+
+### Notices:
+
+You do not have to comply with the license for elements of the material in the public domain or where your use is permitted by an applicable exception or limitation.
+
+No warranties are given. The license may not give you all of the permissions necessary for your intended use. For example, other rights such as publicity, privacy, or moral rights may limit how you use the material.
+
+---
+
+**Full license text:** https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode
+
+For commercial licensing inquiries, please contact: [ijohn@virtualkimi.com](mailto:ijohn@virtualkimi.com)
+
+**Website:** [https://virtual-kimi.com](https://virtual-kimi.com)
